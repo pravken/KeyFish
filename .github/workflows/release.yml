@@ -12,7 +12,10 @@ jobs:
   release:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      # Закреплено на точном коммите, а не на метке: подменённая метка не попадёт в сборку
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Check that the tag matches Version.cs
         shell: pwsh
