@@ -334,6 +334,17 @@ class App : ApplicationContext
         finally { busy = false; }
     }
 
+    // Вставка через буфер обмена. Пауза перед Ctrl+V обязательна: без неё приложение
+    // иногда успевает вставить старое содержимое буфера (видно на Shift+Pause)
+    static bool Paste(string text)
+    {
+        if (!SetClipboardText(text)) return false;
+        Pump(50);
+        Native.Chord(Native.VK_CONTROL, (byte)'V');
+        Pump(150);
+        return true;
+    }
+
     void TransformSelection(Func<string, string> transform)
     {
         Native.WaitModifiersReleased();
@@ -342,11 +353,7 @@ class App : ApplicationContext
         if (!string.IsNullOrEmpty(text))
         {
             string result = transform(text);
-            if (result != text && SetClipboardText(result))
-            {
-                Native.Chord(Native.VK_CONTROL, (byte)'V');
-                Pump(150);
-            }
+            if (result != text) Paste(result);
         }
         RestoreClipboard(saved);
     }
@@ -360,10 +367,8 @@ class App : ApplicationContext
         if (!string.IsNullOrEmpty(text))
         {
             string result = CaseConverter.Next(text);
-            if (SetClipboardText(result))
+            if (Paste(result))
             {
-                Native.Chord(Native.VK_CONTROL, (byte)'V');
-                Pump(100);
                 // Выделяем вставленный текст снова, чтобы следующее нажатие продолжило цикл
                 int caretSteps = result.Length - CountOf(result, "\r\n");
                 if (caretSteps <= 5000) Native.SelectLeft(caretSteps);
@@ -406,12 +411,7 @@ class App : ApplicationContext
         {
             bool toRu = !Converter.IsMostlyRussian(text);
             string result = Converter.Convert(text, toRu);
-            if (SetClipboardText(result))
-            {
-                Native.Chord(Native.VK_CONTROL, (byte)'V');
-                Pump(150);
-                Native.SwitchLayout(target, toRu ? "00000419" : "00000409");
-            }
+            if (Paste(result)) Native.SwitchLayout(target, toRu ? "00000419" : "00000409");
         }
 
         RestoreClipboard(saved);
