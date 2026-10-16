@@ -1,36 +1,38 @@
-﻿<img src="tools/fish-preview.png" width="300" align="right">
+<img src="tools/fish-preview.png" width="300" align="right">
 
 # KeyFish
 
-Маленькая программа для Windows, которая живёт в трее и исправляет текст, набранный не в той раскладке.
+[Русская версия](README.ru.md)
 
-- **Автоисправление при наборе:** `ghbdtn vbh` → «привет мир», `руддщ` → «hello», `f vj;yj` → «а можно»
-- **Исправление регистра:** «пРИВЕТ» (случайный CapsLock) → «Привет», «ПРивет» → «Привет»
-- **Автозамены:** `спс` + пробел → «спасибо» — свой список в настройках
-- **Pause** или **Ctrl+Shift+Space** — перевести выделенный текст в другую раскладку; Pause сразу после автоисправления — отменить его
-- **Shift+F3** — сменить регистр выделенного текста по кругу, как в Word
-- **Shift+Pause** — транслитерация: «Привет» ⇄ «Privet»
-- Исправление опечаток через проверку орфографии Windows (эксперимент, включается в настройках)
-- Рыбка в трее показывает раскладку: синяя — английская, оранжевая — русская
+A tiny Windows tray app that fixes text typed in the wrong keyboard layout — for everyone who switches between English and Russian.
 
-Если стереть исправленное слово Backspace'ом, программа запомнит его и больше не будет трогать. Все сочетания клавиш меняются в настройках (двойной щелчок по рыбке). Программа сама проверяет, не вышла ли новая версия.
+- **Auto-correction as you type:** `ghbdtn vbh` → «привет мир», `руддщ` → "hello", `f vj;yj` → «а можно»
+- **Case fixing:** "hELLO" (accidental CapsLock) → "Hello", "HEllo" → "Hello"
+- **Text replacements:** `thx` + space → "thank you" — your own list in Settings
+- **Pause** or **Ctrl+Shift+Space** — switch the layout of selected text; Pause right after an auto-fix undoes it
+- **Shift+F3** — cycle the case of selected text, like in Word
+- **Shift+Pause** — transliteration: «Привет» ⇄ "Privet"
+- Typo fixing via Windows spell check (experimental, turn it on in Settings)
+- The tray fish shows the current layout: blue — English, orange — Russian
 
-## Установка
+If you erase a correction with Backspace, KeyFish remembers the word and never touches it again. All hotkeys can be changed in Settings (double-click the fish). KeyFish checks for new versions on its own. The interface is in English or Russian.
 
-Скачайте `KeyFish.exe` из [релизов](../../releases) и запустите. Установка не нужна. Автозапуск включается в меню значка в трее.
+## Install
 
-При первом запуске Windows может показать «Windows защитила ваш компьютер» — программа не подписана. Нажмите «Подробнее» → «Выполнить в любом случае».
+Download `KeyFish.exe` from [Releases](../../releases/latest) and run it — no installation needed. Turn on autostart in Settings.
 
-## Сборка
+Windows may show "Windows protected your PC" on first run because the app isn't signed. Click "More info" → "Run anyway".
 
-Нужен только Windows: компилятор C# входит в .NET Framework 4.
+## Build
+
+Windows only: the C# compiler ships with .NET Framework 4.
 
 ```
 build.bat
 ```
 
-Значок рисует `tools\make-icon.ps1`. Версия — в `Version.cs`, история изменений — в `CHANGELOG.md`.
+The icons are drawn by `tools\make-icon.ps1`. The version lives in `Version.cs`, the history in `CHANGELOG.md` (English) and `CHANGELOG.ru.md` (Russian).
 
-## Благодарности
+## Credits
 
-Частотные словари в `data/` построены на основе [FrequencyWords](https://github.com/hermitdave/FrequencyWords) (Hermit Dave), лицензия [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Файлы в `data/` распространяются на тех же условиях.
+The frequency dictionaries in `data/` are built from [FrequencyWords](https://github.com/hermitdave/FrequencyWords) by Hermit Dave, licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). The files in `data/` are distributed under the same terms.

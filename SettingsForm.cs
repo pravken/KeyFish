@@ -7,39 +7,48 @@ using System.Windows.Forms;
 class SettingsForm : Form
 {
     public bool AutoCorrect, Typos, LayoutColor, Autostart, CheckUpdates;
+    public int Language;                 // 0 — как в Windows, 1 — русский, 2 — английский
     public Keys[] Hotkeys;
     public string Replacements, Exclusions, Ignored;
 
     CheckBox cbAuto, cbTypos, cbColor, cbAutostart, cbUpdates;
+    ComboBox cbLanguage;
     HotkeyBox[] hotkeyBoxes;
     TextBox tbReplacements, tbExclusions, tbIgnored;
 
     public SettingsForm()
     {
-        Text = "Настройки KeyFish";
+        Text = L.T("Настройки KeyFish", "KeyFish settings");
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = MinimizeBox = false;
         ShowInTaskbar = true;
         Font = new Font("Segoe UI", 9f);
         AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(560, 470);
+        ClientSize = new Size(560, 506);
     }
 
     protected override void OnLoad(EventArgs e)
     {
-        var tabs = new TabControl { Location = new Point(10, 10), Size = new Size(540, 410) };
+        var tabs = new TabControl { Location = new Point(10, 10), Size = new Size(540, 446) };
         tabs.TabPages.Add(MainPage());
-        tabs.TabPages.Add(TextPage("Автозамены", "Сокращение = замена, по одной на строку. Наберите сокращение и пробел — оно заменится. " +
-            "\\n внутри замены — перенос строки. Строки с # в начале не действуют.", Replacements, out tbReplacements));
-        tabs.TabPages.Add(TextPage("Исключения", "Программы, где автоисправление выключено: имя процесса по одному в строке, " +
-            "как в Диспетчере задач (например, Code или WINWORD).", Exclusions, out tbExclusions));
-        tabs.TabPages.Add(TextPage("Не исправлять", "Слова, которые программа никогда не исправляет. Сюда попадают слова, " +
-            "исправление которых вы отменили или стёрли.", Ignored, out tbIgnored));
+        tabs.TabPages.Add(TextPage(L.T("Автозамены", "Replacements"),
+            L.T("Сокращение = замена, по одной на строку. Наберите сокращение и пробел — оно заменится. " +
+                "\\n внутри замены — перенос строки. Строки с # в начале не действуют.",
+                "abbreviation = text, one per line. Type the abbreviation and a space to expand it. " +
+                "\\n inside the text is a line break. Lines starting with # are ignored."), Replacements, out tbReplacements));
+        tabs.TabPages.Add(TextPage(L.T("Исключения", "Excluded apps"),
+            L.T("Программы, где автоисправление выключено: имя процесса по одному в строке, " +
+                "как в Диспетчере задач (например, Code или WINWORD).",
+                "Apps where auto-correction is off: one process name per line, " +
+                "as shown in Task Manager (for example, Code or WINWORD)."), Exclusions, out tbExclusions));
+        tabs.TabPages.Add(TextPage(L.T("Не исправлять", "Never correct"),
+            L.T("Слова, которые программа никогда не исправляет. Сюда попадают слова, исправление которых вы отменили или стёрли.",
+                "Words KeyFish never corrects. Words land here when you undo or erase their correction."), Ignored, out tbIgnored));
         Controls.Add(tabs);
 
-        var ok = new Button { Text = "Сохранить", DialogResult = DialogResult.OK, Location = new Point(364, 432), Size = new Size(90, 28) };
-        var cancel = new Button { Text = "Отмена", DialogResult = DialogResult.Cancel, Location = new Point(460, 432), Size = new Size(90, 28) };
+        var ok = new Button { Text = L.T("Сохранить", "Save"), DialogResult = DialogResult.OK, Location = new Point(364, 468), Size = new Size(90, 28) };
+        var cancel = new Button { Text = L.T("Отмена", "Cancel"), DialogResult = DialogResult.Cancel, Location = new Point(460, 468), Size = new Size(90, 28) };
         ok.Click += (s, ev) => Collect();
         Controls.Add(ok);
         Controls.Add(cancel);
@@ -50,18 +59,29 @@ class SettingsForm : Form
 
     TabPage MainPage()
     {
-        var page = new TabPage("Основное") { Padding = new Padding(10) };
+        var page = new TabPage(L.T("Основное", "General")) { Padding = new Padding(10) };
         int y = 12;
-        cbAuto = Check(page, "Исправлять раскладку при наборе (ghbdtn → привет) и автозамены", AutoCorrect, ref y);
-        cbTypos = Check(page, "Исправлять опечатки (эксперимент): пирвет → привет", Typos, ref y);
-        cbColor = Check(page, "Цвет рыбки по раскладке: синяя — EN, оранжевая — RU", LayoutColor, ref y);
-        cbAutostart = Check(page, "Запускать вместе с Windows", Autostart, ref y);
-        cbUpdates = Check(page, "Проверять обновления", CheckUpdates, ref y);
+        cbAuto = Check(page, L.T("Исправлять раскладку при наборе (ghbdtn → привет) и автозамены",
+                                 "Fix the keyboard layout as you type (ghbdtn → привет) and expand replacements"), AutoCorrect, ref y);
+        cbTypos = Check(page, L.T("Исправлять опечатки (эксперимент): пирвет → привет",
+                                  "Fix typos (experimental): recieve → receive"), Typos, ref y);
+        cbColor = Check(page, L.T("Цвет рыбки по раскладке: синяя — EN, оранжевая — RU",
+                                  "Fish color shows the layout: blue — EN, orange — RU"), LayoutColor, ref y);
+        cbAutostart = Check(page, L.T("Запускать вместе с Windows", "Start with Windows"), Autostart, ref y);
+        cbUpdates = Check(page, L.T("Проверять обновления", "Check for updates"), CheckUpdates, ref y);
 
-        y += 10;
+        page.Controls.Add(new Label { Text = L.T("Язык:", "Language:"), Location = new Point(14, y + 4), AutoSize = true });
+        cbLanguage = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(100, y), Size = new Size(220, 24) };
+        cbLanguage.Items.AddRange(new object[] { L.T("Как в Windows", "Same as Windows"), "Русский", "English" });
+        cbLanguage.SelectedIndex = Language;
+        page.Controls.Add(cbLanguage);
+        y += 36;
+
+        y += 6;
         page.Controls.Add(new Label
         {
-            Text = "Горячие клавиши (щёлкните поле и нажмите сочетание; Backspace — выключить):",
+            Text = L.T("Горячие клавиши (щёлкните поле и нажмите сочетание; Backspace — выключить):",
+                       "Hotkeys (click a field and press the keys; Backspace turns it off):"),
             Location = new Point(12, y), AutoSize = true, Font = new Font(Font, FontStyle.Bold)
         });
         y += 28;
@@ -72,7 +92,7 @@ class SettingsForm : Form
             page.Controls.Add(new Label { Text = App.HotkeyTitles[i], Location = new Point(12, y + 4), Size = new Size(300, 36) });
             var box = new HotkeyBox { Location = new Point(320, y), Size = new Size(130, 24), Value = Hotkeys[i] };
             int index = i;
-            var reset = new Button { Text = "Сброс", Location = new Point(456, y - 1), Size = new Size(60, 26) };
+            var reset = new Button { Text = L.T("Сброс", "Reset"), Location = new Point(456, y - 1), Size = new Size(60, 26) };
             reset.Click += (s, e) => hotkeyBoxes[index].Value = App.HotkeyDefaults[index];
             page.Controls.Add(box);
             page.Controls.Add(reset);
@@ -114,15 +134,19 @@ class SettingsForm : Form
         LayoutColor = cbColor.Checked;
         Autostart = cbAutostart.Checked;
         CheckUpdates = cbUpdates.Checked;
+        Language = cbLanguage.SelectedIndex;
         for (int i = 0; i < Hotkeys.Length; i++) Hotkeys[i] = hotkeyBoxes[i].Value;
         Replacements = tbReplacements.Text;
         Exclusions = tbExclusions.Text;
         Ignored = tbIgnored.Text;
     }
 
+    public static string Off { get { return L.T("выключено", "off"); } }
+    public static string NeedModifier { get { return L.T("нужен Ctrl или Alt", "add Ctrl or Alt"); } }
+
     public static string Format(Keys k)
     {
-        if (k == Keys.None) return "выключено";
+        if (k == Keys.None) return Off;
         var parts = new List<string>();
         if ((k & Keys.Control) != 0) parts.Add("Ctrl");
         if ((k & Keys.Alt) != 0) parts.Add("Alt");
@@ -173,7 +197,7 @@ class HotkeyBox : TextBox
         Keys code = e.KeyCode;
         if (code == Keys.ShiftKey || code == Keys.ControlKey || code == Keys.Menu || code == Keys.LWin || code == Keys.RWin)
         {
-            Text = SettingsForm.Format(e.Modifiers | Keys.None).Replace("выключено", "") + "…";
+            Text = (e.Modifiers == Keys.None ? "" : SettingsForm.Format(e.Modifiers)) + "…";
             return;
         }
         if ((code == Keys.Back || code == Keys.Delete) && e.Modifiers == Keys.None) { Value = Keys.None; return; }
@@ -181,7 +205,7 @@ class HotkeyBox : TextBox
         bool plain = e.Modifiers == Keys.None || e.Modifiers == Keys.Shift;
         if (plain && ((code >= Keys.A && code <= Keys.Z) || (code >= Keys.D0 && code <= Keys.D9) || code == Keys.Space))
         {
-            Text = "нужен Ctrl или Alt";
+            Text = SettingsForm.NeedModifier;
             return;
         }
         Value = code | e.Modifiers;
@@ -189,7 +213,7 @@ class HotkeyBox : TextBox
 
     protected override void OnKeyUp(KeyEventArgs e)
     {
-        if (Text.EndsWith("…") || Text == "нужен Ctrl или Alt") Text = SettingsForm.Format(value);
+        if (Text.EndsWith("…") || Text == SettingsForm.NeedModifier) Text = SettingsForm.Format(value);
         base.OnKeyUp(e);
     }
 

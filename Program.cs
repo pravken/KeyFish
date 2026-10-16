@@ -30,18 +30,33 @@ class App : ApplicationContext
     const string AppName = "KeyFish";
 
     const string SettingsKey = @"Software\KeyFish";
-    const string DefaultExclusions =
-        "# Программы, где автоисправление при наборе выключено.\r\n" +
-        "# Имя процесса по одному в строке (как в Диспетчере задач, .exe можно не писать).\r\n" +
-        "Code\r\ndevenv\r\ncmd\r\npowershell\r\npwsh\r\nWindowsTerminal\r\nidea64\r\npycharm64\r\nrider64\r\n" +
-        "KeePass\r\nKeePassXC\r\n1Password\r\nmstsc\r\n";
-    const string DefaultReplacements =
-        "# Автозамены: наберите сокращение и пробел — оно заменится на текст.\r\n" +
-        "# Формат: сокращение = замена. \\n внутри замены — перенос строки.\r\n" +
-        "# Уберите # в начале строки, чтобы включить пример.\r\n" +
-        "# спс = спасибо\r\n" +
-        "# пжл = пожалуйста\r\n" +
-        "# сув = С уважением,\\nВаше имя\r\n";
+    static string DefaultExclusions
+    {
+        get
+        {
+            return L.T("# Программы, где автоисправление при наборе выключено.\r\n" +
+                       "# Имя процесса по одному в строке (как в Диспетчере задач, .exe можно не писать).\r\n",
+                       "# Apps where auto-correction is off.\r\n" +
+                       "# One process name per line, as in Task Manager (.exe is optional).\r\n") +
+                   "Code\r\ndevenv\r\ncmd\r\npowershell\r\npwsh\r\nWindowsTerminal\r\nidea64\r\npycharm64\r\nrider64\r\n" +
+                   "KeePass\r\nKeePassXC\r\n1Password\r\nmstsc\r\n";
+        }
+    }
+
+    static string DefaultReplacements
+    {
+        get
+        {
+            return L.T("# Автозамены: наберите сокращение и пробел — оно заменится на текст.\r\n" +
+                       "# Формат: сокращение = замена. \\n внутри замены — перенос строки.\r\n" +
+                       "# Уберите # в начале строки, чтобы включить пример.\r\n" +
+                       "# спс = спасибо\r\n# пжл = пожалуйста\r\n# сув = С уважением,\\nВаше имя\r\n",
+                       "# Replacements: type an abbreviation and a space to expand it.\r\n" +
+                       "# Format: abbreviation = text. \\n inside the text is a line break.\r\n" +
+                       "# Remove # at the start of a line to turn an example on.\r\n" +
+                       "# thx = thank you\r\n# brb = be right back\r\n# br = Best regards,\\nYour name\r\n");
+        }
+    }
 
     readonly HotkeyWindow hotkeys = new HotkeyWindow();
     readonly NotifyIcon tray = new NotifyIcon();
@@ -89,10 +104,10 @@ class App : ApplicationContext
     static void ShowAbout()
     {
         string changes = "";
-        using (var s = typeof(App).Assembly.GetManifestResourceStream("changelog.txt"))
+        using (var s = typeof(App).Assembly.GetManifestResourceStream(L.Ru ? "changelog-ru.txt" : "changelog-en.txt"))
             if (s != null) using (var r = new StreamReader(s, Encoding.UTF8)) changes = r.ReadToEnd();
-        MessageBox.Show("KeyFish " + Application.ProductVersion + "\n\nЧто нового:\n\n" + changes.Trim(),
-            "О программе", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        MessageBox.Show("KeyFish " + Application.ProductVersion + "\n\n" + L.T("Что нового:", "What's new:") + "\n\n" + changes.Trim(),
+            L.T("О программе", "About KeyFish"), MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     static int GetSetting(string name, int def)
@@ -107,13 +122,20 @@ class App : ApplicationContext
     }
 
     // Горячие клавиши: id = индекс + 1, хранятся в реестре как значение Keys (клавиша + модификаторы), 0 — выключено
-    public static readonly string[] HotkeyTitles =
+    public static string[] HotkeyTitles
     {
-        "Раскладка выделенного текста; сразу после автоисправления — отмена",
-        "Раскладка выделенного текста — запасное сочетание",
-        "Регистр выделенного текста (aa → Aa → AA)",
-        "Транслитерация (привет ⇄ privet)"
-    };
+        get
+        {
+            return new[]
+            {
+                L.T("Раскладка выделенного текста; сразу после автоисправления — отмена",
+                    "Switch layout of selected text; right after an auto-fix — undo it"),
+                L.T("Раскладка выделенного текста — запасное сочетание", "Switch layout of selected text — alternative keys"),
+                L.T("Регистр выделенного текста (aa → Aa → AA)", "Change case of selected text (aa → Aa → AA)"),
+                L.T("Транслитерация (привет ⇄ privet)", "Transliterate (привет ⇄ privet)")
+            };
+        }
+    }
     public static readonly Keys[] HotkeyDefaults =
     {
         Keys.Pause, Keys.Control | Keys.Shift | Keys.Space, Keys.Shift | Keys.F3, Keys.Shift | Keys.Pause
@@ -141,13 +163,38 @@ class App : ApplicationContext
     void WarnHotkeys(List<string> failed)
     {
         if (failed.Count > 0)
-            tray.ShowBalloonTip(4000, "KeyFish", "Эти сочетания заняты другой программой: " + string.Join(", ", failed) +
-                ". Их можно поменять в настройках.", ToolTipIcon.Warning);
+            tray.ShowBalloonTip(4000, "KeyFish", L.T("Эти сочетания заняты другой программой: ", "These hotkeys are taken by another app: ") +
+                string.Join(", ", failed) + L.T(". Их можно поменять в настройках.", ". You can change them in Settings."), ToolTipIcon.Warning);
     }
 
     readonly string exclusionsPath, ignoredPath, replacementsPath;
-    readonly ToolStripMenuItem autoItem;
+    ToolStripMenuItem autoItem;
     SettingsForm settingsForm;
+
+    // Меню собирается заново при смене языка
+    ContextMenuStrip BuildMenu()
+    {
+        autoItem = new ToolStripMenuItem(L.T("Автоисправление при наборе", "Auto-correct while typing")) { Checked = watcher.Enabled };
+        autoItem.Click += (s, e) =>
+        {
+            watcher.Enabled = !watcher.Enabled;
+            autoItem.Checked = watcher.Enabled;
+            SetSetting("AutoCorrect", watcher.Enabled ? 1 : 0);
+        };
+
+        var menu = new ContextMenuStrip();
+        var title = new ToolStripMenuItem("KeyFish " + Application.ProductVersion);
+        title.Font = new Font(title.Font, FontStyle.Bold);
+        title.Click += (s, e) => ShowAbout();
+        menu.Items.Add(title);
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(autoItem);
+        menu.Items.Add(L.T("Настройки…", "Settings…"), null, (s, e) => OpenSettings());
+        menu.Items.Add(L.T("Проверить обновления", "Check for updates"), null, (s, e) => CheckForUpdates(true));
+        menu.Items.Add(L.T("О программе и что нового…", "About and what's new…"), null, (s, e) => ShowAbout());
+        menu.Items.Add(L.T("Выход", "Exit"), null, (s, e) => ExitThread());
+        return menu;
+    }
 
     // До версии 1.6.0 программа называлась LayoutFix: переносим её настройки и автозапуск
     static void MigrateFromLayoutFix()
@@ -176,6 +223,7 @@ class App : ApplicationContext
     public App()
     {
         MigrateFromLayoutFix();
+        L.Setting = GetSetting("Language", 0);
         string dir = Path.GetDirectoryName(Application.ExecutablePath);
         exclusionsPath = Path.Combine(dir, "exclusions.txt");
         ignoredPath = Path.Combine(dir, "ignored-words.txt");
@@ -190,25 +238,7 @@ class App : ApplicationContext
         };
         showLayout = GetSetting("LayoutColor", 1) != 0;
 
-        autoItem = new ToolStripMenuItem("Автоисправление при наборе") { Checked = watcher.Enabled };
-        autoItem.Click += (s, e) =>
-        {
-            watcher.Enabled = !watcher.Enabled;
-            autoItem.Checked = watcher.Enabled;
-            SetSetting("AutoCorrect", watcher.Enabled ? 1 : 0);
-        };
-
-        var menu = new ContextMenuStrip();
-        var title = new ToolStripMenuItem("KeyFish " + Application.ProductVersion);
-        title.Font = new Font(title.Font, FontStyle.Bold);
-        title.Click += (s, e) => ShowAbout();
-        menu.Items.Add(title);
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(autoItem);
-        menu.Items.Add("Настройки…", null, (s, e) => OpenSettings());
-        menu.Items.Add("Проверить обновления", null, (s, e) => CheckForUpdates(true));
-        menu.Items.Add("О программе и что нового…", null, (s, e) => ShowAbout());
-        menu.Items.Add("Выход", null, (s, e) => ExitThread());
+        var menu = BuildMenu();
 
         iconEn = MakeIcon("fish.ico");
         iconRu = MakeIcon("fish-ru.ico");
@@ -260,18 +290,21 @@ class App : ApplicationContext
                     updateUrl = latest.Url;
                     if (manual)
                     {
-                        if (MessageBox.Show("Вышла версия " + latest.Tag + " (у вас " + Application.ProductVersion + ").\n\nОткрыть страницу загрузки?",
-                            "Обновление KeyFish", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                        if (MessageBox.Show(L.T("Вышла версия " + latest.Tag + " (у вас " + Application.ProductVersion + ").\n\nОткрыть страницу загрузки?",
+                                                "Version " + latest.Tag + " is out (you have " + Application.ProductVersion + ").\n\nOpen the download page?"),
+                            L.T("Обновление KeyFish", "KeyFish update"), MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
                             Process.Start(latest.Url);
                     }
                     else
-                        tray.ShowBalloonTip(10000, "Вышла версия " + latest.Tag, "Нажмите, чтобы открыть страницу загрузки.", ToolTipIcon.Info);
+                        tray.ShowBalloonTip(10000, L.T("Вышла версия ", "KeyFish ") + latest.Tag + L.T("", " is out"),
+                            L.T("Нажмите, чтобы открыть страницу загрузки.", "Click to open the download page."), ToolTipIcon.Info);
                 }
                 else if (manual)
                 {
-                    MessageBox.Show(latest == null ? "Не удалось связаться с GitHub. Проверьте интернет и попробуйте позже."
-                                                   : "У вас последняя версия: " + Application.ProductVersion + ".",
-                        "Обновление KeyFish", MessageBoxButtons.OK, latest == null ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
+                    MessageBox.Show(latest == null ? L.T("Не удалось связаться с GitHub. Проверьте интернет и попробуйте позже.",
+                                                         "Couldn't reach GitHub. Check your connection and try again later.")
+                                                   : L.T("У вас последняя версия: ", "You have the latest version: ") + Application.ProductVersion + ".",
+                        L.T("Обновление KeyFish", "KeyFish update"), MessageBoxButtons.OK, latest == null ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
                 }
             }, null);
         });
@@ -288,7 +321,7 @@ class App : ApplicationContext
         settingsForm = new SettingsForm
         {
             AutoCorrect = watcher.Enabled, Typos = watcher.FixTypos, LayoutColor = showLayout, Autostart = IsAutostart(),
-            CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys,
+            CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting,
             Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ReadText(ignoredPath)
         };
         settingsForm.Icon = iconEn;
@@ -309,6 +342,14 @@ class App : ApplicationContext
                 File.WriteAllText(replacementsPath, f.Replacements, Encoding.UTF8);
                 File.WriteAllText(exclusionsPath, f.Exclusions, Encoding.UTF8);
                 File.WriteAllText(ignoredPath, f.Ignored, Encoding.UTF8);
+                if (f.Language != L.Setting)
+                {
+                    L.Setting = f.Language;
+                    SetSetting("Language", f.Language);
+                    var old = tray.ContextMenuStrip;
+                    tray.ContextMenuStrip = BuildMenu();
+                    old.Dispose();
+                }
             }
         }
         finally

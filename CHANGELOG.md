@@ -1,30 +1,31 @@
 1.6.0
-• Новое название — KeyFish 🐟 (раньше LayoutFix); настройки и автозапуск переносятся сами
-• Рыбка в трее показывает раскладку: синяя — EN, оранжевая — RU; мигает после автоисправления
-• Автозамены: «спс» + пробел → «спасибо», работают и в другой раскладке
-• Транслитерация выделенного текста: Shift+Pause (привет ⇄ privet)
-• Окно настроек: переключатели, свои горячие клавиши, автозамены и списки исключений
-• Проверка обновлений на GitHub
+• New name — KeyFish 🐟 (formerly LayoutFix); settings and autostart carry over automatically
+• The tray fish shows the layout: blue — EN, orange — RU; it blinks after an auto-fix
+• Text replacements: "thx" + space → "thank you", work even when typed in the other layout
+• Transliteration of selected text: Shift+Pause (привет ⇄ privet)
+• Settings window: toggles, your own hotkeys, replacements and exclusion lists
+• Update check on GitHub
+• English interface (chosen in Settings; defaults to the Windows language)
 
 1.5.0
-• Исправление опечаток через проверку орфографии Windows (в меню, выключено по умолчанию)
+• Typo fixing via Windows spell check (off by default)
 
 1.4.0
-• Короткие слова перед исправленным тоже исправляются: «f vj;yj» → «а можно»
-• Если стереть исправленное слово Backspace'ом, оно запоминается и больше не исправляется
-• Список запомненных слов можно открыть из меню
+• Short words before a corrected word are fixed too: "f vj;yj" → "а можно"
+• Erase a correction with Backspace and KeyFish remembers the word and leaves it alone
+• The list of remembered words can be opened from the menu
 
 1.3.0
-• Автоисправление раскладки при наборе
-• Исправление регистра: «пРИВЕТ» → «Привет» (случайный CapsLock), «ПРивет» → «Привет»
-• Pause сразу после исправления отменяет его
-• Программы-исключения
+• Layout auto-correction while typing
+• Case fixing: "hELLO" (accidental CapsLock) → "Hello", "HEllo" → "Hello"
+• Pause right after an auto-fix undoes it
+• Excluded apps
 
 1.2.0
-• Исправлено: после Ctrl+A часть текста оставалась в старой раскладке
+• Fixed: after Ctrl+A part of the text stayed in the old layout
 
 1.1.0
-• Shift+F3 меняет регистр выделенного текста по кругу, как в Word
+• Shift+F3 cycles the case of selected text, like in Word
 
 1.0.0
-• Pause или Ctrl+Shift+Space переводит выделенный текст между раскладками EN и RU
+• Pause or Ctrl+Shift+Space switches selected text between EN and RU layouts
