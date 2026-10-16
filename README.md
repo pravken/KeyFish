@@ -15,13 +15,23 @@ A tiny Windows tray app that fixes text typed in the wrong keyboard layout — f
 - Typo fixing via Windows spell check (experimental, turn it on in Settings)
 - The tray fish shows the current layout: blue — English, orange — Russian
 
-If you erase a correction with Backspace, KeyFish remembers the word and never touches it again. All hotkeys can be changed in Settings (double-click the fish). KeyFish checks for new versions on its own. The interface is in English or Russian.
+If you erase a correction with Backspace, KeyFish remembers the word and never touches it again; if you fix a word yourself with Pause, it learns to fix it next time. It stays quiet in games and full-screen apps. All hotkeys can be changed in Settings (double-click the fish). KeyFish updates itself in one click. The interface is in English or Russian.
 
 ## Install
 
 Download `KeyFish.exe` from [Releases](../../releases/latest) and run it — no installation needed. Turn on autostart in Settings.
 
 Windows may show "Windows protected your PC" on first run because the app isn't signed. Click "More info" → "Run anyway".
+
+## Privacy
+
+KeyFish has to see your keystrokes to fix them, so here is exactly what it does with them:
+
+- **Nothing is logged.** Only the word you're typing and the last few words are kept in memory, and they're dropped when you click, move the cursor or switch windows.
+- **Nothing about your typing leaves your computer.** The only network request is the update check: KeyFish asks GitHub for the latest release of this repository. Spell checking uses the one built into Windows.
+- **Password fields are off-limits.** In a password field of any app — browsers included — KeyFish doesn't correct or remember anything.
+- **What's stored on disk** is only what you ask for: your replacements, the lists of words to never or always correct (next to `KeyFish.exe`), and settings plus the mistake counter in the registry under `HKCU\Software\KeyFish`.
+- **Updates are verified.** One-click update downloads only from this repository's releases and checks the SHA-256 checksum published by the release build before replacing the app. Releases are built by GitHub Actions straight from the source code in this repository.
 
 ## Build
 

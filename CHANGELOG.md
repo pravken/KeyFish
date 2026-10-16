@@ -1,3 +1,11 @@
+1.7.0
+• Update in one click: KeyFish downloads the new version from GitHub, verifies its checksum and restarts
+• Learns from you: a word you fix yourself with Pause gets corrected automatically next time
+• Quiet mode: no corrections in games and full-screen apps
+• Password fields are left alone in every app, browsers included — nothing is corrected or remembered there
+• Statistics: how many mistakes the fish has caught
+• Releases are now built automatically by GitHub Actions
+
 1.6.0
 • New name — KeyFish 🐟 (formerly LayoutFix); settings and autostart carry over automatically
 • The tray fish shows the layout: blue — EN, orange — RU; it blinks after an auto-fix

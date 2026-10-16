@@ -12,14 +12,22 @@ using Microsoft.Win32;
 static class Program
 {
     [STAThread]
-    static void Main()
+    static void Main(string[] args)
     {
+        bool updated = Array.IndexOf(args, "--updated") >= 0;
         bool created;
-        using (new Mutex(true, "KeyFish_SingleInstance", out created))
+        using (var mutex = new Mutex(true, "KeyFish_SingleInstance", out created))
         {
-            if (!created) return;
+            if (!created)
+            {
+                // После обновления старая копия ещё закрывается — ждём её, а не выходим
+                if (!updated) return;
+                try { if (!mutex.WaitOne(15000)) return; }
+                catch (AbandonedMutexException) { }
+            }
+            Updater.CleanUp();
             Application.EnableVisualStyles();
-            Application.Run(new App());
+            Application.Run(new App(updated));
         }
     }
 }
@@ -110,6 +118,12 @@ class App : ApplicationContext
 
     // Статистика: всего исправленных ошибок и с какого дня считаем
     int statsBase, savedCorrections;
+
+    void SaveStats()
+    {
+        int corrections = watcher.CorrectionCount;
+        if (corrections != savedCorrections) { SetSetting("StatsTotal", statsBase + corrections); savedCorrections = corrections; }
+    }
 
     static string StatsLine(int total)
     {
@@ -252,7 +266,7 @@ class App : ApplicationContext
         catch { }
     }
 
-    public App()
+    public App(bool updated)
     {
         MigrateFromLayoutFix();
         L.Setting = GetSetting("Language", 0);
@@ -295,7 +309,10 @@ class App : ApplicationContext
         WarnHotkeys(RegisterHotkeys());
 
         // Обновления: через полминуты после запуска, затем раз в сутки
-        tray.BalloonTipClicked += (s, e) => { if (updateUrl != null) Process.Start(updateUrl); };
+        tray.BalloonTipClicked += (s, e) => { if (pendingRelease != null) OfferUpdate(pendingRelease); };
+        if (updated)
+            tray.ShowBalloonTip(5000, "KeyFish " + Application.ProductVersion,
+                L.T("Обновление установлено 🐟", "Update installed 🐟"), ToolTipIcon.Info);
         updateTimer.Interval = 30 * 1000;
         updateTimer.Tick += (s, e) =>
         {
@@ -306,7 +323,52 @@ class App : ApplicationContext
     }
 
     readonly System.Windows.Forms.Timer updateTimer = new System.Windows.Forms.Timer();
-    string updateUrl;
+    Updater.Release pendingRelease;
+    bool installing;
+
+    // «Да» — скачать и поставить сейчас, «Нет» — открыть страницу релиза и обновиться вручную
+    void OfferUpdate(Updater.Release r)
+    {
+        if (installing) return;
+        if (!r.CanInstall)
+        {
+            if (MessageBox.Show(L.T("Вышла версия " + r.Tag + " (у вас " + Application.ProductVersion + ").\n\nОткрыть страницу загрузки?",
+                                    "Version " + r.Tag + " is out (you have " + Application.ProductVersion + ").\n\nOpen the download page?"),
+                    L.T("Обновление KeyFish", "KeyFish update"), MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                Process.Start(r.Url);
+            return;
+        }
+
+        var answer = MessageBox.Show(
+            L.T("Вышла версия " + r.Tag + " (у вас " + Application.ProductVersion + ").\n\nОбновить сейчас? KeyFish скачает новую версию с GitHub, " +
+                "проверит контрольную сумму и перезапустится.\n\n«Нет» — открыть страницу загрузки и обновиться вручную.",
+                "Version " + r.Tag + " is out (you have " + Application.ProductVersion + ").\n\nUpdate now? KeyFish will download it from GitHub, " +
+                "verify the checksum and restart.\n\n\"No\" opens the download page to update manually."),
+            L.T("Обновление KeyFish", "KeyFish update"), MessageBoxButtons.YesNoCancel, MessageBoxIcon.Information);
+        if (answer == DialogResult.No) { Process.Start(r.Url); return; }
+        if (answer != DialogResult.Yes) return;
+
+        installing = true;
+        tray.ShowBalloonTip(3000, "KeyFish", L.T("Скачиваю обновление…", "Downloading the update…"), ToolTipIcon.Info);
+        var ui = SynchronizationContext.Current;
+        ThreadPool.QueueUserWorkItem(_ =>
+        {
+            string error = Updater.Install(r);
+            ui.Post(__ =>
+            {
+                installing = false;
+                if (error == null)
+                {
+                    SaveStats();
+                    Process.Start(Updater.ExePath, "--updated");
+                    ExitThread();
+                }
+                else if (MessageBox.Show(error + "\n\n" + L.T("Открыть страницу загрузки?", "Open the download page?"),
+                             L.T("Обновление KeyFish", "KeyFish update"), MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                    Process.Start(r.Url);
+            }, null);
+        });
+    }
 
     // manual — пользователь сам нажал «Проверить»: сообщаем и об отсутствии обновлений, и об ошибке
     void CheckForUpdates(bool manual)
@@ -323,17 +385,11 @@ class App : ApplicationContext
                 {
                     if (!manual && GetSetting("NotifiedVersion", 0) == latest.Version.GetHashCode()) return;
                     SetSetting("NotifiedVersion", latest.Version.GetHashCode());
-                    updateUrl = latest.Url;
-                    if (manual)
-                    {
-                        if (MessageBox.Show(L.T("Вышла версия " + latest.Tag + " (у вас " + Application.ProductVersion + ").\n\nОткрыть страницу загрузки?",
-                                                "Version " + latest.Tag + " is out (you have " + Application.ProductVersion + ").\n\nOpen the download page?"),
-                            L.T("Обновление KeyFish", "KeyFish update"), MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
-                            Process.Start(latest.Url);
-                    }
+                    pendingRelease = latest;
+                    if (manual) OfferUpdate(latest);
                     else
                         tray.ShowBalloonTip(10000, L.T("Вышла версия ", "KeyFish ") + latest.Tag + L.T("", " is out"),
-                            L.T("Нажмите, чтобы открыть страницу загрузки.", "Click to open the download page."), ToolTipIcon.Info);
+                            L.T("Нажмите, чтобы обновить.", "Click to update."), ToolTipIcon.Info);
                 }
                 else if (manual)
                 {
@@ -598,6 +654,7 @@ class App : ApplicationContext
 
     protected override void ExitThreadCore()
     {
+        SaveStats();
         tray.Visible = false;
         hotkeys.UnregisterAll();
         base.ExitThreadCore();

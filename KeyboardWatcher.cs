@@ -116,6 +116,7 @@ class KeyboardWatcher
         mouseProc = MouseHook;
 
         new Thread(() => Detector.LoadEmbedded()) { IsBackground = true }.Start();
+        StartPasswordGuard();
         new Thread(Worker) { IsBackground = true }.Start();
         new Thread(() =>
         {
@@ -172,7 +173,7 @@ class KeyboardWatcher
                 return true;
             }
 
-            if (!Enabled || !Ready) { ResetAll(); last = null; return false; }
+            if (!Enabled || !Ready || passwordFocused) { ResetAll(); last = null; return false; }
 
             bool ctrl = Down(0x11);
             if (vk == 0x08 && word.Count == 0 && last != null && !Down(0x12))
@@ -558,6 +559,34 @@ class KeyboardWatcher
     }
 
     public volatile bool QuietFullscreen = true;
+
+    // Фокус в поле пароля (в любой программе, включая браузеры): тогда ничего не исправляем и не запоминаем
+    volatile bool passwordFocused;
+
+    void StartPasswordGuard()
+    {
+        var t = new Thread(() =>
+        {
+            try
+            {
+                System.Windows.Automation.Automation.AddAutomationFocusChangedEventHandler((sender, e) =>
+                {
+                    bool password = false;
+                    try
+                    {
+                        var element = sender as System.Windows.Automation.AutomationElement;
+                        if (element != null) password = element.Current.IsPassword;
+                    }
+                    catch { }
+                    passwordFocused = password;
+                    if (password) lock (sync) { ResetAll(); last = null; }
+                });
+            }
+            catch { }
+        }) { IsBackground = true };
+        t.SetApartmentState(ApartmentState.MTA);
+        t.Start();
+    }
 
     // Игра, презентация или видео на весь экран: там набор — это не текст, исправлять нельзя
     static bool IsFullscreen(IntPtr hwnd)
