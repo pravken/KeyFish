@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
@@ -16,7 +16,7 @@ class SettingsForm : Form
 
     public SettingsForm()
     {
-        Text = "Настройки LayoutFix";
+        Text = "Настройки KeyFish";
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = MinimizeBox = false;

@@ -15,7 +15,7 @@ static class Program
     static void Main()
     {
         bool created;
-        using (new Mutex(true, "LayoutFix_SingleInstance", out created))
+        using (new Mutex(true, "KeyFish_SingleInstance", out created))
         {
             if (!created) return;
             Application.EnableVisualStyles();
@@ -27,9 +27,9 @@ static class Program
 class App : ApplicationContext
 {
     const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    const string AppName = "LayoutFix";
+    const string AppName = "KeyFish";
 
-    const string SettingsKey = @"Software\LayoutFix";
+    const string SettingsKey = @"Software\KeyFish";
     const string DefaultExclusions =
         "# Программы, где автоисправление при наборе выключено.\r\n" +
         "# Имя процесса по одному в строке (как в Диспетчере задач, .exe можно не писать).\r\n" +
@@ -82,7 +82,7 @@ class App : ApplicationContext
         if (blinkTicks > 0) blinkTicks--;
         if (tray.Icon != want) tray.Icon = want;
 
-        string text = "LayoutFix " + Application.ProductVersion + (showLayout ? (currentRu ? " — RU" : " — EN") : "");
+        string text = "KeyFish " + Application.ProductVersion + (showLayout ? (currentRu ? " — RU" : " — EN") : "");
         if (tray.Text != text) tray.Text = text;
     }
 
@@ -91,7 +91,7 @@ class App : ApplicationContext
         string changes = "";
         using (var s = typeof(App).Assembly.GetManifestResourceStream("changelog.txt"))
             if (s != null) using (var r = new StreamReader(s, Encoding.UTF8)) changes = r.ReadToEnd();
-        MessageBox.Show("LayoutFix " + Application.ProductVersion + "\n\nЧто нового:\n\n" + changes.Trim(),
+        MessageBox.Show("KeyFish " + Application.ProductVersion + "\n\nЧто нового:\n\n" + changes.Trim(),
             "О программе", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
@@ -141,7 +141,7 @@ class App : ApplicationContext
     void WarnHotkeys(List<string> failed)
     {
         if (failed.Count > 0)
-            tray.ShowBalloonTip(4000, "LayoutFix", "Эти сочетания заняты другой программой: " + string.Join(", ", failed) +
+            tray.ShowBalloonTip(4000, "KeyFish", "Эти сочетания заняты другой программой: " + string.Join(", ", failed) +
                 ". Их можно поменять в настройках.", ToolTipIcon.Warning);
     }
 
@@ -149,8 +149,33 @@ class App : ApplicationContext
     readonly ToolStripMenuItem autoItem;
     SettingsForm settingsForm;
 
+    // До версии 1.6.0 программа называлась LayoutFix: переносим её настройки и автозапуск
+    static void MigrateFromLayoutFix()
+    {
+        try
+        {
+            using (var old = Registry.CurrentUser.OpenSubKey(@"Software\LayoutFix"))
+            using (var current = Registry.CurrentUser.OpenSubKey(SettingsKey))
+            {
+                if (old != null && current == null)
+                    using (var k = Registry.CurrentUser.CreateSubKey(SettingsKey))
+                        foreach (string name in old.GetValueNames()) k.SetValue(name, old.GetValue(name), old.GetValueKind(name));
+            }
+            using (var run = Registry.CurrentUser.OpenSubKey(RunKey, true))
+            {
+                if (run != null && run.GetValue("LayoutFix") != null)
+                {
+                    run.DeleteValue("LayoutFix", false);
+                    run.SetValue(AppName, "\"" + Application.ExecutablePath + "\"");
+                }
+            }
+        }
+        catch { }
+    }
+
     public App()
     {
+        MigrateFromLayoutFix();
         string dir = Path.GetDirectoryName(Application.ExecutablePath);
         exclusionsPath = Path.Combine(dir, "exclusions.txt");
         ignoredPath = Path.Combine(dir, "ignored-words.txt");
@@ -174,13 +199,14 @@ class App : ApplicationContext
         };
 
         var menu = new ContextMenuStrip();
-        var title = new ToolStripMenuItem("LayoutFix " + Application.ProductVersion);
+        var title = new ToolStripMenuItem("KeyFish " + Application.ProductVersion);
         title.Font = new Font(title.Font, FontStyle.Bold);
         title.Click += (s, e) => ShowAbout();
         menu.Items.Add(title);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(autoItem);
         menu.Items.Add("Настройки…", null, (s, e) => OpenSettings());
+        menu.Items.Add("Проверить обновления", null, (s, e) => CheckForUpdates(true));
         menu.Items.Add("О программе и что нового…", null, (s, e) => ShowAbout());
         menu.Items.Add("Выход", null, (s, e) => ExitThread());
 
@@ -190,7 +216,7 @@ class App : ApplicationContext
         blinkRu = MakeIcon("fish-ru-blink.ico");
 
         tray.Icon = iconEn;
-        tray.Text = "LayoutFix " + Application.ProductVersion;
+        tray.Text = "KeyFish " + Application.ProductVersion;
         tray.ContextMenuStrip = menu;
         tray.DoubleClick += (s, e) => OpenSettings();
         tray.Visible = true;
@@ -201,6 +227,54 @@ class App : ApplicationContext
 
         hotkeys.Pressed += OnHotkey;
         WarnHotkeys(RegisterHotkeys());
+
+        // Обновления: через полминуты после запуска, затем раз в сутки
+        tray.BalloonTipClicked += (s, e) => { if (updateUrl != null) Process.Start(updateUrl); };
+        updateTimer.Interval = 30 * 1000;
+        updateTimer.Tick += (s, e) =>
+        {
+            updateTimer.Interval = 24 * 60 * 60 * 1000;
+            if (GetSetting("CheckUpdates", 1) != 0) CheckForUpdates(false);
+        };
+        updateTimer.Start();
+    }
+
+    readonly System.Windows.Forms.Timer updateTimer = new System.Windows.Forms.Timer();
+    string updateUrl;
+
+    // manual — пользователь сам нажал «Проверить»: сообщаем и об отсутствии обновлений, и об ошибке
+    void CheckForUpdates(bool manual)
+    {
+        var ui = SynchronizationContext.Current;
+        ThreadPool.QueueUserWorkItem(_ =>
+        {
+            Updater.Release latest = null;
+            try { latest = Updater.GetLatest(); }
+            catch { }
+            ui.Post(__ =>
+            {
+                if (latest != null && latest.Version > Updater.Current)
+                {
+                    if (!manual && GetSetting("NotifiedVersion", 0) == latest.Version.GetHashCode()) return;
+                    SetSetting("NotifiedVersion", latest.Version.GetHashCode());
+                    updateUrl = latest.Url;
+                    if (manual)
+                    {
+                        if (MessageBox.Show("Вышла версия " + latest.Tag + " (у вас " + Application.ProductVersion + ").\n\nОткрыть страницу загрузки?",
+                            "Обновление KeyFish", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                            Process.Start(latest.Url);
+                    }
+                    else
+                        tray.ShowBalloonTip(10000, "Вышла версия " + latest.Tag, "Нажмите, чтобы открыть страницу загрузки.", ToolTipIcon.Info);
+                }
+                else if (manual)
+                {
+                    MessageBox.Show(latest == null ? "Не удалось связаться с GitHub. Проверьте интернет и попробуйте позже."
+                                                   : "У вас последняя версия: " + Application.ProductVersion + ".",
+                        "Обновление KeyFish", MessageBoxButtons.OK, latest == null ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
+                }
+            }, null);
+        });
     }
 
     static string ReadText(string path) { return File.Exists(path) ? File.ReadAllText(path, Encoding.UTF8) : ""; }
@@ -343,7 +417,7 @@ class App : ApplicationContext
         RestoreClipboard(saved);
     }
 
-    // Ждём, продолжая обрабатывать сообщения: пока LayoutFix владеет буфером обмена,
+    // Ждём, продолжая обрабатывать сообщения: пока KeyFish владеет буфером обмена,
     // другое приложение не может скопировать текст, не получив от нас ответа
     static void Pump(int ms)
     {
