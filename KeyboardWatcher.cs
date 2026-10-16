@@ -298,7 +298,7 @@ class KeyboardWatcher
         bool wasPartial = partial;
         partial = false;
         if (word.Count == 0) return false;
-        if (wasPartial || word.Count >= 40 || IsExcluded(hwnd) || IsPasswordField(hwnd)) { history.Clear(); return false; }
+        if (wasPartial || word.Count >= 40 || IsOwnWindow(hwnd) || IsExcluded(hwnd) || IsPasswordField(hwnd)) { history.Clear(); return false; }
 
         int lang = W.LayoutLanguage(hwnd);
         if (lang != 0x19 && lang != 0x09) { history.Clear(); return false; }
@@ -545,6 +545,16 @@ class KeyboardWatcher
             return new string(chars);
         }
         return w;
+    }
+
+    static readonly uint ownPid = (uint)Process.GetCurrentProcess().Id;
+
+    // В окне настроек самой программы ничего не исправляем
+    static bool IsOwnWindow(IntPtr hwnd)
+    {
+        uint pid;
+        W.GetWindowThreadProcessId(hwnd, out pid);
+        return pid == ownPid;
     }
 
     bool IsExcluded(IntPtr hwnd)

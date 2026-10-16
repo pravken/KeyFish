@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -105,38 +106,71 @@ class App : ApplicationContext
         using (var k = Registry.CurrentUser.CreateSubKey(SettingsKey)) k.SetValue(name, value, RegistryValueKind.DWord);
     }
 
+    // Горячие клавиши: id = индекс + 1, хранятся в реестре как значение Keys (клавиша + модификаторы), 0 — выключено
+    public static readonly string[] HotkeyTitles =
+    {
+        "Раскладка выделенного текста; сразу после автоисправления — отмена",
+        "Раскладка выделенного текста — запасное сочетание",
+        "Регистр выделенного текста (aa → Aa → AA)",
+        "Транслитерация (привет ⇄ privet)"
+    };
+    public static readonly Keys[] HotkeyDefaults =
+    {
+        Keys.Pause, Keys.Control | Keys.Shift | Keys.Space, Keys.Shift | Keys.F3, Keys.Shift | Keys.Pause
+    };
+    const int HkLayout = 1, HkLayoutAlt = 2, HkCase = 3, HkTranslit = 4;
+
+    static Keys GetHotkey(int i) { return (Keys)GetSetting("Hotkey" + (i + 1), (int)HotkeyDefaults[i]); }
+
+    // Регистрирует все сочетания заново; возвращает те, что заняты другими программами
+    List<string> RegisterHotkeys()
+    {
+        hotkeys.UnregisterAll();
+        var failed = new List<string>();
+        for (int i = 0; i < HotkeyDefaults.Length; i++)
+        {
+            Keys k = GetHotkey(i);
+            if (k == Keys.None) continue;
+            uint mods = ((k & Keys.Control) != 0 ? Native.MOD_CONTROL : 0) | ((k & Keys.Shift) != 0 ? Native.MOD_SHIFT : 0) |
+                        ((k & Keys.Alt) != 0 ? Native.MOD_ALT : 0);
+            if (!hotkeys.Register(i + 1, mods, k & Keys.KeyCode)) failed.Add(SettingsForm.Format(k));
+        }
+        return failed;
+    }
+
+    void WarnHotkeys(List<string> failed)
+    {
+        if (failed.Count > 0)
+            tray.ShowBalloonTip(4000, "LayoutFix", "Эти сочетания заняты другой программой: " + string.Join(", ", failed) +
+                ". Их можно поменять в настройках.", ToolTipIcon.Warning);
+    }
+
+    readonly string exclusionsPath, ignoredPath, replacementsPath;
+    readonly ToolStripMenuItem autoItem;
+    SettingsForm settingsForm;
+
     public App()
     {
-        hotkeys.Pressed += OnHotkey;
-        bool okPause = hotkeys.Register(HkLayout, 0, Keys.Pause);
-        bool okSpace = hotkeys.Register(HkLayoutAlt, Native.MOD_CONTROL | Native.MOD_SHIFT, Keys.Space);
-        bool okCase = hotkeys.Register(HkCase, Native.MOD_SHIFT, Keys.F3);
+        string dir = Path.GetDirectoryName(Application.ExecutablePath);
+        exclusionsPath = Path.Combine(dir, "exclusions.txt");
+        ignoredPath = Path.Combine(dir, "ignored-words.txt");
+        replacementsPath = Path.Combine(dir, "replacements.txt");
+        if (!File.Exists(exclusionsPath)) File.WriteAllText(exclusionsPath, DefaultExclusions, Encoding.UTF8);
+        if (!File.Exists(replacementsPath)) File.WriteAllText(replacementsPath, DefaultReplacements, Encoding.UTF8);
 
-        string exclusions = Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), "exclusions.txt");
-        if (!File.Exists(exclusions)) File.WriteAllText(exclusions, DefaultExclusions, Encoding.UTF8);
-        string ignoredWords = Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), "ignored-words.txt");
-        string replacements = Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), "replacements.txt");
-        if (!File.Exists(replacements)) File.WriteAllText(replacements, DefaultReplacements, Encoding.UTF8);
-        watcher = new KeyboardWatcher(exclusions, ignoredWords, replacements) { Enabled = GetSetting("AutoCorrect", 1) != 0 };
+        watcher = new KeyboardWatcher(exclusionsPath, ignoredPath, replacementsPath)
+        {
+            Enabled = GetSetting("AutoCorrect", 1) != 0,
+            FixTypos = GetSetting("Typos", 0) != 0
+        };
+        showLayout = GetSetting("LayoutColor", 1) != 0;
 
-        var autostart = new ToolStripMenuItem("Запускать с Windows") { Checked = IsAutostart() };
-        autostart.Click += (s, e) => { SetAutostart(!autostart.Checked); autostart.Checked = IsAutostart(); };
-
-        var auto = new ToolStripMenuItem("Автоисправление при наборе") { Checked = watcher.Enabled };
-        auto.Click += (s, e) =>
+        autoItem = new ToolStripMenuItem("Автоисправление при наборе") { Checked = watcher.Enabled };
+        autoItem.Click += (s, e) =>
         {
             watcher.Enabled = !watcher.Enabled;
-            auto.Checked = watcher.Enabled;
+            autoItem.Checked = watcher.Enabled;
             SetSetting("AutoCorrect", watcher.Enabled ? 1 : 0);
-        };
-
-        watcher.FixTypos = GetSetting("Typos", 0) != 0;
-        var typos = new ToolStripMenuItem("Исправлять опечатки (эксперимент)") { Checked = watcher.FixTypos };
-        typos.Click += (s, e) =>
-        {
-            watcher.FixTypos = !watcher.FixTypos;
-            typos.Checked = watcher.FixTypos;
-            SetSetting("Typos", watcher.FixTypos ? 1 : 0);
         };
 
         var menu = new ContextMenuStrip();
@@ -145,29 +179,8 @@ class App : ApplicationContext
         title.Click += (s, e) => ShowAbout();
         menu.Items.Add(title);
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(new ToolStripMenuItem("Pause или Ctrl+Shift+Space — раскладка") { Enabled = false });
-        menu.Items.Add(new ToolStripMenuItem("Pause сразу после автоисправления — отменить") { Enabled = false });
-        menu.Items.Add(new ToolStripMenuItem("Shift+F3 — регистр (aa → Aa → AA)") { Enabled = false });
-        menu.Items.Add(new ToolStripSeparator());
-        var layoutColor = new ToolStripMenuItem("Цвет рыбки по раскладке") { Checked = GetSetting("LayoutColor", 1) != 0 };
-        layoutColor.Click += (s, e) =>
-        {
-            showLayout = !showLayout;
-            layoutColor.Checked = showLayout;
-            SetSetting("LayoutColor", showLayout ? 1 : 0);
-        };
-
-        menu.Items.Add(auto);
-        menu.Items.Add(typos);
-        menu.Items.Add(layoutColor);
-        menu.Items.Add("Автозамены…", null, (s, e) => Process.Start("notepad.exe", "\"" + replacements + "\""));
-        menu.Items.Add("Программы-исключения…", null, (s, e) => Process.Start("notepad.exe", "\"" + exclusions + "\""));
-        menu.Items.Add("Слова, которые не исправлять…", null, (s, e) =>
-        {
-            if (!File.Exists(ignoredWords)) File.WriteAllText(ignoredWords, "", Encoding.UTF8);
-            Process.Start("notepad.exe", "\"" + ignoredWords + "\"");
-        });
-        menu.Items.Add(autostart);
+        menu.Items.Add(autoItem);
+        menu.Items.Add("Настройки…", null, (s, e) => OpenSettings());
         menu.Items.Add("О программе и что нового…", null, (s, e) => ShowAbout());
         menu.Items.Add("Выход", null, (s, e) => ExitThread());
 
@@ -175,25 +188,62 @@ class App : ApplicationContext
         iconRu = MakeIcon("fish-ru.ico");
         blinkEn = MakeIcon("fish-blink.ico");
         blinkRu = MakeIcon("fish-ru-blink.ico");
-        showLayout = GetSetting("LayoutColor", 1) != 0;
 
         tray.Icon = iconEn;
         tray.Text = "LayoutFix " + Application.ProductVersion;
         tray.ContextMenuStrip = menu;
+        tray.DoubleClick += (s, e) => OpenSettings();
         tray.Visible = true;
 
         trayTimer.Interval = 150;
         trayTimer.Tick += (s, e) => UpdateTrayIcon();
         trayTimer.Start();
 
-        if (!okPause || !okSpace || !okCase)
-            tray.ShowBalloonTip(4000, "LayoutFix",
-                "Часть горячих клавиш занята другой программой: " +
-                (okPause ? "" : "Pause ") + (okSpace ? "" : "Ctrl+Shift+Space ") + (okCase ? "" : "Shift+F3"),
-                ToolTipIcon.Warning);
+        hotkeys.Pressed += OnHotkey;
+        WarnHotkeys(RegisterHotkeys());
     }
 
-    const int HkLayout = 1, HkLayoutAlt = 2, HkCase = 3;
+    static string ReadText(string path) { return File.Exists(path) ? File.ReadAllText(path, Encoding.UTF8) : ""; }
+
+    void OpenSettings()
+    {
+        if (settingsForm != null) { settingsForm.Activate(); return; }
+
+        var keys = new Keys[HotkeyDefaults.Length];
+        for (int i = 0; i < keys.Length; i++) keys[i] = GetHotkey(i);
+        settingsForm = new SettingsForm
+        {
+            AutoCorrect = watcher.Enabled, Typos = watcher.FixTypos, LayoutColor = showLayout, Autostart = IsAutostart(),
+            CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys,
+            Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ReadText(ignoredPath)
+        };
+        settingsForm.Icon = iconEn;
+
+        // Пока окно открыто, глобальные сочетания выключены — иначе их нельзя назначить
+        hotkeys.UnregisterAll();
+        try
+        {
+            if (settingsForm.ShowDialog() == DialogResult.OK)
+            {
+                var f = settingsForm;
+                watcher.Enabled = f.AutoCorrect; autoItem.Checked = f.AutoCorrect; SetSetting("AutoCorrect", f.AutoCorrect ? 1 : 0);
+                watcher.FixTypos = f.Typos; SetSetting("Typos", f.Typos ? 1 : 0);
+                showLayout = f.LayoutColor; SetSetting("LayoutColor", f.LayoutColor ? 1 : 0);
+                SetSetting("CheckUpdates", f.CheckUpdates ? 1 : 0);
+                if (f.Autostart != IsAutostart()) SetAutostart(f.Autostart);
+                for (int i = 0; i < f.Hotkeys.Length; i++) SetSetting("Hotkey" + (i + 1), (int)f.Hotkeys[i]);
+                File.WriteAllText(replacementsPath, f.Replacements, Encoding.UTF8);
+                File.WriteAllText(exclusionsPath, f.Exclusions, Encoding.UTF8);
+                File.WriteAllText(ignoredPath, f.Ignored, Encoding.UTF8);
+            }
+        }
+        finally
+        {
+            settingsForm.Dispose();
+            settingsForm = null;
+            WarnHotkeys(RegisterHotkeys());
+        }
+    }
 
     void OnHotkey(int id)
     {
@@ -203,10 +253,28 @@ class App : ApplicationContext
         {
             if (id == HkLayout && watcher.Undo()) return;
             if (id == HkCase) ChangeCase();
+            else if (id == HkTranslit) TransformSelection(Transliterator.Convert);
             else ConvertSelection();
         }
         catch { }
         finally { busy = false; }
+    }
+
+    void TransformSelection(Func<string, string> transform)
+    {
+        Native.WaitModifiersReleased();
+        IDataObject saved = SaveClipboard();
+        string text = GetSelectionOrLastWord();
+        if (!string.IsNullOrEmpty(text))
+        {
+            string result = transform(text);
+            if (result != text && SetClipboardText(result))
+            {
+                Native.Chord(Native.VK_CONTROL, (byte)'V');
+                Pump(150);
+            }
+        }
+        RestoreClipboard(saved);
     }
 
     void ChangeCase()
