@@ -50,8 +50,10 @@ class KeyboardWatcher
     }
 
     public volatile bool Enabled = true;
-    int correctionCount;
+    // Исправленные ошибки (раскладка, регистр, опечатки) и сработавшие автозамены — для статистики и мигания рыбки
+    int correctionCount, expansionCount;
     public int CorrectionCount { get { return Volatile.Read(ref correctionCount); } }
+    public int ExpansionCount { get { return Volatile.Read(ref expansionCount); } }
     volatile bool fixTypos;
     SpellService spell;
     readonly object spellSync = new object();
@@ -305,7 +307,8 @@ class KeyboardWatcher
         bool wasPartial = partial;
         partial = false;
         if (word.Count == 0) return false;
-        if (wasPartial || word.Count >= 40 || IsOwnWindow(hwnd) || IsExcluded(hwnd) || IsPasswordField(hwnd)) { history.Clear(); return false; }
+        if (wasPartial || word.Count >= 40 || IsOwnWindow(hwnd) || IsExcluded(hwnd) || IsPasswordField(hwnd) ||
+            (QuietFullscreen && IsFullscreen(hwnd))) { history.Clear(); return false; }
 
         int lang = W.LayoutLanguage(hwnd);
         if (lang != 0x19 && lang != 0x09) { history.Clear(); return false; }
@@ -333,7 +336,7 @@ class KeyboardWatcher
                 LastWordLength = expansion.Length, TerminatorVk = terminatorVk, OriginalRu = typedRu, Hwnd = hwnd
             };
             pending = true;
-            Interlocked.Increment(ref correctionCount);
+            Interlocked.Increment(ref expansionCount);
             jobs.Add(new Job
             {
                 Backspaces = word.Count, Text = expansion, TerminatorVk = terminatorVk,
@@ -554,6 +557,25 @@ class KeyboardWatcher
         return w;
     }
 
+    public volatile bool QuietFullscreen = true;
+
+    // Игра, презентация или видео на весь экран: там набор — это не текст, исправлять нельзя
+    static bool IsFullscreen(IntPtr hwnd)
+    {
+        int state;
+        // 2 — полноэкранное приложение, 3 — игра через Direct3D, 4 — режим презентации
+        if (W.SHQueryUserNotificationState(out state) == 0 && (state == 2 || state == 3 || state == 4)) return true;
+
+        string cls = W.ClassName(hwnd);
+        if (cls == "Progman" || cls == "WorkerW" || cls == "Shell_TrayWnd") return false;
+        W.RECT r;
+        var mi = new W.MONITORINFO { cbSize = Marshal.SizeOf(typeof(W.MONITORINFO)) };
+        if (!W.GetWindowRect(hwnd, out r) || !W.GetMonitorInfo(W.MonitorFromWindow(hwnd, 2), ref mi)) return false;
+        // Обычное развёрнутое окно не заходит на панель задач, а полноэкранное закрывает монитор целиком
+        return r.left <= mi.rcMonitor.left && r.top <= mi.rcMonitor.top &&
+               r.right >= mi.rcMonitor.right && r.bottom >= mi.rcMonitor.bottom;
+    }
+
     static readonly uint ownPid = (uint)Process.GetCurrentProcess().Id;
 
     // В окне настроек самой программы ничего не исправляем
@@ -685,6 +707,14 @@ static class W
 
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT { public int left, top, right, bottom; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MONITORINFO { public int cbSize; public RECT rcMonitor, rcWork; public uint dwFlags; }
+
+    [DllImport("shell32.dll")] public static extern int SHQueryUserNotificationState(out int state);
+    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
+    [DllImport("user32.dll")] public static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
+    [DllImport("user32.dll")] public static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
 
     [StructLayout(LayoutKind.Sequential)]
     public struct GUITHREADINFO

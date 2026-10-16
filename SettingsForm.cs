@@ -6,12 +6,12 @@ using System.Windows.Forms;
 // Окно настроек: переключатели, горячие клавиши и списки, которые раньше правились в блокноте
 class SettingsForm : Form
 {
-    public bool AutoCorrect, Typos, LayoutColor, Autostart, CheckUpdates;
+    public bool AutoCorrect, Typos, QuietFullscreen, LayoutColor, Autostart, CheckUpdates;
     public int Language;                 // 0 — как в Windows, 1 — русский, 2 — английский
     public Keys[] Hotkeys;
     public string Replacements, Exclusions, Ignored, Learned;
 
-    CheckBox cbAuto, cbTypos, cbColor, cbAutostart, cbUpdates;
+    CheckBox cbAuto, cbTypos, cbQuiet, cbColor, cbAutostart, cbUpdates;
     ComboBox cbLanguage;
     HotkeyBox[] hotkeyBoxes;
     TextBox tbReplacements, tbExclusions, tbIgnored, tbLearned;
@@ -25,12 +25,12 @@ class SettingsForm : Form
         ShowInTaskbar = true;
         Font = new Font("Segoe UI", 9f);
         AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(560, 506);
+        ClientSize = new Size(560, 534);
     }
 
     protected override void OnLoad(EventArgs e)
     {
-        var tabs = new TabControl { Location = new Point(10, 10), Size = new Size(540, 446) };
+        var tabs = new TabControl { Location = new Point(10, 10), Size = new Size(540, 474) };
         tabs.TabPages.Add(MainPage());
         tabs.TabPages.Add(TextPage(L.T("Автозамены", "Replacements"),
             L.T("Сокращение = замена, по одной на строку. Наберите сокращение и пробел — оно заменится. " +
@@ -50,8 +50,8 @@ class SettingsForm : Form
                 "Words KeyFish always switches to the other layout. Words land here when you fix them yourself with Pause."), Learned, out tbLearned));
         Controls.Add(tabs);
 
-        var ok = new Button { Text = L.T("Сохранить", "Save"), DialogResult = DialogResult.OK, Location = new Point(364, 468), Size = new Size(90, 28) };
-        var cancel = new Button { Text = L.T("Отмена", "Cancel"), DialogResult = DialogResult.Cancel, Location = new Point(460, 468), Size = new Size(90, 28) };
+        var ok = new Button { Text = L.T("Сохранить", "Save"), DialogResult = DialogResult.OK, Location = new Point(364, 496), Size = new Size(90, 28) };
+        var cancel = new Button { Text = L.T("Отмена", "Cancel"), DialogResult = DialogResult.Cancel, Location = new Point(460, 496), Size = new Size(90, 28) };
         ok.Click += (s, ev) => Collect();
         Controls.Add(ok);
         Controls.Add(cancel);
@@ -68,6 +68,8 @@ class SettingsForm : Form
                                  "Fix the keyboard layout as you type (ghbdtn → привет) and expand replacements"), AutoCorrect, ref y);
         cbTypos = Check(page, L.T("Исправлять опечатки (эксперимент): пирвет → привет",
                                   "Fix typos (experimental): recieve → receive"), Typos, ref y);
+        cbQuiet = Check(page, L.T("Не исправлять в играх и полноэкранных программах",
+                                  "Stay quiet in games and full-screen apps"), QuietFullscreen, ref y);
         cbColor = Check(page, L.T("Цвет рыбки по раскладке: синяя — EN, оранжевая — RU",
                                   "Fish color shows the layout: blue — EN, orange — RU"), LayoutColor, ref y);
         cbAutostart = Check(page, L.T("Запускать вместе с Windows", "Start with Windows"), Autostart, ref y);
@@ -134,6 +136,7 @@ class SettingsForm : Form
     {
         AutoCorrect = cbAuto.Checked;
         Typos = cbTypos.Checked;
+        QuietFullscreen = cbQuiet.Checked;
         LayoutColor = cbColor.Checked;
         Autostart = cbAutostart.Checked;
         CheckUpdates = cbUpdates.Checked;

@@ -85,11 +85,16 @@ class App : ApplicationContext
             else if (lang == 0x09) currentRu = false;
         }
 
-        int corrections = watcher.CorrectionCount;
-        if (corrections != seenCorrections)
+        int corrections = watcher.CorrectionCount, events = corrections + watcher.ExpansionCount;
+        if (events != seenCorrections)
         {
-            seenCorrections = corrections;
+            seenCorrections = events;
             blinkTicks = 4;
+            if (corrections != savedCorrections)
+            {
+                SetSetting("StatsTotal", statsBase + corrections);
+                savedCorrections = corrections;
+            }
         }
 
         bool ru = showLayout && currentRu;
@@ -97,16 +102,43 @@ class App : ApplicationContext
         if (blinkTicks > 0) blinkTicks--;
         if (tray.Icon != want) tray.Icon = want;
 
-        string text = "KeyFish " + Application.ProductVersion + (showLayout ? (currentRu ? " — RU" : " — EN") : "");
+        string text = "KeyFish " + Application.ProductVersion + (showLayout ? (currentRu ? " — RU" : " — EN") : "") +
+                      "\n" + StatsLine(statsBase + corrections);
+        if (text.Length > 63) text = text.Substring(0, 63);
         if (tray.Text != text) tray.Text = text;
     }
 
-    static void ShowAbout()
+    // Статистика: всего исправленных ошибок и с какого дня считаем
+    int statsBase, savedCorrections;
+
+    static string StatsLine(int total)
+    {
+        return L.Ru ? "Поймано ошибок: " + total.ToString("N0", new System.Globalization.CultureInfo("ru-RU"))
+                    : "Mistakes caught: " + total.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    static string Plural(int n, string one, string few, string many)
+    {
+        int m10 = n % 10, m100 = n % 100;
+        if (m10 == 1 && m100 != 11) return one;
+        if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+        return many;
+    }
+
+    void ShowAbout()
     {
         string changes = "";
         using (var s = typeof(App).Assembly.GetManifestResourceStream(L.Ru ? "changelog-ru.txt" : "changelog-en.txt"))
             if (s != null) using (var r = new StreamReader(s, Encoding.UTF8)) changes = r.ReadToEnd();
-        MessageBox.Show("KeyFish " + Application.ProductVersion + "\n\n" + L.T("Что нового:", "What's new:") + "\n\n" + changes.Trim(),
+
+        int total = statsBase + watcher.CorrectionCount;
+        int since = GetSetting("StatsSince", 0);
+        string sinceText = since > 0 ? new DateTime(since / 10000, since / 100 % 100, since % 100).ToString("d", L.Ru ? new System.Globalization.CultureInfo("ru-RU") : System.Globalization.CultureInfo.CurrentCulture) : "";
+        string stats = L.Ru
+            ? "🐟 Рыбка поймала " + total.ToString("N0", new System.Globalization.CultureInfo("ru-RU")) + " " + Plural(total, "ошибку", "ошибки", "ошибок") + (since > 0 ? " с " + sinceText : "")
+            : "🐟 The fish has caught " + total.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) + (total == 1 ? " mistake" : " mistakes") + (since > 0 ? " since " + sinceText : "");
+
+        MessageBox.Show("KeyFish " + Application.ProductVersion + "\n" + stats + "\n\n" + L.T("Что нового:", "What's new:") + "\n\n" + changes.Trim(),
             L.T("О программе", "About KeyFish"), MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
@@ -224,6 +256,8 @@ class App : ApplicationContext
     {
         MigrateFromLayoutFix();
         L.Setting = GetSetting("Language", 0);
+        statsBase = GetSetting("StatsTotal", 0);
+        if (GetSetting("StatsSince", 0) == 0) SetSetting("StatsSince", int.Parse(DateTime.Today.ToString("yyyyMMdd")));
         string dir = Path.GetDirectoryName(Application.ExecutablePath);
         exclusionsPath = Path.Combine(dir, "exclusions.txt");
         ignoredPath = Path.Combine(dir, "ignored-words.txt");
@@ -235,7 +269,8 @@ class App : ApplicationContext
         watcher = new KeyboardWatcher(exclusionsPath, ignoredPath, replacementsPath, learnedPath)
         {
             Enabled = GetSetting("AutoCorrect", 1) != 0,
-            FixTypos = GetSetting("Typos", 0) != 0
+            FixTypos = GetSetting("Typos", 0) != 0,
+            QuietFullscreen = GetSetting("QuietFullscreen", 1) != 0
         };
         showLayout = GetSetting("LayoutColor", 1) != 0;
 
@@ -321,7 +356,7 @@ class App : ApplicationContext
         for (int i = 0; i < keys.Length; i++) keys[i] = GetHotkey(i);
         settingsForm = new SettingsForm
         {
-            AutoCorrect = watcher.Enabled, Typos = watcher.FixTypos, LayoutColor = showLayout, Autostart = IsAutostart(),
+            AutoCorrect = watcher.Enabled, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, LayoutColor = showLayout, Autostart = IsAutostart(),
             CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting,
             Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ReadText(ignoredPath), Learned = ReadText(learnedPath)
         };
@@ -336,6 +371,7 @@ class App : ApplicationContext
                 var f = settingsForm;
                 watcher.Enabled = f.AutoCorrect; autoItem.Checked = f.AutoCorrect; SetSetting("AutoCorrect", f.AutoCorrect ? 1 : 0);
                 watcher.FixTypos = f.Typos; SetSetting("Typos", f.Typos ? 1 : 0);
+                watcher.QuietFullscreen = f.QuietFullscreen; SetSetting("QuietFullscreen", f.QuietFullscreen ? 1 : 0);
                 showLayout = f.LayoutColor; SetSetting("LayoutColor", f.LayoutColor ? 1 : 0);
                 SetSetting("CheckUpdates", f.CheckUpdates ? 1 : 0);
                 if (f.Autostart != IsAutostart()) SetAutostart(f.Autostart);
