@@ -40,6 +40,44 @@ class App : ApplicationContext
     readonly KeyboardWatcher watcher;
     bool busy;
 
+    // Рыбка в трее: синяя — английская раскладка, оранжевая — русская, мигает после автоисправления
+    Icon iconEn, iconRu, blinkEn, blinkRu;
+    bool showLayout, currentRu;
+    int seenCorrections, blinkTicks;
+    readonly System.Windows.Forms.Timer trayTimer = new System.Windows.Forms.Timer();
+    readonly int ownPid = Process.GetCurrentProcess().Id;
+
+    void UpdateTrayIcon()
+    {
+        IntPtr fg = W.GetForegroundWindow();
+        uint pid;
+        W.GetWindowThreadProcessId(fg, out pid);
+        string cls = W.ClassName(fg);
+        // Пока открыт трей или меню, раскладку панели задач не показываем — она не та, в которой печатают
+        if (fg != IntPtr.Zero && pid != ownPid && cls != "Shell_TrayWnd" && cls != "NotifyIconOverflowWindow"
+            && cls != "TopLevelWindowForOverflowXamlIsland")
+        {
+            int lang = W.LayoutLanguage(fg);
+            if (lang == 0x19) currentRu = true;
+            else if (lang == 0x09) currentRu = false;
+        }
+
+        int corrections = watcher.CorrectionCount;
+        if (corrections != seenCorrections)
+        {
+            seenCorrections = corrections;
+            blinkTicks = 4;
+        }
+
+        bool ru = showLayout && currentRu;
+        Icon want = blinkTicks > 0 && blinkTicks % 2 == 0 ? (ru ? blinkRu : blinkEn) : (ru ? iconRu : iconEn);
+        if (blinkTicks > 0) blinkTicks--;
+        if (tray.Icon != want) tray.Icon = want;
+
+        string text = "LayoutFix " + Application.ProductVersion + (showLayout ? (currentRu ? " — RU" : " — EN") : "");
+        if (tray.Text != text) tray.Text = text;
+    }
+
     static void ShowAbout()
     {
         string changes = "";
@@ -102,8 +140,17 @@ class App : ApplicationContext
         menu.Items.Add(new ToolStripMenuItem("Pause сразу после автоисправления — отменить") { Enabled = false });
         menu.Items.Add(new ToolStripMenuItem("Shift+F3 — регистр (aa → Aa → AA)") { Enabled = false });
         menu.Items.Add(new ToolStripSeparator());
+        var layoutColor = new ToolStripMenuItem("Цвет рыбки по раскладке") { Checked = GetSetting("LayoutColor", 1) != 0 };
+        layoutColor.Click += (s, e) =>
+        {
+            showLayout = !showLayout;
+            layoutColor.Checked = showLayout;
+            SetSetting("LayoutColor", showLayout ? 1 : 0);
+        };
+
         menu.Items.Add(auto);
         menu.Items.Add(typos);
+        menu.Items.Add(layoutColor);
         menu.Items.Add("Программы-исключения…", null, (s, e) => Process.Start("notepad.exe", "\"" + exclusions + "\""));
         menu.Items.Add("Слова, которые не исправлять…", null, (s, e) =>
         {
@@ -114,10 +161,20 @@ class App : ApplicationContext
         menu.Items.Add("О программе и что нового…", null, (s, e) => ShowAbout());
         menu.Items.Add("Выход", null, (s, e) => ExitThread());
 
-        tray.Icon = MakeIcon();
-        tray.Text = "LayoutFix " + Application.ProductVersion + ": EN ⇄ RU";
+        iconEn = MakeIcon("fish.ico");
+        iconRu = MakeIcon("fish-ru.ico");
+        blinkEn = MakeIcon("fish-blink.ico");
+        blinkRu = MakeIcon("fish-ru-blink.ico");
+        showLayout = GetSetting("LayoutColor", 1) != 0;
+
+        tray.Icon = iconEn;
+        tray.Text = "LayoutFix " + Application.ProductVersion;
         tray.ContextMenuStrip = menu;
         tray.Visible = true;
+
+        trayTimer.Interval = 150;
+        trayTimer.Tick += (s, e) => UpdateTrayIcon();
+        trayTimer.Start();
 
         if (!okPause || !okSpace || !okCase)
             tray.ShowBalloonTip(4000, "LayoutFix",
@@ -297,10 +354,10 @@ class App : ApplicationContext
         }
     }
 
-    static Icon MakeIcon()
+    static Icon MakeIcon(string name)
     {
-        // Значок-рыбка (fish.ico рисует tools\make-icon.ps1); для трея берём маленький размер с учётом масштаба экрана
-        using (var s = typeof(App).Assembly.GetManifestResourceStream("fish.ico"))
+        // Значки-рыбки рисует tools\make-icon.ps1; для трея берём маленький размер с учётом масштаба экрана
+        using (var s = typeof(App).Assembly.GetManifestResourceStream(name))
             return new Icon(s, SystemInformation.SmallIconSize);
     }
 

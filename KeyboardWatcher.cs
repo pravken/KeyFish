@@ -50,6 +50,8 @@ class KeyboardWatcher
     }
 
     public volatile bool Enabled = true;
+    int correctionCount;
+    public int CorrectionCount { get { return Volatile.Read(ref correctionCount); } }
     volatile bool fixTypos;
     SpellService spell;
     readonly object spellSync = new object();
@@ -333,6 +335,7 @@ class KeyboardWatcher
             LastWordLength = fixedCase.Length, TerminatorVk = terminatorVk, OriginalRu = typedRu, Hwnd = hwnd
         };
         pending = true;
+        Interlocked.Increment(ref correctionCount);
         jobs.Add(new Job
         {
             Backspaces = backspaces,
@@ -400,6 +403,7 @@ class KeyboardWatcher
             };
             rec.Shown = text;
             rec.Changed = true;
+            Interlocked.Increment(ref correctionCount);
         }
         Execute(new Job { Backspaces = typed.Length + 1, Text = text, TerminatorVk = job.TerminatorVk, Hwnd = job.Hwnd });
     }
