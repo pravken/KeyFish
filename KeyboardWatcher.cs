@@ -173,6 +173,7 @@ class KeyboardWatcher
                 return true;
             }
 
+            if (passwordFocused) guardSignal.Set(); // перепроверить: вдруг фокус уже ушёл из поля пароля
             if (!Enabled || !Ready || passwordFocused) { ResetAll(); last = null; return false; }
 
             bool ctrl = Down(0x11);
@@ -201,7 +202,9 @@ class KeyboardWatcher
 
             if (KeyMap.IsCharKey(vk))
             {
+                if (word.Count == 0) wordStartedAt = Environment.TickCount;
                 if (word.Count < 40) word.Add(new KeyStroke(vk, Down(0x10), (W.GetKeyState(0x14) & 1) != 0));
+                guardSignal.Set();
                 return false;
             }
 
@@ -308,7 +311,7 @@ class KeyboardWatcher
         bool wasPartial = partial;
         partial = false;
         if (word.Count == 0) return false;
-        if (wasPartial || word.Count >= 40 || IsOwnWindow(hwnd) || IsExcluded(hwnd) || IsPasswordField(hwnd) ||
+        if (wasPartial || word.Count >= 40 || passwordFocused || !FocusVerified || IsOwnWindow(hwnd) || IsExcluded(hwnd) || IsPasswordField(hwnd) ||
             (QuietFullscreen && IsFullscreen(hwnd))) { history.Clear(); return false; }
 
         int lang = W.LayoutLanguage(hwnd);
@@ -563,26 +566,48 @@ class KeyboardWatcher
     // Фокус в поле пароля (в любой программе, включая браузеры): тогда ничего не исправляем и не запоминаем
     volatile bool passwordFocused;
 
+    readonly AutoResetEvent guardSignal = new AutoResetEvent(false);
+    volatile int focusCheckedAt, wordStartedAt;
+    IntPtr passwordWindow;               // окно, в котором нашли поле пароля: признак снимается при уходе из него
+
+    // Фокус проверили уже после начала этого слова: иначе неизвестно, не пароль ли это
+    bool FocusVerified { get { return focusCheckedAt - wordStartedAt >= 0; } }
+
+    // Проверяем, что в фокусе, при смене фокуса и при наборе. Только события мало: браузер сообщает о поле
+    // пароля с задержкой, и в момент события в фокусе ещё значится окно браузера, а не поле
     void StartPasswordGuard()
     {
         var t = new Thread(() =>
         {
-            try
-            {
-                System.Windows.Automation.Automation.AddAutomationFocusChangedEventHandler((sender, e) =>
-                {
-                    bool password = false;
-                    try
-                    {
-                        var element = sender as System.Windows.Automation.AutomationElement;
-                        if (element != null) password = element.Current.IsPassword;
-                    }
-                    catch { }
-                    passwordFocused = password;
-                    if (password) lock (sync) { ResetAll(); last = null; }
-                });
-            }
+            try { System.Windows.Automation.Automation.AddAutomationFocusChangedEventHandler((s, e) => guardSignal.Set()); }
             catch { }
+            while (true)
+            {
+                guardSignal.WaitOne();
+                IntPtr foreground = W.GetForegroundWindow();
+                bool password = passwordFocused && foreground == passwordWindow;
+                try
+                {
+                    var element = System.Windows.Automation.AutomationElement.FocusedElement;
+                    if (element != null)
+                    {
+                        var info = element.Current;
+                        var type = info.ControlType;
+                        // Решение меняет только поле ввода. Всплывающие подсказки браузера («надёжный пароль»,
+                        // автозаполнение) забирают фокус на миг, а в первые мгновения браузер называет фокусом
+                        // всю страницу (Document) — по ним нельзя решать, что пароль кончился
+                        if (info.IsPassword) password = true;
+                        else if (type == System.Windows.Automation.ControlType.Edit ||
+                                 type == System.Windows.Automation.ControlType.ComboBox) password = false;
+                    }
+                }
+                catch { }
+                if (password) passwordWindow = foreground;
+                passwordFocused = password;
+                focusCheckedAt = Environment.TickCount;
+                if (password) lock (sync) { ResetAll(); last = null; }
+                Thread.Sleep(100); // не чаще десяти раз в секунду, нажатия за это время сливаются в одну проверку
+            }
         }) { IsBackground = true };
         t.SetApartmentState(ApartmentState.MTA);
         t.Start();
