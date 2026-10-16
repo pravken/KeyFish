@@ -91,6 +91,10 @@ class KeyboardWatcher
     readonly List<int> heldDuringPending = new List<int>();
     readonly BlockingCollection<Job> jobs = new BlockingCollection<Job>();
 
+    readonly string replacementsPath;
+    Dictionary<string, string> replacements = new Dictionary<string, string>();
+    DateTime replacementsStamp;
+
     readonly string exclusionsPath;
     HashSet<string> excluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     DateTime exclusionsStamp, exclusionsChecked, ignoredStamp;
@@ -99,10 +103,12 @@ class KeyboardWatcher
     // Держим делегаты в полях, иначе сборщик мусора удалит их, пока хук ещё жив
     readonly W.HookProc keyboardProc, mouseProc;
 
-    public KeyboardWatcher(string exclusionsFile, string ignoredFile)
+    public KeyboardWatcher(string exclusionsFile, string ignoredFile, string replacementsFile)
     {
         exclusionsPath = exclusionsFile;
         ignoredPath = ignoredFile;
+        replacementsPath = replacementsFile;
+        LoadReplacements();
         try
         {
             if (File.Exists(ignoredPath))
@@ -223,6 +229,39 @@ class KeyboardWatcher
 
     bool IsIgnored(string s) { return ignored.Contains(s.ToLowerInvariant()); }
 
+    // Формат строки: «сокращение = замена»; \n — перенос строки, \t — табуляция, # — комментарий
+    void LoadReplacements()
+    {
+        var map = new Dictionary<string, string>();
+        try
+        {
+            if (File.Exists(replacementsPath))
+            {
+                replacementsStamp = File.GetLastWriteTimeUtc(replacementsPath);
+                foreach (string line in File.ReadAllLines(replacementsPath, Encoding.UTF8))
+                {
+                    string s = line.Trim();
+                    int eq = s.IndexOf('=');
+                    if (s.StartsWith("#") || eq <= 0) continue;
+                    string key = s.Substring(0, eq).Trim().ToLowerInvariant();
+                    string value = s.Substring(eq + 1).Trim().Replace("\\n", "\n").Replace("\\t", "\t");
+                    if (key.Length > 0 && key.IndexOf(' ') < 0 && value.Length > 0) map[key] = value;
+                }
+            }
+        }
+        catch { }
+        replacements = map;
+    }
+
+    string FindReplacement(string token)
+    {
+        string value;
+        if (!replacements.TryGetValue(token.ToLowerInvariant(), out value)) return null;
+        // «Спс» → «Спасибо»: заглавная в начале сокращения переносится на замену
+        if (char.IsUpper(token[0]) && char.IsLower(value[0])) value = char.ToUpper(value[0]) + value.Substring(1);
+        return value;
+    }
+
     void AddIgnored(string s)
     {
         string w = s.ToLowerInvariant();
@@ -270,6 +309,31 @@ class KeyboardWatcher
             if (char.IsDigit(c) || c == '@' || c == '_') { history.Clear(); return false; }
 
         var rec = new WordRec { Keys = new List<KeyStroke>(word), Shown = typed, TypedRu = typedRu, TerminatorVk = terminatorVk };
+
+        // Автозамена: сокращение из replacements.txt, набранное в любой раскладке
+        bool viaAlt = false;
+        string expansion = FindReplacement(typed);
+        if (expansion == null) { expansion = FindReplacement(alt); viaAlt = expansion != null; }
+        if (expansion != null)
+        {
+            rec.Shown = expansion;
+            rec.Changed = true;
+            PushHistory(rec);
+            if (viaAlt) context = !typedRu;
+            last = new Correction
+            {
+                Original = typed, Replaced = expansion, OriginalWords = new List<string>(),
+                LastWordLength = expansion.Length, TerminatorVk = terminatorVk, OriginalRu = typedRu, Hwnd = hwnd
+            };
+            pending = true;
+            Interlocked.Increment(ref correctionCount);
+            jobs.Add(new Job
+            {
+                Backspaces = word.Count, Text = expansion, TerminatorVk = terminatorVk,
+                Layout = viaAlt ? (typedRu ? "00000409" : "00000419") : null, Hwnd = hwnd
+            });
+            return true;
+        }
 
         bool convert = !IsIgnored(typed) && Detector.ShouldConvert(typed, alt, typedRu, context);
         string result = convert ? alt : typed;
@@ -435,7 +499,12 @@ class KeyboardWatcher
         var inputs = new List<W.INPUT>();
         if (job.ToggleCaps) W.AddKey(inputs, 0x14);
         for (int i = 0; i < job.Backspaces; i++) W.AddKey(inputs, 0x08);
-        foreach (char c in job.Text) W.AddUnicode(inputs, c);
+        foreach (char c in job.Text)
+        {
+            if (c == '\n') W.AddKey(inputs, 0x0D);       // перенос строки — настоящим Enter
+            else if (c == '\t') W.AddKey(inputs, 0x09);
+            else if (c != '\r') W.AddUnicode(inputs, c);
+        }
         W.AddKey(inputs, job.TerminatorVk);
         W.Send(inputs);
         if (job.Layout != null) W.SwitchLayout(job.Hwnd, job.Layout);
@@ -499,6 +568,13 @@ class KeyboardWatcher
                     }
                     excluded = set;
                 }
+            }
+            catch { }
+
+            try
+            {
+                var stamp = File.Exists(replacementsPath) ? File.GetLastWriteTimeUtc(replacementsPath) : DateTime.MinValue;
+                if (stamp != replacementsStamp) LoadReplacements();
             }
             catch { }
 

@@ -34,6 +34,13 @@ class App : ApplicationContext
         "# Имя процесса по одному в строке (как в Диспетчере задач, .exe можно не писать).\r\n" +
         "Code\r\ndevenv\r\ncmd\r\npowershell\r\npwsh\r\nWindowsTerminal\r\nidea64\r\npycharm64\r\nrider64\r\n" +
         "KeePass\r\nKeePassXC\r\n1Password\r\nmstsc\r\n";
+    const string DefaultReplacements =
+        "# Автозамены: наберите сокращение и пробел — оно заменится на текст.\r\n" +
+        "# Формат: сокращение = замена. \\n внутри замены — перенос строки.\r\n" +
+        "# Уберите # в начале строки, чтобы включить пример.\r\n" +
+        "# спс = спасибо\r\n" +
+        "# пжл = пожалуйста\r\n" +
+        "# сув = С уважением,\\nВаше имя\r\n";
 
     readonly HotkeyWindow hotkeys = new HotkeyWindow();
     readonly NotifyIcon tray = new NotifyIcon();
@@ -108,7 +115,9 @@ class App : ApplicationContext
         string exclusions = Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), "exclusions.txt");
         if (!File.Exists(exclusions)) File.WriteAllText(exclusions, DefaultExclusions, Encoding.UTF8);
         string ignoredWords = Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), "ignored-words.txt");
-        watcher = new KeyboardWatcher(exclusions, ignoredWords) { Enabled = GetSetting("AutoCorrect", 1) != 0 };
+        string replacements = Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), "replacements.txt");
+        if (!File.Exists(replacements)) File.WriteAllText(replacements, DefaultReplacements, Encoding.UTF8);
+        watcher = new KeyboardWatcher(exclusions, ignoredWords, replacements) { Enabled = GetSetting("AutoCorrect", 1) != 0 };
 
         var autostart = new ToolStripMenuItem("Запускать с Windows") { Checked = IsAutostart() };
         autostart.Click += (s, e) => { SetAutostart(!autostart.Checked); autostart.Checked = IsAutostart(); };
@@ -151,6 +160,7 @@ class App : ApplicationContext
         menu.Items.Add(auto);
         menu.Items.Add(typos);
         menu.Items.Add(layoutColor);
+        menu.Items.Add("Автозамены…", null, (s, e) => Process.Start("notepad.exe", "\"" + replacements + "\""));
         menu.Items.Add("Программы-исключения…", null, (s, e) => Process.Start("notepad.exe", "\"" + exclusions + "\""));
         menu.Items.Add("Слова, которые не исправлять…", null, (s, e) =>
         {

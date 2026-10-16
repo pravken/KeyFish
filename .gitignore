@@ -4,3 +4,4 @@
 # Личные настройки пользователя, программа создаёт их сама
 exclusions.txt
 ignored-words.txt
+replacements.txt
