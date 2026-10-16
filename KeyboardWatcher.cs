@@ -85,8 +85,8 @@ class KeyboardWatcher
     IntPtr wordHwnd;
     bool? context;                       // язык предыдущего слова: true — русский
     Correction last;                     // последнее исправление, его можно отменить по Pause
-    readonly HashSet<string> ignored = new HashSet<string>();  // слова, исправление которых отменяли
-    readonly string ignoredPath;
+    readonly WordList ignored;           // слова, исправление которых отменяли или стирали
+    readonly WordList learned;           // слова, которые пользователь сам исправлял через Pause
     bool pending;                        // исправление ещё печатается
     readonly List<int> heldDuringPending = new List<int>();
     readonly BlockingCollection<Job> jobs = new BlockingCollection<Job>();
@@ -97,25 +97,19 @@ class KeyboardWatcher
 
     readonly string exclusionsPath;
     HashSet<string> excluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-    DateTime exclusionsStamp, exclusionsChecked, ignoredStamp;
+    DateTime exclusionsStamp, exclusionsChecked;
     readonly Dictionary<uint, string> processNames = new Dictionary<uint, string>();
 
     // Держим делегаты в полях, иначе сборщик мусора удалит их, пока хук ещё жив
     readonly W.HookProc keyboardProc, mouseProc;
 
-    public KeyboardWatcher(string exclusionsFile, string ignoredFile, string replacementsFile)
+    public KeyboardWatcher(string exclusionsFile, string ignoredFile, string replacementsFile, string learnedFile)
     {
         exclusionsPath = exclusionsFile;
-        ignoredPath = ignoredFile;
         replacementsPath = replacementsFile;
+        ignored = new WordList(ignoredFile);
+        learned = new WordList(learnedFile);
         LoadReplacements();
-        try
-        {
-            if (File.Exists(ignoredPath))
-                foreach (string line in File.ReadAllLines(ignoredPath, Encoding.UTF8))
-                    if (line.Trim().Length > 0) ignored.Add(line.Trim().ToLowerInvariant());
-        }
-        catch { }
         keyboardProc = KeyboardHook;
         mouseProc = MouseHook;
 
@@ -264,10 +258,23 @@ class KeyboardWatcher
 
     void AddIgnored(string s)
     {
-        string w = s.ToLowerInvariant();
-        if (!ignored.Add(w)) return;
-        try { File.AppendAllText(ignoredPath, w + "\r\n", Encoding.UTF8); }
-        catch { }
+        ignored.Add(s);
+        learned.Remove(s);
+    }
+
+    // Пользователь сам исправил слово через Pause — в следующий раз исправим его автоматически
+    public void Learn(string typed, string result, bool resultRu)
+    {
+        string w = typed.Trim();
+        if (w.Length == 0 || w.IndexOfAny(new[] { ' ', '\t', '\r', '\n' }) >= 0 || w.Length > 40 || !Ready) return;
+        // Учимся, только если получилось настоящее слово: случайная конвертация правильного слова ничему не учит
+        string core = Detector.Core(result.Trim());
+        if (string.IsNullOrEmpty(core) || (resultRu ? Detector.Ru : Detector.En).Count(core) == 0) return;
+        lock (sync)
+        {
+            learned.Add(w);
+            ignored.Remove(w);
+        }
     }
 
     // Пользователь стёр исправление: запоминаем слова и возвращаем прежнюю раскладку
@@ -335,7 +342,7 @@ class KeyboardWatcher
             return true;
         }
 
-        bool convert = !IsIgnored(typed) && Detector.ShouldConvert(typed, alt, typedRu, context);
+        bool convert = !IsIgnored(typed) && (learned.Contains(typed) || Detector.ShouldConvert(typed, alt, typedRu, context));
         string result = convert ? alt : typed;
         bool resultRu = convert ? !typedRu : typedRu;
 
@@ -588,19 +595,8 @@ class KeyboardWatcher
             }
             catch { }
 
-            try
-            {
-                var stamp = File.Exists(ignoredPath) ? File.GetLastWriteTimeUtc(ignoredPath) : DateTime.MinValue;
-                if (stamp != ignoredStamp)
-                {
-                    ignoredStamp = stamp;
-                    ignored.Clear();
-                    if (File.Exists(ignoredPath))
-                        foreach (string line in File.ReadAllLines(ignoredPath, Encoding.UTF8))
-                            if (line.Trim().Length > 0) ignored.Add(line.Trim().ToLowerInvariant());
-                }
-            }
-            catch { }
+            ignored.ReloadIfChanged();
+            learned.ReloadIfChanged();
         }
 
         uint pid;
@@ -770,5 +766,62 @@ static class W
     {
         IntPtr hkl = LoadKeyboardLayout(klid, 0);
         if (hkl != IntPtr.Zero) PostMessage(hwnd, 0x0050, IntPtr.Zero, hkl); // WM_INPUTLANGCHANGEREQUEST
+    }
+}
+
+// Список слов в текстовом файле рядом с программой: по слову в строке, без учёта регистра.
+// Файл перечитывается, если его поменяли в настройках или в блокноте
+class WordList
+{
+    readonly string path;
+    readonly HashSet<string> words = new HashSet<string>();
+    DateTime stamp;
+
+    public WordList(string path)
+    {
+        this.path = path;
+        ReloadIfChanged();
+    }
+
+    public bool Contains(string word) { return words.Contains(word.ToLowerInvariant()); }
+
+    public void Add(string word)
+    {
+        string w = word.ToLowerInvariant();
+        if (!words.Add(w)) return;
+        try { File.AppendAllText(path, w + "\r\n", Encoding.UTF8); stamp = File.GetLastWriteTimeUtc(path); }
+        catch { }
+    }
+
+    public void Remove(string word)
+    {
+        if (!words.Remove(word.ToLowerInvariant()) || !File.Exists(path)) return;
+        try
+        {
+            var kept = new List<string>();
+            foreach (string line in File.ReadAllLines(path, Encoding.UTF8))
+                if (!string.Equals(line.Trim(), word, StringComparison.OrdinalIgnoreCase)) kept.Add(line);
+            File.WriteAllLines(path, kept, Encoding.UTF8);
+            stamp = File.GetLastWriteTimeUtc(path);
+        }
+        catch { }
+    }
+
+    public void ReloadIfChanged()
+    {
+        try
+        {
+            var current = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
+            if (current == stamp) return;
+            stamp = current;
+            words.Clear();
+            if (File.Exists(path))
+                foreach (string line in File.ReadAllLines(path, Encoding.UTF8))
+                {
+                    string s = line.Trim();
+                    if (s.Length > 0 && !s.StartsWith("#")) words.Add(s.ToLowerInvariant());
+                }
+        }
+        catch { }
     }
 }

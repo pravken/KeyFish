@@ -167,7 +167,7 @@ class App : ApplicationContext
                 string.Join(", ", failed) + L.T(". Их можно поменять в настройках.", ". You can change them in Settings."), ToolTipIcon.Warning);
     }
 
-    readonly string exclusionsPath, ignoredPath, replacementsPath;
+    readonly string exclusionsPath, ignoredPath, replacementsPath, learnedPath;
     ToolStripMenuItem autoItem;
     SettingsForm settingsForm;
 
@@ -227,11 +227,12 @@ class App : ApplicationContext
         string dir = Path.GetDirectoryName(Application.ExecutablePath);
         exclusionsPath = Path.Combine(dir, "exclusions.txt");
         ignoredPath = Path.Combine(dir, "ignored-words.txt");
+        learnedPath = Path.Combine(dir, "learned-words.txt");
         replacementsPath = Path.Combine(dir, "replacements.txt");
         if (!File.Exists(exclusionsPath)) File.WriteAllText(exclusionsPath, DefaultExclusions, Encoding.UTF8);
         if (!File.Exists(replacementsPath)) File.WriteAllText(replacementsPath, DefaultReplacements, Encoding.UTF8);
 
-        watcher = new KeyboardWatcher(exclusionsPath, ignoredPath, replacementsPath)
+        watcher = new KeyboardWatcher(exclusionsPath, ignoredPath, replacementsPath, learnedPath)
         {
             Enabled = GetSetting("AutoCorrect", 1) != 0,
             FixTypos = GetSetting("Typos", 0) != 0
@@ -322,7 +323,7 @@ class App : ApplicationContext
         {
             AutoCorrect = watcher.Enabled, Typos = watcher.FixTypos, LayoutColor = showLayout, Autostart = IsAutostart(),
             CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting,
-            Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ReadText(ignoredPath)
+            Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ReadText(ignoredPath), Learned = ReadText(learnedPath)
         };
         settingsForm.Icon = iconEn;
 
@@ -342,6 +343,7 @@ class App : ApplicationContext
                 File.WriteAllText(replacementsPath, f.Replacements, Encoding.UTF8);
                 File.WriteAllText(exclusionsPath, f.Exclusions, Encoding.UTF8);
                 File.WriteAllText(ignoredPath, f.Ignored, Encoding.UTF8);
+                File.WriteAllText(learnedPath, f.Learned, Encoding.UTF8);
                 if (f.Language != L.Setting)
                 {
                     L.Setting = f.Language;
@@ -452,7 +454,11 @@ class App : ApplicationContext
         {
             bool toRu = !Converter.IsMostlyRussian(text);
             string result = Converter.Convert(text, toRu);
-            if (Paste(result)) Native.SwitchLayout(target, toRu ? "00000419" : "00000409");
+            if (Paste(result))
+            {
+                Native.SwitchLayout(target, toRu ? "00000419" : "00000409");
+                watcher.Learn(text, result, toRu);
+            }
         }
 
         RestoreClipboard(saved);

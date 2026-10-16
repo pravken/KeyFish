@@ -1,0 +1,59 @@
+# Собирает KeyFish.exe и публикует релиз, когда в репозиторий отправлен тег вида v1.7.0
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check that the tag matches Version.cs
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}".TrimStart('v')
+          $version = (Select-String -Path Version.cs -Pattern 'AssemblyInformationalVersion\("([^"]+)"\)').Matches[0].Groups[1].Value
+          if ($tag -ne $version) { throw "Tag v$tag does not match Version.cs ($version)" }
+
+      - name: Build
+        shell: cmd
+        run: build.bat
+
+      - name: Checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash KeyFish.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -Path KeyFish.exe.sha256 -Value "$hash  KeyFish.exe" -NoNewline -Encoding ascii
+          Write-Host "SHA-256: $hash"
+
+      - name: Release notes from the changelogs
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          function Section($file) {
+            $lines = Get-Content $file -Encoding utf8
+            $start = [Array]::IndexOf($lines, $version)
+            if ($start -lt 0) { throw "$file has no section for $version" }
+            $out = @()
+            for ($i = $start + 1; $i -lt $lines.Count -and $lines[$i].Trim() -ne ''; $i++) { $out += $lines[$i] -replace '^• ', '- ' }
+            return $out -join "`n"
+          }
+          $notes = "Download **KeyFish.exe** below and run it — no installation needed. KeyFish updates itself from version 1.7.0 on.`n`n" +
+                   "### What's new`n" + (Section 'CHANGELOG.md') + "`n`n---`n`n### Что нового`n" + (Section 'CHANGELOG.ru.md') + "`n`n" +
+                   "Скачайте **KeyFish.exe** ниже и запустите, установка не нужна. Начиная с 1.7.0 KeyFish обновляется сам.`n`n" +
+                   "Built by GitHub Actions from commit ${{ github.sha }}. SHA-256: ``" + (Get-Content KeyFish.exe.sha256).Split(' ')[0] + "``"
+          Set-Content -Path notes.md -Value $notes -Encoding utf8
+
+      - name: Publish the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          gh release create "${{ github.ref_name }}" KeyFish.exe KeyFish.exe.sha256 --title "KeyFish $version" --notes-file notes.md

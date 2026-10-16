@@ -9,12 +9,12 @@ class SettingsForm : Form
     public bool AutoCorrect, Typos, LayoutColor, Autostart, CheckUpdates;
     public int Language;                 // 0 — как в Windows, 1 — русский, 2 — английский
     public Keys[] Hotkeys;
-    public string Replacements, Exclusions, Ignored;
+    public string Replacements, Exclusions, Ignored, Learned;
 
     CheckBox cbAuto, cbTypos, cbColor, cbAutostart, cbUpdates;
     ComboBox cbLanguage;
     HotkeyBox[] hotkeyBoxes;
-    TextBox tbReplacements, tbExclusions, tbIgnored;
+    TextBox tbReplacements, tbExclusions, tbIgnored, tbLearned;
 
     public SettingsForm()
     {
@@ -45,6 +45,9 @@ class SettingsForm : Form
         tabs.TabPages.Add(TextPage(L.T("Не исправлять", "Never correct"),
             L.T("Слова, которые программа никогда не исправляет. Сюда попадают слова, исправление которых вы отменили или стёрли.",
                 "Words KeyFish never corrects. Words land here when you undo or erase their correction."), Ignored, out tbIgnored));
+        tabs.TabPages.Add(TextPage(L.T("Всегда исправлять", "Always correct"),
+            L.T("Слова, которые программа всегда переводит в другую раскладку. Сюда попадают слова, которые вы сами исправили через Pause.",
+                "Words KeyFish always switches to the other layout. Words land here when you fix them yourself with Pause."), Learned, out tbLearned));
         Controls.Add(tabs);
 
         var ok = new Button { Text = L.T("Сохранить", "Save"), DialogResult = DialogResult.OK, Location = new Point(364, 468), Size = new Size(90, 28) };
@@ -139,6 +142,7 @@ class SettingsForm : Form
         Replacements = tbReplacements.Text;
         Exclusions = tbExclusions.Text;
         Ignored = tbIgnored.Text;
+        Learned = tbLearned.Text;
     }
 
     public static string Off { get { return L.T("выключено", "off"); } }
