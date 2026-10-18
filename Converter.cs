@@ -3,7 +3,7 @@ using System.Text;
 
 public static class Converter
 {
-    // Одинаковые клавиши в раскладках US QWERTY и русской ЙЦУКЕН
+    // The same keys in the US QWERTY and Russian ЙЦУКЕН layouts
     const string En = "`qwertyuiop[]asdfghjkl;'zxcvbnm,./" +
                       "~QWERTYUIOP{}ASDFGHJKL:\"ZXCVBNM<>?" +
                       "@#$^&";
@@ -23,7 +23,7 @@ public static class Converter
         }
     }
 
-    // Направление выбирается по тому, каких букв в тексте больше
+    // The direction is chosen by which letters the text has more of
     public static bool IsMostlyRussian(string text)
     {
         int lat = 0, cyr = 0;

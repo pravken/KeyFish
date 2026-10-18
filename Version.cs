@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 
-// Версия программы. При выпуске новой версии меняйте её здесь и добавляйте запись в CHANGELOG.md
+// App version. For a new release, change it here and add an entry to CHANGELOG.md and CHANGELOG.ru.md
 [assembly: AssemblyTitle("KeyFish")]
 [assembly: AssemblyProduct("KeyFish")]
 [assembly: AssemblyDescription("Fixes text typed in the wrong keyboard layout (EN ⇄ RU)")]

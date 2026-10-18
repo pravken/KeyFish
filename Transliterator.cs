@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-// Транслитерация кириллица ⇄ латиница по привычным правилам (как в загранпаспорте, ё → yo)
+// Cyrillic ⇄ Latin transliteration by familiar rules (like in passports, ё → yo)
 public static class Transliterator
 {
     static readonly Dictionary<char, string> ToLat = new Dictionary<char, string>
@@ -13,7 +13,7 @@ public static class Transliterator
         { 'ъ', "" }, { 'ы', "y" }, { 'ь', "" }, { 'э', "e" }, { 'ю', "yu" }, { 'я', "ya" }
     };
 
-    // Сначала длинные сочетания, потом одиночные буквы
+    // Longer combinations first, then single letters
     static readonly string[][] ToCyr =
     {
         new[] { "shch", "щ" }, new[] { "sch", "щ" }, new[] { "zh", "ж" }, new[] { "kh", "х" }, new[] { "ts", "ц" },
@@ -64,9 +64,9 @@ public static class Transliterator
 
             bool wordStart = i == 0 || !char.IsLetter(text[i - 1]);
             char prev = i > 0 ? char.ToLowerInvariant(text[i - 1]) : ' ';
-            if (len == 1 && rest[0] == 'e' && wordStart) cyr = "э";                            // eto → это
-            if (len == 1 && rest[0] == 'y' && Vowels.IndexOf(prev) >= 0) cyr = "й";          // Aleksey → Алексей
-            if (len == 2 && rest.StartsWith("ye") && !wordStart && Vowels.IndexOf(prev) < 0) cyr = "ые"; // nye → ные
+            if (len == 1 && rest[0] == 'e' && wordStart) cyr = "э";                            // eto → это (a word-initial e becomes э)
+            if (len == 1 && rest[0] == 'y' && Vowels.IndexOf(prev) >= 0) cyr = "й";          // Aleksey → Алексей (y after a vowel becomes й)
+            if (len == 2 && rest.StartsWith("ye") && !wordStart && Vowels.IndexOf(prev) < 0) cyr = "ые"; // nye → ные (ye after a consonant becomes ые)
 
             if (char.IsUpper(c))
                 cyr = WordIsUpper(text, i) ? cyr.ToUpperInvariant() : char.ToUpperInvariant(cyr[0]) + cyr.Substring(1);
@@ -76,7 +76,7 @@ public static class Transliterator
         return sb.ToString();
     }
 
-    // Слово целиком заглавными (ЖУК → ZHUK), а не просто с заглавной (Жук → Zhuk)
+    // The whole word is uppercase (ЖУК → ZHUK), not just capitalized (Жук → Zhuk)
     static bool WordIsUpper(string text, int i)
     {
         int letters = 0, upper = 0;

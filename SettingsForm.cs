@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 
-// Окно настроек: переключатели, горячие клавиши и списки, которые раньше правились в блокноте
+// Settings window: toggles, hotkeys and the lists that used to be edited in Notepad
 class SettingsForm : Form
 {
     public bool AutoCorrect, Typos, QuietFullscreen, LayoutColor, Autostart, CheckUpdates;
-    public int Language;                 // 0 — как в Windows, 1 — русский, 2 — английский
+    public int Language;                 // 0 — same as Windows, 1 — Russian, 2 — English
     public Keys[] Hotkeys;
     public string Replacements, Exclusions, Ignored, Learned;
 
@@ -125,7 +125,7 @@ class SettingsForm : Form
             Location = new Point(10, 54), Size = new Size(505, 315), Font = new Font("Consolas", 10f),
             Text = (text ?? "").Replace("\r\n", "\n").Replace("\n", "\r\n")
         };
-        // Без этого при переходе на вкладку весь текст выделяется, и одно нажатие его сотрёт
+        // Without this, switching to the tab selects all the text and a single keystroke would erase it
         var tb = box;
         tb.Enter += (s, e) => tb.BeginInvoke(new Action(() => tb.Select(0, 0)));
         page.Controls.Add(box);
@@ -176,7 +176,7 @@ class SettingsForm : Form
     }
 }
 
-// Поле, которое запоминает нажатое сочетание клавиш
+// A field that records the pressed key combination
 class HotkeyBox : TextBox
 {
     Keys value;
@@ -208,7 +208,7 @@ class HotkeyBox : TextBox
             return;
         }
         if ((code == Keys.Back || code == Keys.Delete) && e.Modifiers == Keys.None) { Value = Keys.None; return; }
-        // Одиночные буквы и цифры без модификаторов мешали бы печатать
+        // Single letters and digits without modifiers would get in the way of typing
         bool plain = e.Modifiers == Keys.None || e.Modifiers == Keys.Shift;
         if (plain && ((code >= Keys.A && code <= Keys.Z) || (code >= Keys.D0 && code <= Keys.D9) || code == Keys.Space))
         {

@@ -1,7 +1,7 @@
-# Собранная программа — выкладывается в релизах GitHub, а не в коде
+# The built app is published in GitHub releases, not in the source
 *.exe
 
-# Личные настройки пользователя, программа создаёт их сама
+# Personal user settings; the app creates them itself
 exclusions.txt
 ignored-words.txt
 replacements.txt

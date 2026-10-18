@@ -6,7 +6,7 @@ using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
-// Проверка новой версии по последнему релизу на GitHub и обновление в один клик
+// Checks the latest GitHub release for a new version and updates in one click
 static class Updater
 {
     public const string Repo = "pravken/KeyFish";
@@ -33,7 +33,7 @@ static class Updater
         return web;
     }
 
-    // Последний релиз или null, если релизов нет или GitHub недоступен
+    // The latest release, or null if there are no releases or GitHub is unreachable
     public static Release GetLatest()
     {
         using (var web = Client())
@@ -49,7 +49,7 @@ static class Updater
             if (!tag.Success || !Version.TryParse(tag.Groups[1].Value, out v)) return null;
             var release = new Release { Version = v, Tag = tag.Groups[1].Value, Url = url.Success ? url.Groups[1].Value : ReleasesPage };
 
-            // Скачиваем только файлы из релизов этого репозитория
+            // Download only files from this repository's releases
             foreach (Match m in Regex.Matches(json, "\"browser_download_url\"\\s*:\\s*\"([^\"]+)\""))
             {
                 string u = m.Groups[1].Value;
@@ -65,8 +65,8 @@ static class Updater
     public static string OldPath { get { return Path.Combine(Path.GetDirectoryName(ExePath), "KeyFish.old.exe"); } }
     static string NewPath { get { return Path.Combine(Path.GetDirectoryName(ExePath), "KeyFish.new.exe"); } }
 
-    // Скачивает новую версию, сверяет контрольную сумму и ставит на место текущей.
-    // Возвращает null при успехе или текст ошибки; старая версия при ошибке остаётся как была
+    // Downloads the new version, verifies its checksum and puts it in place of the current one.
+    // Returns null on success or an error message; on error the old version stays as it was
     public static string Install(Release r)
     {
         if (!r.CanInstall) return L.T("В этом релизе нет файла для автообновления.", "This release has no file for automatic update.");
@@ -98,7 +98,7 @@ static class Updater
                 return L.T("В скачанном файле не та версия — обновление отменено.", "The downloaded file has the wrong version — update cancelled.");
             }
 
-            // Запущенный exe нельзя удалить, но можно переименовать: старая копия удалится при следующем запуске
+            // A running exe can't be deleted but can be renamed; the old copy is removed on the next start
             if (File.Exists(OldPath)) File.Delete(OldPath);
             File.Move(ExePath, OldPath);
             try { File.Move(NewPath, ExePath); }
@@ -117,7 +117,7 @@ static class Updater
         }
     }
 
-    // Убираем старую копию, оставшуюся после обновления
+    // Remove the old copy left behind by an update
     public static void CleanUp()
     {
         try { if (File.Exists(OldPath)) File.Delete(OldPath); } catch { }

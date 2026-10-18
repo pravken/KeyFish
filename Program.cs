@@ -20,7 +20,7 @@ static class Program
         {
             if (!created)
             {
-                // После обновления старая копия ещё закрывается — ждём её, а не выходим
+                // After an update the old copy is still closing, so wait for it instead of exiting
                 if (!updated) return;
                 try { if (!mutex.WaitOne(15000)) return; }
                 catch (AbandonedMutexException) { }
@@ -71,7 +71,7 @@ class App : ApplicationContext
     readonly KeyboardWatcher watcher;
     bool busy;
 
-    // Рыбка в трее: синяя — английская раскладка, оранжевая — русская, мигает после автоисправления
+    // The tray fish: blue for the English layout, orange for Russian; it blinks after an auto-fix
     Icon iconEn, iconRu, blinkEn, blinkRu;
     bool showLayout, currentRu;
     int seenCorrections, blinkTicks;
@@ -84,7 +84,7 @@ class App : ApplicationContext
         uint pid;
         W.GetWindowThreadProcessId(fg, out pid);
         string cls = W.ClassName(fg);
-        // Пока открыт трей или меню, раскладку панели задач не показываем — она не та, в которой печатают
+        // While the tray or menu is open, don't show the taskbar's layout; it isn't the one being typed in
         if (fg != IntPtr.Zero && pid != ownPid && cls != "Shell_TrayWnd" && cls != "NotifyIconOverflowWindow"
             && cls != "TopLevelWindowForOverflowXamlIsland")
         {
@@ -116,7 +116,7 @@ class App : ApplicationContext
         if (tray.Text != text) tray.Text = text;
     }
 
-    // Статистика: всего исправленных ошибок и с какого дня считаем
+    // Statistics: total mistakes fixed and the day counting started
     int statsBase, savedCorrections;
 
     void SaveStats()
@@ -167,7 +167,7 @@ class App : ApplicationContext
         using (var k = Registry.CurrentUser.CreateSubKey(SettingsKey)) k.SetValue(name, value, RegistryValueKind.DWord);
     }
 
-    // Горячие клавиши: id = индекс + 1, хранятся в реестре как значение Keys (клавиша + модификаторы), 0 — выключено
+    // Hotkeys: id = index + 1, stored in the registry as a Keys value (key + modifiers), 0 means off
     public static string[] HotkeyTitles
     {
         get
@@ -190,7 +190,7 @@ class App : ApplicationContext
 
     static Keys GetHotkey(int i) { return (Keys)GetSetting("Hotkey" + (i + 1), (int)HotkeyDefaults[i]); }
 
-    // Регистрирует все сочетания заново; возвращает те, что заняты другими программами
+    // Registers all hotkeys again; returns the ones taken by other apps
     List<string> RegisterHotkeys()
     {
         hotkeys.UnregisterAll();
@@ -217,7 +217,7 @@ class App : ApplicationContext
     ToolStripMenuItem autoItem;
     SettingsForm settingsForm;
 
-    // Меню собирается заново при смене языка
+    // The menu is rebuilt when the language changes
     ContextMenuStrip BuildMenu()
     {
         autoItem = new ToolStripMenuItem(L.T("Автоисправление при наборе", "Auto-correct while typing")) { Checked = watcher.Enabled };
@@ -242,7 +242,7 @@ class App : ApplicationContext
         return menu;
     }
 
-    // До версии 1.6.0 программа называлась LayoutFix: переносим её настройки и автозапуск
+    // Before 1.6.0 the app was called LayoutFix: carry over its settings and autostart
     static void MigrateFromLayoutFix()
     {
         try
@@ -308,7 +308,7 @@ class App : ApplicationContext
         hotkeys.Pressed += OnHotkey;
         WarnHotkeys(RegisterHotkeys());
 
-        // Обновления: через полминуты после запуска, затем раз в сутки
+        // Updates: half a minute after start, then once a day
         tray.BalloonTipClicked += (s, e) => { if (pendingRelease != null) OfferUpdate(pendingRelease); };
         if (updated)
             tray.ShowBalloonTip(5000, "KeyFish " + Application.ProductVersion,
@@ -326,7 +326,7 @@ class App : ApplicationContext
     Updater.Release pendingRelease;
     bool installing;
 
-    // «Да» — скачать и поставить сейчас, «Нет» — открыть страницу релиза и обновиться вручную
+    // "Yes" downloads and installs now, "No" opens the release page to update manually
     void OfferUpdate(Updater.Release r)
     {
         if (installing) return;
@@ -370,7 +370,7 @@ class App : ApplicationContext
         });
     }
 
-    // manual — пользователь сам нажал «Проверить»: сообщаем и об отсутствии обновлений, и об ошибке
+    // manual: the user clicked "Check" themselves, so also report "no updates" and errors
     void CheckForUpdates(bool manual)
     {
         var ui = SynchronizationContext.Current;
@@ -418,7 +418,7 @@ class App : ApplicationContext
         };
         settingsForm.Icon = iconEn;
 
-        // Пока окно открыто, глобальные сочетания выключены — иначе их нельзя назначить
+        // Global hotkeys are off while the window is open, otherwise they couldn't be assigned
         hotkeys.UnregisterAll();
         try
         {
@@ -469,8 +469,8 @@ class App : ApplicationContext
         finally { busy = false; }
     }
 
-    // Вставка через буфер обмена. Пауза перед Ctrl+V обязательна: без неё приложение
-    // иногда успевает вставить старое содержимое буфера (видно на Shift+Pause)
+    // Paste through the clipboard. The pause before Ctrl+V is required: without it the app
+    // sometimes pastes the old clipboard contents (seen with Shift+Pause)
     static bool Paste(string text)
     {
         if (!SetClipboardText(text)) return false;
@@ -504,7 +504,7 @@ class App : ApplicationContext
             string result = CaseConverter.Next(text);
             if (Paste(result))
             {
-                // Выделяем вставленный текст снова, чтобы следующее нажатие продолжило цикл
+                // Select the pasted text again so the next press continues the cycle
                 int caretSteps = result.Length - CountOf(result, "\r\n");
                 if (caretSteps <= 5000) Native.SelectLeft(caretSteps);
                 Pump(50);
@@ -526,7 +526,7 @@ class App : ApplicationContext
         string text = CopySelection();
         if (string.IsNullOrEmpty(text))
         {
-            // Ничего не выделено — берём последнее слово перед курсором
+            // Nothing is selected, so take the last word before the caret
             Native.Chord(Native.VK_CONTROL, Native.VK_SHIFT, Native.VK_LEFT);
             Pump(30);
             text = CopySelection();
@@ -556,8 +556,8 @@ class App : ApplicationContext
         RestoreClipboard(saved);
     }
 
-    // Ждём, продолжая обрабатывать сообщения: пока KeyFish владеет буфером обмена,
-    // другое приложение не может скопировать текст, не получив от нас ответа
+    // Wait while still processing messages: while KeyFish owns the clipboard,
+    // another app can't copy text without an answer from us
     static void Pump(int ms)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -647,7 +647,7 @@ class App : ApplicationContext
 
     static Icon MakeIcon(string name)
     {
-        // Значки-рыбки рисует tools\make-icon.ps1; для трея берём маленький размер с учётом масштаба экрана
+        // The fish icons are drawn by tools\make-icon.ps1; the tray uses the small size for the screen scale
         using (var s = typeof(App).Assembly.GetManifestResourceStream(name))
             return new Icon(s, SystemInformation.SmallIconSize);
     }
@@ -705,7 +705,7 @@ static class Native
 
     static readonly byte[] Modifiers = { VK_SHIFT, VK_CONTROL, VK_MENU, VK_LWIN, VK_RWIN };
 
-    // Ждём, пока пользователь отпустит клавиши горячей комбинации, иначе Ctrl+C превратится в Ctrl+Shift+C
+    // Wait until the user releases the hotkey, otherwise Ctrl+C would become Ctrl+Shift+C
     public static void WaitModifiersReleased()
     {
         for (int i = 0; i < 100; i++)

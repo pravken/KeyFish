@@ -3,7 +3,7 @@ using System.Text;
 
 public static class CaseConverter
 {
-    // Цикл как в Word: строчные → Каждое Слово С Заглавной → ВСЕ ЗАГЛАВНЫЕ → строчные
+    // Cycle like in Word: lowercase → Title Case → UPPERCASE → lowercase
     public static string Next(string text)
     {
         if (!HasLetters(text)) return text;
@@ -31,7 +31,7 @@ public static class CaseConverter
             else
             {
                 sb.Append(c);
-                // Цифры и апостроф — часть слова: 2nd, don't
+                // Digits and apostrophes belong to the word: 2nd, don't
                 if (char.IsDigit(c)) wordStart = false;
                 else if (c != '\'' && c != '’') wordStart = true;
             }

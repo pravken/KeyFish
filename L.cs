@@ -1,9 +1,9 @@
 using System.Globalization;
 
-// Язык интерфейса: каждый текст записан парой «по-русски, по-английски»
+// UI language: every text is written as a pair (Russian, English)
 static class L
 {
-    // 0 — как в Windows, 1 — русский, 2 — английский
+    // 0 — same as Windows, 1 — Russian, 2 — English
     public static int Setting;
 
     public static bool Ru

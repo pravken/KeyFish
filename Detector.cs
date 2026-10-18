@@ -4,7 +4,7 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 
-// Модель языка: частотный словарь + статистика сочетаний из трёх букв
+// Language model: a frequency dictionary plus three-letter sequence statistics
 public class LangModel
 {
     readonly Dictionary<string, long> words = new Dictionary<string, long>();
@@ -47,7 +47,7 @@ public class LangModel
         return words.TryGetValue(word, out c) ? c : 0;
     }
 
-    // Средний логарифм вероятности на символ: чем выше, тем «естественнее» слово для языка
+    // Average log probability per character: the higher, the more natural the word is for the language
     public double Score(string word)
     {
         string p = "^^" + word + "$";
@@ -67,9 +67,9 @@ public static class Detector
 {
     public static LangModel En, Ru;
 
-    // Порог разницы правдоподобия для слов, которых нет в словарях
+    // Likelihood difference threshold for words that are not in the dictionaries
     public static double Threshold = 1.5;
-    // Во сколько раз слово в другой раскладке должно быть частотнее набранного (без контекста)
+    // How many times more frequent the other-layout word must be than the typed one (without context)
     public static double FrequencyRatio = 200;
 
     static readonly HashSet<string> EnSingles = new HashSet<string> { "a", "i" };
@@ -94,7 +94,7 @@ public static class Detector
     const string LeadPunct = "([{\"«";
     const string TrailPunct = ".,!?:;)]}\"»";
 
-    // Слово без окружающей пунктуации; null, если внутри есть не-буквы (значит, это не слово)
+    // The word without surrounding punctuation; null if it has non-letters inside (so it isn't a word)
     public static string Core(string s)
     {
         int a = 0, b = s.Length;
@@ -112,8 +112,8 @@ public static class Detector
         return sb.ToString();
     }
 
-    // typed — слово как набрано, alt — те же клавиши в другой раскладке.
-    // context: язык предыдущего слова (true — русский, false — английский, null — неизвестно)
+    // typed is the word as typed, alt is the same keys in the other layout.
+    // context: language of the previous word (true — Russian, false — English, null — unknown)
     public static bool ShouldConvert(string typed, string alt, bool typedRu, bool? context = null)
     {
         LangModel T = typedRu ? Ru : En, A = typedRu ? En : Ru;
@@ -134,7 +134,7 @@ public static class Detector
         long ct = string.IsNullOrEmpty(t) ? 0 : T.Count(t);
         long ca = A.Count(a);
 
-        // Набранное — вообще не слово (знаки внутри), а в другой раскладке слово есть
+        // What was typed isn't a word at all (symbols inside), but the other layout gives a word
         if (t == null) return ca > 0 || A.Score(a) > -3.2;
 
         if (ct > 0 && ca > 0)

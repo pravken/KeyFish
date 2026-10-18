@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 
-// Встроенная проверка орфографии Windows (Spell Checking API, Windows 8+)
+// The built-in Windows spell checker (Spell Checking API, Windows 8+)
 public class SpellService
 {
     readonly Dictionary<string, ISpellChecker> checkers = new Dictionary<string, ISpellChecker>();
@@ -32,8 +32,8 @@ public class SpellService
         return c;
     }
 
-    // Уверенное исправление опечатки в одном слове или null.
-    // frequency — частота слова в нашем словаре (для выбора между похожими вариантами)
+    // A confident typo fix for a single word, or null.
+    // frequency is the word's count in our dictionary (to choose between similar suggestions)
     public string Fix(string word, string lang, Func<string, long> frequency)
     {
         var checker = Get(lang);
@@ -41,7 +41,7 @@ public class SpellService
 
         IEnumSpellingError errors = checker.Check(word);
         ISpellingError error;
-        if (errors.Next(out error) != 0 || error == null) return null; // ошибок нет
+        if (errors.Next(out error) != 0 || error == null) return null; // no mistakes
         if (error.StartIndex != 0 || error.Length != word.Length) return null;
 
         CorrectiveAction action = error.CorrectiveAction;
@@ -65,13 +65,13 @@ public class SpellService
         if (close.Count == 0) return null;
         if (close.Count == 1) return close[0];
 
-        // Несколько вариантов на расстоянии одной правки: берём, только если один явно частотнее
+        // Several suggestions one edit away: take one only if it is clearly more frequent
         close.Sort((a, b) => frequency(b.ToLowerInvariant()).CompareTo(frequency(a.ToLowerInvariant())));
         long f1 = frequency(close[0].ToLowerInvariant()), f2 = frequency(close[1].ToLowerInvariant());
         return f1 > 0 && f1 >= f2 * 20 ? close[0] : null;
     }
 
-    // Расстояние Дамерау — Левенштейна: вставка, удаление, замена, перестановка соседних букв
+    // Damerau–Levenshtein distance: insertion, deletion, substitution, transposition of adjacent letters
     public static int Distance(string a, string b)
     {
         var d = new int[a.Length + 1, b.Length + 1];
@@ -104,7 +104,7 @@ public class SpellService
         string LanguageTag { [return: MarshalAs(UnmanagedType.LPWStr)] get; }
         IEnumSpellingError Check([MarshalAs(UnmanagedType.LPWStr)] string text);
         IEnumString Suggest([MarshalAs(UnmanagedType.LPWStr)] string word);
-        // Остальные методы интерфейса не используются, но их места в таблице должны быть объявлены
+        // The remaining interface methods aren't used, but their vtable slots must be declared
         void Add([MarshalAs(UnmanagedType.LPWStr)] string word);
         void Ignore([MarshalAs(UnmanagedType.LPWStr)] string word);
         void AutoCorrect([MarshalAs(UnmanagedType.LPWStr)] string from, [MarshalAs(UnmanagedType.LPWStr)] string to);

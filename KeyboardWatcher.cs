@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 
-// Следит за набором и исправляет слова, набранные не в той раскладке или с ошибкой регистра
+// Watches typing and fixes words typed in the wrong layout or with wrong case
 class KeyboardWatcher
 {
     struct KeyStroke
@@ -21,20 +21,20 @@ class KeyboardWatcher
     {
         public string Original, Replaced;
         public List<string> OriginalWords;
-        public int LastWordLength;           // длина последнего исправленного слова на экране
-        public int Backspaced;               // сколько Backspace нажато сразу после исправления
+        public int LastWordLength;           // length of the last corrected word on screen
+        public int Backspaced;               // how many Backspaces were pressed right after the correction
         public int TerminatorVk;
         public bool OriginalRu;
         public IntPtr Hwnd;
     }
 
-    // Недавно набранное слово — чтобы можно было вернуться и исправить его задним числом
+    // A recently typed word, kept so it can be corrected after the fact
     class WordRec
     {
         public List<KeyStroke> Keys;
-        public string Shown;                 // как слово сейчас выглядит на экране
+        public string Shown;                 // how the word looks on screen now
         public bool TypedRu;
-        public bool Changed;                 // программа его уже исправляла
+        public bool Changed;                 // KeyFish has already changed it
         public int TerminatorVk;
     }
 
@@ -46,11 +46,11 @@ class KeyboardWatcher
         public bool ToggleCaps;
         public string Layout;
         public IntPtr Hwnd;
-        public WordRec TypoRec;              // не null — проверить слово на опечатку (пробел уже напечатан)
+        public WordRec TypoRec;              // not null: check the word for a typo (the space is already typed)
     }
 
     public volatile bool Enabled = true;
-    // Исправленные ошибки (раскладка, регистр, опечатки) и сработавшие автозамены — для статистики и мигания рыбки
+    // Fixed mistakes (layout, case, typos) and expanded replacements, for statistics and the fish blink
     int correctionCount, expansionCount;
     public int CorrectionCount { get { return Volatile.Read(ref correctionCount); } }
     public int ExpansionCount { get { return Volatile.Read(ref expansionCount); } }
@@ -64,7 +64,7 @@ class KeyboardWatcher
         set
         {
             fixTypos = value;
-            // Заранее загружаем словари, чтобы первое слово не ждало
+            // Load the dictionaries up front so the first word doesn't wait
             if (value) ThreadPool.QueueUserWorkItem(_ => { try { CheckTypo("проверка", true); } catch { } });
         }
     }
@@ -82,14 +82,14 @@ class KeyboardWatcher
 
     readonly object sync = new object();
     readonly List<KeyStroke> word = new List<KeyStroke>();
-    bool partial;                        // слово начато не с начала (стирали в предыдущий текст)
+    bool partial;                        // the word didn't start at a word start (Backspace went into earlier text)
     readonly List<WordRec> history = new List<WordRec>();
     IntPtr wordHwnd;
-    bool? context;                       // язык предыдущего слова: true — русский
-    Correction last;                     // последнее исправление, его можно отменить по Pause
-    readonly WordList ignored;           // слова, исправление которых отменяли или стирали
-    readonly WordList learned;           // слова, которые пользователь сам исправлял через Pause
-    bool pending;                        // исправление ещё печатается
+    bool? context;                       // language of the previous word: true — Russian
+    Correction last;                     // the last correction; Pause can undo it
+    readonly WordList ignored;           // words whose correction was undone or erased
+    readonly WordList learned;           // words the user fixed manually with Pause
+    bool pending;                        // a correction is still being typed
     readonly List<int> heldDuringPending = new List<int>();
     readonly BlockingCollection<Job> jobs = new BlockingCollection<Job>();
 
@@ -102,7 +102,7 @@ class KeyboardWatcher
     DateTime exclusionsStamp, exclusionsChecked;
     readonly Dictionary<uint, string> processNames = new Dictionary<uint, string>();
 
-    // Держим делегаты в полях, иначе сборщик мусора удалит их, пока хук ещё жив
+    // Keep the delegates in fields, otherwise the GC collects them while the hook is still alive
     readonly W.HookProc keyboardProc, mouseProc;
 
     public KeyboardWatcher(string exclusionsFile, string ignoredFile, string replacementsFile, string learnedFile)
@@ -164,22 +164,22 @@ class KeyboardWatcher
     {
         lock (sync)
         {
-            if (vk == 0x13 || IsModifier(vk)) return false; // Pause — отмена, модификаторы не сбрасывают слово
+            if (vk == 0x13 || IsModifier(vk)) return false; // Pause is undo; modifiers don't reset the word
 
             if (pending)
             {
-                // Пока печатается исправление, придерживаем нажатия и повторим их следом
+                // While a correction is being typed, hold keystrokes back and replay them afterwards
                 heldDuringPending.Add(vk);
                 return true;
             }
 
-            if (passwordFocused) guardSignal.Set(); // перепроверить: вдруг фокус уже ушёл из поля пароля
+            if (passwordFocused) guardSignal.Set(); // re-check: focus may have left the password field
             if (!Enabled || !Ready || passwordFocused) { ResetAll(); last = null; return false; }
 
             bool ctrl = Down(0x11);
             if (vk == 0x08 && word.Count == 0 && last != null && !Down(0x12))
             {
-                // Стирают только что исправленное: стёрли слово целиком — значит, исправлять было не надо
+                // The fresh correction is being erased: erasing the whole word means it shouldn't have been corrected
                 last.Backspaced++;
                 if (ctrl || last.Backspaced >= last.LastWordLength + 1) Reject();
                 history.Clear();
@@ -215,7 +215,7 @@ class KeyboardWatcher
                 return swallow;
             }
 
-            ResetAll(); // стрелки, Delete, Home и прочее — позиция курсора неизвестна
+            ResetAll(); // arrows, Delete, Home and so on: the caret position is unknown
             return false;
         }
     }
@@ -229,7 +229,7 @@ class KeyboardWatcher
 
     bool IsIgnored(string s) { return ignored.Contains(s.ToLowerInvariant()); }
 
-    // Формат строки: «сокращение = замена»; \n — перенос строки, \t — табуляция, # — комментарий
+    // Line format: "abbreviation = text"; \n is a line break, \t a tab, # a comment
     void LoadReplacements()
     {
         var map = new Dictionary<string, string>();
@@ -257,7 +257,7 @@ class KeyboardWatcher
     {
         string value;
         if (!replacements.TryGetValue(token.ToLowerInvariant(), out value)) return null;
-        // «Спс» → «Спасибо»: заглавная в начале сокращения переносится на замену
+        // "Thx" → "Thank you": a capital letter at the start carries over to the text
         if (char.IsUpper(token[0]) && char.IsLower(value[0])) value = char.ToUpper(value[0]) + value.Substring(1);
         return value;
     }
@@ -268,12 +268,12 @@ class KeyboardWatcher
         learned.Remove(s);
     }
 
-    // Пользователь сам исправил слово через Pause — в следующий раз исправим его автоматически
+    // The user fixed a word with Pause, so it gets corrected automatically next time
     public void Learn(string typed, string result, bool resultRu)
     {
         string w = typed.Trim();
         if (w.Length == 0 || w.IndexOfAny(new[] { ' ', '\t', '\r', '\n' }) >= 0 || w.Length > 40 || !Ready) return;
-        // Учимся, только если получилось настоящее слово: случайная конвертация правильного слова ничему не учит
+        // Learn only when the result is a real word: converting a correct word by accident teaches nothing
         string core = Detector.Core(result.Trim());
         if (string.IsNullOrEmpty(core) || (resultRu ? Detector.Ru : Detector.En).Count(core) == 0) return;
         lock (sync)
@@ -283,7 +283,7 @@ class KeyboardWatcher
         }
     }
 
-    // Пользователь стёр исправление: запоминаем слова и возвращаем прежнюю раскладку
+    // The user erased a correction: remember the words and switch the layout back
     void Reject()
     {
         var c = last;
@@ -299,7 +299,7 @@ class KeyboardWatcher
         if (history.Count > 5) history.RemoveAt(0);
     }
 
-    // Уверенно исправленное слово: длинное и есть в словаре
+    // A confidently corrected word: long enough and in the dictionary
     static bool IsStrong(string text, bool ru)
     {
         string core = Detector.Core(text);
@@ -324,7 +324,7 @@ class KeyboardWatcher
 
         var rec = new WordRec { Keys = new List<KeyStroke>(word), Shown = typed, TypedRu = typedRu, TerminatorVk = terminatorVk };
 
-        // Автозамена: сокращение из replacements.txt, набранное в любой раскладке
+        // Replacement: an abbreviation from replacements.txt, typed in either layout
         bool viaAlt = false;
         string expansion = FindReplacement(typed);
         if (expansion == null) { expansion = FindReplacement(alt); viaAlt = expansion != null; }
@@ -361,7 +361,7 @@ class KeyboardWatcher
         if (convert || (!string.IsNullOrEmpty(core) && (resultRu ? Detector.Ru : Detector.En).Count(core) > 0))
             context = resultRu;
 
-        // Уверенно исправили слово — проверяем короткие слова перед ним: «f vj;yj» → «а можно»
+        // A word was confidently corrected, so check the short words before it: "f vj;yj" → "а можно"
         var retro = new List<WordRec>();
         if (convert && IsStrong(alt, resultRu))
         {
@@ -377,7 +377,7 @@ class KeyboardWatcher
         if (!convert && fixedCase == result)
         {
             PushHistory(rec);
-            // Опечатки проверяем после пробела, не задерживая его: Enter мог уже отправить сообщение
+            // Typos are checked after the space without holding it; Enter may already have sent a message
             if (fixTypos && terminatorVk == 0x20 && TypoCandidate(typed))
             {
                 pending = true;
@@ -426,7 +426,7 @@ class KeyboardWatcher
         return true;
     }
 
-    // Отмена последнего исправления (Pause сразу после него). false — отменять нечего
+    // Undo the last correction (Pause right after it). false means there is nothing to undo
     public bool Undo()
     {
         Correction c;
@@ -451,7 +451,7 @@ class KeyboardWatcher
         return true;
     }
 
-    // Только строчные слова от 4 букв: имена, аббревиатуры и короткие слова не трогаем
+    // Only lowercase words of 4+ letters: names, abbreviations and short words are left alone
     bool TypoCandidate(string typed)
     {
         if (IsIgnored(typed)) return false;
@@ -503,7 +503,7 @@ class KeyboardWatcher
                 held = heldDuringPending.ToArray();
                 heldDuringPending.Clear();
             }
-            // Повторяем нажатия, придержанные во время печати, — уже как обычный ввод
+            // Replay the keystrokes held back during typing, now as normal input
             if (held.Length > 0) W.SendKeys(held);
         }
     }
@@ -515,7 +515,7 @@ class KeyboardWatcher
         for (int i = 0; i < job.Backspaces; i++) W.AddKey(inputs, 0x08);
         foreach (char c in job.Text)
         {
-            if (c == '\n') W.AddKey(inputs, 0x0D);       // перенос строки — настоящим Enter
+            if (c == '\n') W.AddKey(inputs, 0x0D);       // a line break is sent as a real Enter
             else if (c == '\t') W.AddKey(inputs, 0x09);
             else if (c != '\r') W.AddUnicode(inputs, c);
         }
@@ -531,7 +531,7 @@ class KeyboardWatcher
         return sb.ToString();
     }
 
-    // пРИВЕТ → Привет (случайный CapsLock), ПРивет → Привет (задержали Shift)
+    // пРИВЕТ → Привет (accidental CapsLock), ПРивет → Привет (Shift held too long)
     static string FixCase(string w, out bool capsMistake)
     {
         capsMistake = false;
@@ -563,18 +563,18 @@ class KeyboardWatcher
 
     public volatile bool QuietFullscreen = true;
 
-    // Фокус в поле пароля (в любой программе, включая браузеры): тогда ничего не исправляем и не запоминаем
+    // Focus is in a password field (any app, browsers included): then nothing is corrected or remembered
     volatile bool passwordFocused;
 
     readonly AutoResetEvent guardSignal = new AutoResetEvent(false);
     volatile int focusCheckedAt, wordStartedAt;
-    IntPtr passwordWindow;               // окно, в котором нашли поле пароля: признак снимается при уходе из него
+    IntPtr passwordWindow;               // the window where the password field was found; the flag clears when it loses the foreground
 
-    // Фокус проверили уже после начала этого слова: иначе неизвестно, не пароль ли это
+    // Focus was checked after this word started; otherwise we can't know it isn't a password
     bool FocusVerified { get { return focusCheckedAt - wordStartedAt >= 0; } }
 
-    // Проверяем, что в фокусе, при смене фокуса и при наборе. Только события мало: браузер сообщает о поле
-    // пароля с задержкой, и в момент события в фокусе ещё значится окно браузера, а не поле
+    // Check what has focus on focus changes and while typing. Events alone aren't enough: a browser reports
+    // the password field late, so at event time the focus is still the browser window, not the field
     void StartPasswordGuard()
     {
         var t = new Thread(() =>
@@ -593,9 +593,9 @@ class KeyboardWatcher
                     {
                         var info = element.Current;
                         var type = info.ControlType;
-                        // Решение меняет только поле ввода. Всплывающие подсказки браузера («надёжный пароль»,
-                        // автозаполнение) забирают фокус на миг, а в первые мгновения браузер называет фокусом
-                        // всю страницу (Document) — по ним нельзя решать, что пароль кончился
+                        // Only a text field can change the decision. Browser popups ("suggest a strong password",
+                        // autofill) take focus for a moment, and at first the browser reports the whole page
+                        // (Document) as focused; neither means the password field was left
                         if (info.IsPassword) password = true;
                         else if (type == System.Windows.Automation.ControlType.Edit ||
                                  type == System.Windows.Automation.ControlType.ComboBox) password = false;
@@ -606,18 +606,18 @@ class KeyboardWatcher
                 passwordFocused = password;
                 focusCheckedAt = Environment.TickCount;
                 if (password) lock (sync) { ResetAll(); last = null; }
-                Thread.Sleep(100); // не чаще десяти раз в секунду, нажатия за это время сливаются в одну проверку
+                Thread.Sleep(100); // at most ten times a second; keystrokes in between merge into one check
             }
         }) { IsBackground = true };
         t.SetApartmentState(ApartmentState.MTA);
         t.Start();
     }
 
-    // Игра, презентация или видео на весь экран: там набор — это не текст, исправлять нельзя
+    // A full-screen game, presentation or video: typing there isn't text, so don't correct
     static bool IsFullscreen(IntPtr hwnd)
     {
         int state;
-        // 2 — полноэкранное приложение, 3 — игра через Direct3D, 4 — режим презентации
+        // 2 — full-screen app, 3 — Direct3D game, 4 — presentation mode
         if (W.SHQueryUserNotificationState(out state) == 0 && (state == 2 || state == 3 || state == 4)) return true;
 
         string cls = W.ClassName(hwnd);
@@ -625,14 +625,14 @@ class KeyboardWatcher
         W.RECT r;
         var mi = new W.MONITORINFO { cbSize = Marshal.SizeOf(typeof(W.MONITORINFO)) };
         if (!W.GetWindowRect(hwnd, out r) || !W.GetMonitorInfo(W.MonitorFromWindow(hwnd, 2), ref mi)) return false;
-        // Обычное развёрнутое окно не заходит на панель задач, а полноэкранное закрывает монитор целиком
+        // A normal maximized window stops at the taskbar; a full-screen one covers the whole monitor
         return r.left <= mi.rcMonitor.left && r.top <= mi.rcMonitor.top &&
                r.right >= mi.rcMonitor.right && r.bottom >= mi.rcMonitor.bottom;
     }
 
     static readonly uint ownPid = (uint)Process.GetCurrentProcess().Id;
 
-    // В окне настроек самой программы ничего не исправляем
+    // Nothing is corrected in KeyFish's own settings window
     static bool IsOwnWindow(IntPtr hwnd)
     {
         uint pid;
@@ -698,7 +698,7 @@ class KeyboardWatcher
     }
 }
 
-// Что печатает клавиша в раскладках US и ЙЦУКЕН
+// What a key types in the US and ЙЦУКЕН layouts
 static class KeyMap
 {
     const string Digits = "1234567890", EnShiftDigits = "!@#$%^&*()", RuShiftDigits = "!\"№;%:?*()";
@@ -739,7 +739,7 @@ static class KeyMap
 
 static class W
 {
-    public static readonly UIntPtr Marker = (UIntPtr)0x4C464958; // помечаем свой ввод, чтобы хук его пропускал
+    public static readonly UIntPtr Marker = (UIntPtr)0x4C464958; // marks our own input so the hook skips it
     public const int WH_KEYBOARD_LL = 13, WH_MOUSE_LL = 14;
 
     public delegate IntPtr HookProc(int code, IntPtr wParam, IntPtr lParam);
@@ -797,7 +797,7 @@ static class W
     {
         uint pid;
         uint tid = GetWindowThreadProcessId(hwnd, out pid);
-        return (int)(GetKeyboardLayout(tid).ToInt64() & 0x3FF); // основной язык: 0x09 — английский, 0x19 — русский
+        return (int)(GetKeyboardLayout(tid).ToInt64() & 0x3FF); // primary language: 0x09 — English, 0x19 — Russian
     }
 
     public static string ClassName(IntPtr hwnd)
@@ -832,7 +832,7 @@ static class W
         SendInput((uint)arr.Length, arr, Marshal.SizeOf(typeof(INPUT)));
     }
 
-    // Придержанные нажатия отправляем без метки, чтобы хук обработал их как обычный набор
+    // Held-back keystrokes are sent without the marker so the hook handles them as normal typing
     public static void SendKeys(int[] vks)
     {
         var arr = new INPUT[vks.Length * 2];
@@ -853,8 +853,8 @@ static class W
     }
 }
 
-// Список слов в текстовом файле рядом с программой: по слову в строке, без учёта регистра.
-// Файл перечитывается, если его поменяли в настройках или в блокноте
+// A word list in a text file next to the app: one word per line, case-insensitive.
+// The file is re-read when it changes in Settings or in Notepad
 class WordList
 {
     readonly string path;
