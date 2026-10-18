@@ -6,12 +6,12 @@ using System.Windows.Forms;
 // Settings window: toggles, hotkeys and the lists that used to be edited in Notepad
 class SettingsForm : Form
 {
-    public bool AutoCorrect, Typos, QuietFullscreen, LayoutColor, Autostart, CheckUpdates;
+    public bool AutoCorrect, Typos, QuietFullscreen, UndoCtrlZ, LayoutColor, Autostart, CheckUpdates;
     public int Language;                 // 0 — same as Windows, 1 — Russian, 2 — English
     public Keys[] Hotkeys;
     public string Replacements, Exclusions, Ignored, Learned;
 
-    CheckBox cbAuto, cbTypos, cbQuiet, cbColor, cbAutostart, cbUpdates;
+    CheckBox cbAuto, cbTypos, cbQuiet, cbCtrlZ, cbColor, cbAutostart, cbUpdates;
     ComboBox cbLanguage;
     HotkeyBox[] hotkeyBoxes;
     TextBox tbReplacements, tbExclusions, tbIgnored, tbLearned;
@@ -25,12 +25,12 @@ class SettingsForm : Form
         ShowInTaskbar = true;
         Font = new Font("Segoe UI", 9f);
         AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(560, 534);
+        ClientSize = new Size(560, 562);
     }
 
     protected override void OnLoad(EventArgs e)
     {
-        var tabs = new TabControl { Location = new Point(10, 10), Size = new Size(540, 474) };
+        var tabs = new TabControl { Location = new Point(10, 10), Size = new Size(540, 502) };
         tabs.TabPages.Add(MainPage());
         tabs.TabPages.Add(TextPage(L.T("Автозамены", "Replacements"),
             L.T("Сокращение = замена, по одной на строку. Наберите сокращение и пробел — оно заменится. " +
@@ -50,8 +50,8 @@ class SettingsForm : Form
                 "Words KeyFish always switches to the other layout. Words land here when you fix them yourself with Pause."), Learned, out tbLearned));
         Controls.Add(tabs);
 
-        var ok = new Button { Text = L.T("Сохранить", "Save"), DialogResult = DialogResult.OK, Location = new Point(364, 496), Size = new Size(90, 28) };
-        var cancel = new Button { Text = L.T("Отмена", "Cancel"), DialogResult = DialogResult.Cancel, Location = new Point(460, 496), Size = new Size(90, 28) };
+        var ok = new Button { Text = L.T("Сохранить", "Save"), DialogResult = DialogResult.OK, Location = new Point(364, 524), Size = new Size(90, 28) };
+        var cancel = new Button { Text = L.T("Отмена", "Cancel"), DialogResult = DialogResult.Cancel, Location = new Point(460, 524), Size = new Size(90, 28) };
         ok.Click += (s, ev) => Collect();
         Controls.Add(ok);
         Controls.Add(cancel);
@@ -70,6 +70,8 @@ class SettingsForm : Form
                                   "Fix typos (experimental): recieve → receive"), Typos, ref y);
         cbQuiet = Check(page, L.T("Не исправлять в играх и полноэкранных программах",
                                   "Stay quiet in games and full-screen apps"), QuietFullscreen, ref y);
+        cbCtrlZ = Check(page, L.T("Ctrl+Z сразу после автоисправления отменяет его (следующий Ctrl+Z — как обычно)",
+                                  "Ctrl+Z right after an auto-fix undoes it (the next Ctrl+Z works as usual)"), UndoCtrlZ, ref y);
         cbColor = Check(page, L.T("Цвет рыбки по раскладке: синяя — EN, оранжевая — RU",
                                   "Fish color shows the layout: blue — EN, orange — RU"), LayoutColor, ref y);
         cbAutostart = Check(page, L.T("Запускать вместе с Windows", "Start with Windows"), Autostart, ref y);
@@ -137,6 +139,7 @@ class SettingsForm : Form
         AutoCorrect = cbAuto.Checked;
         Typos = cbTypos.Checked;
         QuietFullscreen = cbQuiet.Checked;
+        UndoCtrlZ = cbCtrlZ.Checked;
         LayoutColor = cbColor.Checked;
         Autostart = cbAutostart.Checked;
         CheckUpdates = cbUpdates.Checked;

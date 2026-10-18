@@ -9,7 +9,7 @@ A tiny Windows tray app that fixes text typed in the wrong keyboard layout — f
 - **Auto-correction as you type:** `ghbdtn vbh` → «привет мир», `руддщ` → "hello", `f vj;yj` → «а можно»
 - **Case fixing:** "hELLO" (accidental CapsLock) → "Hello", "HEllo" → "Hello"
 - **Text replacements:** `thx` + space → "thank you" — your own list in Settings
-- **Pause** or **Ctrl+Shift+Space** — switch the layout of selected text; Pause right after an auto-fix undoes it
+- **Pause** or **Ctrl+Shift+Space** — switch the layout of selected text; Pause or Ctrl+Z right after an auto-fix undoes it
 - **Shift+F3** — cycle the case of selected text, like in Word
 - **Shift+Pause** — transliteration: «Привет» ⇄ "Privet"
 - Typo fixing via Windows spell check (experimental, turn it on in Settings)

@@ -1,3 +1,6 @@
+1.8.0
+• Ctrl+Z right after an auto-fix undoes it, just like Pause; the next Ctrl+Z works as usual in the app and undoes text (also when you hold Ctrl and press Z twice). Can be turned off in Settings
+
 1.7.0
 • Update in one click: KeyFish downloads the new version from GitHub, verifies its checksum and restarts
 • Learns from you: a word you fix yourself with Pause gets corrected automatically next time

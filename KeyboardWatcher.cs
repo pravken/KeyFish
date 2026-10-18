@@ -47,9 +47,14 @@ class KeyboardWatcher
         public string Layout;
         public IntPtr Hwnd;
         public WordRec TypoRec;              // not null: check the word for a typo (the space is already typed)
+        public bool ReleaseCtrl;             // lift the held Ctrl while typing (undo via Ctrl+Z)
+        public int CtrlComboVk;              // not 0: send Ctrl + this key (Ctrl is still held after an undo)
     }
 
     public volatile bool Enabled = true;
+    public volatile bool UndoWithCtrlZ = true;
+    volatile bool ctrlHeld;              // the physical Ctrl key is down
+    volatile bool ctrlLifted;            // an undo lifted Ctrl logically while it is still physically held
     // Fixed mistakes (layout, case, typos) and expanded replacements, for statistics and the fish blink
     int correctionCount, expansionCount;
     public int CorrectionCount { get { return Volatile.Read(ref correctionCount); } }
@@ -142,6 +147,14 @@ class KeyboardWatcher
             var k = (W.KBDLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(W.KBDLLHOOKSTRUCT));
             int msg = wParam.ToInt32();
             bool down = msg == 0x0100 || msg == 0x0104; // WM_KEYDOWN, WM_SYSKEYDOWN
+            // Track the physical Ctrl key: undo via Ctrl+Z releases it logically and must know whether to press it back
+            // Scan code 0x21D is the fake left Ctrl Windows emits itself when the layout switches (as with AltGr);
+            // it is not the user's key, so it must not count as releasing Ctrl
+            if (k.dwExtraInfo != W.Marker && k.scanCode != 0x21D && (k.vkCode == 0x11 || k.vkCode == 0xA2 || k.vkCode == 0xA3))
+            {
+                ctrlHeld = down;
+                if (!down) ctrlLifted = false;
+            }
             if (down && k.dwExtraInfo != W.Marker)
             {
                 bool swallow;
@@ -166,6 +179,17 @@ class KeyboardWatcher
         {
             if (vk == 0x13 || IsModifier(vk)) return false; // Pause is undo; modifiers don't reset the word
 
+            // Undo via Ctrl+Z lifted Ctrl while the user still holds it: this key must arrive with Ctrl,
+            // so it is swallowed and sent again together with Ctrl (holding Ctrl and pressing Z twice).
+            // Jobs run in order, so even during the undo itself this lands right after it
+            if (ctrlLifted && ctrlHeld)
+            {
+                ctrlLifted = false;
+                pending = true;
+                jobs.Add(new Job { CtrlComboVk = vk });
+                return true;
+            }
+
             if (pending)
             {
                 // While a correction is being typed, hold keystrokes back and replay them afterwards
@@ -185,6 +209,15 @@ class KeyboardWatcher
                 history.Clear();
                 partial = true;
                 return false;
+            }
+
+            // The first Ctrl+Z right after an auto-fix undoes the fix (like Pause) and is swallowed;
+            // any later Ctrl+Z reaches the app and undoes text as usual
+            if (vk == 0x5A && ctrl && UndoWithCtrlZ && last != null && last.Backspaced == 0 &&
+                !Down(0x10) && !Down(0x12) && !Down(0x5B) && !Down(0x5C) && StartUndo(true))
+            {
+                ctrlLifted = true;
+                return true;
             }
             last = null;
 
@@ -427,7 +460,10 @@ class KeyboardWatcher
     }
 
     // Undo the last correction (Pause right after it). false means there is nothing to undo
-    public bool Undo()
+    public bool Undo() { return StartUndo(false); }
+
+    // releaseCtrl: the undo comes from Ctrl+Z, so Ctrl is held and must be lifted while the text is retyped
+    bool StartUndo(bool releaseCtrl)
     {
         Correction c;
         lock (sync)
@@ -446,7 +482,8 @@ class KeyboardWatcher
             Text = c.Original,
             TerminatorVk = c.TerminatorVk,
             Layout = c.OriginalRu ? "00000419" : "00000409",
-            Hwnd = c.Hwnd
+            Hwnd = c.Hwnd,
+            ReleaseCtrl = releaseCtrl
         });
         return true;
     }
@@ -499,6 +536,8 @@ class KeyboardWatcher
             int[] held;
             lock (sync)
             {
+                // More jobs queued: keep holding keystrokes so they replay after those jobs, in typing order
+                if (jobs.Count > 0) continue;
                 pending = false;
                 held = heldDuringPending.ToArray();
                 heldDuringPending.Clear();
@@ -508,9 +547,20 @@ class KeyboardWatcher
         }
     }
 
-    static void Execute(Job job)
+    void Execute(Job job)
     {
         var inputs = new List<W.INPUT>();
+        if (job.CtrlComboVk != 0)
+        {
+            // Ctrl is physically down (it can't have been released: that would have cleared ctrlLifted first),
+            // so pressing it logically again can't leave it stuck; the physical release will lift it
+            W.AddKeyDown(inputs, 0xA2);
+            W.AddKey(inputs, job.CtrlComboVk);
+            W.Send(inputs);
+            return;
+        }
+        // With Ctrl held, Backspace would erase whole words: lift Ctrl first
+        if (job.ReleaseCtrl) { W.AddKeyUp(inputs, 0xA2); W.AddKeyUp(inputs, 0xA3); W.AddKeyUp(inputs, 0x11); }
         if (job.ToggleCaps) W.AddKey(inputs, 0x14);
         for (int i = 0; i < job.Backspaces; i++) W.AddKey(inputs, 0x08);
         foreach (char c in job.Text)
@@ -813,6 +863,9 @@ static class W
         i.u.ki = new KEYBDINPUT { wVk = vk, wScan = scan, dwFlags = flags, dwExtraInfo = Marker };
         return i;
     }
+
+    public static void AddKeyDown(List<INPUT> list, int vk) { list.Add(Key((ushort)vk, 0, 0)); }
+    public static void AddKeyUp(List<INPUT> list, int vk) { list.Add(Key((ushort)vk, 0, 2)); }
 
     public static void AddKey(List<INPUT> list, int vk)
     {

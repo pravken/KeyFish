@@ -174,8 +174,8 @@ class App : ApplicationContext
         {
             return new[]
             {
-                L.T("Раскладка выделенного текста; сразу после автоисправления — отмена",
-                    "Switch layout of selected text; right after an auto-fix — undo it"),
+                L.T("Раскладка выделенного текста; сразу после автоисправления — отмена (как и Ctrl+Z)",
+                    "Switch layout of selected text; right after an auto-fix — undo it (as does Ctrl+Z)"),
                 L.T("Раскладка выделенного текста — запасное сочетание", "Switch layout of selected text — alternative keys"),
                 L.T("Регистр выделенного текста (aa → Aa → AA)", "Change case of selected text (aa → Aa → AA)"),
                 L.T("Транслитерация (привет ⇄ privet)", "Transliterate (привет ⇄ privet)")
@@ -284,7 +284,8 @@ class App : ApplicationContext
         {
             Enabled = GetSetting("AutoCorrect", 1) != 0,
             FixTypos = GetSetting("Typos", 0) != 0,
-            QuietFullscreen = GetSetting("QuietFullscreen", 1) != 0
+            QuietFullscreen = GetSetting("QuietFullscreen", 1) != 0,
+            UndoWithCtrlZ = GetSetting("UndoCtrlZ", 1) != 0
         };
         showLayout = GetSetting("LayoutColor", 1) != 0;
 
@@ -412,7 +413,7 @@ class App : ApplicationContext
         for (int i = 0; i < keys.Length; i++) keys[i] = GetHotkey(i);
         settingsForm = new SettingsForm
         {
-            AutoCorrect = watcher.Enabled, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, LayoutColor = showLayout, Autostart = IsAutostart(),
+            AutoCorrect = watcher.Enabled, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
             CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting,
             Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ReadText(ignoredPath), Learned = ReadText(learnedPath)
         };
@@ -428,6 +429,7 @@ class App : ApplicationContext
                 watcher.Enabled = f.AutoCorrect; autoItem.Checked = f.AutoCorrect; SetSetting("AutoCorrect", f.AutoCorrect ? 1 : 0);
                 watcher.FixTypos = f.Typos; SetSetting("Typos", f.Typos ? 1 : 0);
                 watcher.QuietFullscreen = f.QuietFullscreen; SetSetting("QuietFullscreen", f.QuietFullscreen ? 1 : 0);
+                watcher.UndoWithCtrlZ = f.UndoCtrlZ; SetSetting("UndoCtrlZ", f.UndoCtrlZ ? 1 : 0);
                 showLayout = f.LayoutColor; SetSetting("LayoutColor", f.LayoutColor ? 1 : 0);
                 SetSetting("CheckUpdates", f.CheckUpdates ? 1 : 0);
                 if (f.Autostart != IsAutostart()) SetAutostart(f.Autostart);
