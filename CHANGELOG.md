@@ -1,3 +1,6 @@
+1.8.1
+• Fixed: autostart silently did nothing if it pointed to a KeyFish.exe that was moved or deleted. KeyFish now repairs the entry on start, and Settings shows autostart as off when it can't work
+
 1.8.0
 • Ctrl+Z right after an auto-fix undoes it, just like Pause; the next Ctrl+Z works as usual in the app and undoes text (also when you hold Ctrl and press Z twice). Can be turned off in Settings
 
