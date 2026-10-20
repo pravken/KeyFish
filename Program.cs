@@ -269,6 +269,7 @@ class App : ApplicationContext
     public App(bool updated)
     {
         MigrateFromLayoutFix();
+        RepairAutostart();
         L.Setting = GetSetting("Language", 0);
         statsBase = GetSetting("StatsTotal", 0);
         if (GetSetting("StatsSince", 0) == 0) SetSetting("StatsSince", int.Parse(DateTime.Today.ToString("yyyyMMdd")));
@@ -632,10 +633,33 @@ class App : ApplicationContext
         }
     }
 
-    static bool IsAutostart()
+    // Path of the exe the autostart entry launches, or null if there is no entry
+    static string AutostartTarget()
     {
         using (var k = Registry.CurrentUser.OpenSubKey(RunKey))
-            return k != null && k.GetValue(AppName) != null;
+        {
+            var value = k == null ? null : k.GetValue(AppName) as string;
+            return value == null ? null : value.Trim().Trim('"');
+        }
+    }
+
+    // Autostart counts as on only if it launches an exe that exists
+    static bool IsAutostart()
+    {
+        string target = AutostartTarget();
+        return target != null && File.Exists(target);
+    }
+
+    // The entry points to an exe that is gone (moved or deleted copy): point it at this one instead,
+    // otherwise autostart silently does nothing after a reboot
+    static void RepairAutostart()
+    {
+        try
+        {
+            string target = AutostartTarget();
+            if (target != null && !File.Exists(target)) SetAutostart(true);
+        }
+        catch { }
     }
 
     static void SetAutostart(bool on)
