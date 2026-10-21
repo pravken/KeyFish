@@ -61,8 +61,10 @@ static class Typer
                 if (warm-- > 0) return;
                 if (GetForegroundWindow() != f.Handle)
                 {
-                    // Never type into someone else's window
+                    // Never type into someone else's window. Windows may refuse the focus to a window that wasn't
+                    // just clicked; a tap of Alt is the usual way to be let through
                     SetForegroundWindow(f.Handle);
+                    if (GetForegroundWindow() != f.Handle) { Key(0x12); SetForegroundWindow(f.Handle); }
                     if (GetForegroundWindow() != f.Handle) { t.Stop(); File.WriteAllText(outPath, "NOFOCUS"); f.Close(); return; }
                 }
                 if (steps.Count > 0) { steps.Dequeue()(); return; }
