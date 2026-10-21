@@ -50,7 +50,6 @@ Once a day KeyFish asks GitHub whether a new version is out. Nothing else is sen
 Interface language	Мова інтэрфейсу
 KeyFish is free	KeyFish бясплатны
 If it saves you time, you can buy the author a coffee.	Калі ён эканоміць вам час, можна пачаставаць аўтара кавай.
-Click a field and press the keys. Backspace turns a hotkey off.	Пстрыкніце поле і націсніце спалучэнне. Backspace — выключыць спалучэнне.
 Reset	Скінуць
 Type an abbreviation and a space, and KeyFish replaces it with the text. It works in the other layout too: "thx" expands even when typed as «ерч».	Набярыце скарачэнне і прабел — KeyFish заменіць яго на тэкст. Скарачэнне спрацоўвае і ў іншай раскладцы: «thx» заменіцца, нават калі набрана «ерч».
 Abbreviation	Скарачэнне
@@ -77,3 +76,5 @@ The downloaded file has the wrong version — update cancelled.	Спампава
 No permission to write to the app folder. Please download the new version manually.	Няма правоў на запіс у папку праграмы. Спампуйце новую версію ўручную.
 Update failed: 	Не ўдалося абнавіць:
 Same as Windows	Як у Windows
+Press the keys…	Націсніце спалучэнне…
+Click a field and press the new keys. Esc cancels, Backspace turns a hotkey off.	Пстрыкніце поле і націсніце новае спалучэнне. Esc — адмена, Backspace — выключыць спалучэнне.

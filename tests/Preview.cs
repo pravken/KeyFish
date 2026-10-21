@@ -59,6 +59,8 @@ static class Preview
                 var dd = Find<DropDown>(form);
                 if (dd != null) dd.GetType().GetMethod("ShowMenu", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(dd, null);
             }
+            // "focus": click into the first hotkey field, to see the recording state
+            if (Array.IndexOf(args, "focus") >= 0) { var hk = Find<HotkeyBox>(form); if (hk != null) hk.Focus(); }
             if (args[0] == "aquarium")
                 foreach (Control c in form.Controls) if (c is FishView) for (int i = 0; i < 5; i++) c.GetType().GetMethod("OnClick", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(c, new object[] { EventArgs.Empty });
             timer.Start();

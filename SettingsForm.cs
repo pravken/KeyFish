@@ -97,6 +97,7 @@ class SettingsForm : Form
     // Esc closes without saving, unless a field is being edited in a table
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
     {
+        if (keyData == Keys.Escape && FocusedHotkey() != null && FocusedHotkey().Cancel()) return true;
         if (keyData == Keys.Escape && !(ActiveControl is DataGridView && ((DataGridView)ActiveControl).IsCurrentCellInEditMode))
         {
             DialogResult = DialogResult.Cancel;
@@ -105,6 +106,8 @@ class SettingsForm : Form
         }
         return base.ProcessCmdKey(ref msg, keyData);
     }
+
+    HotkeyBox FocusedHotkey() { return hotkeyBoxes == null ? null : hotkeyBoxes.FirstOrDefault(b => b.Focused); }
 
     // ---------- Building blocks ----------
 
@@ -226,8 +229,8 @@ class SettingsForm : Form
     {
         int y;
         var page = Page(L.T("Сочетания клавиш", "Hotkeys"), out y);
-        Intro(page, ref y, L.T("Щёлкните поле и нажмите сочетание. Backspace — выключить сочетание.",
-                              "Click a field and press the keys. Backspace turns a hotkey off."));
+        Intro(page, ref y, L.T("Щёлкните поле и нажмите новое сочетание. Esc — отмена, Backspace — выключить сочетание.",
+                              "Click a field and press the new keys. Esc cancels, Backspace turns a hotkey off."));
         hotkeyBoxes = new HotkeyBox[Hotkeys.Length];
         for (int i = 0; i < Hotkeys.Length; i++)
         {
@@ -625,10 +628,14 @@ class SettingsForm : Form
     }
 }
 
-// A field that records the pressed key combination
+// A field that records the pressed key combination. Clicking it starts recording: the field lights up
+// and asks for the keys; Esc cancels, Backspace turns the hotkey off
 class HotkeyBox : TextBox
 {
     Keys value;
+    bool recording;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool HideCaret(IntPtr hwnd);
 
     public HotkeyBox()
     {
@@ -642,44 +649,91 @@ class HotkeyBox : TextBox
         Cursor = Cursors.Hand;
     }
 
+    public static string Prompt { get { return L.T("Нажмите сочетание…", "Press the keys…"); } }
+
     public Keys Value
     {
         get { return value; }
-        set { this.value = value; Text = SettingsForm.Format(value); }
+        set { this.value = value; Show(SettingsForm.Format(value)); }
     }
 
+    // Text without a caret or a blue selection: the field is a button that listens, not a text box
+    void Show(string text)
+    {
+        Text = text;
+        SelectionLength = 0;
+        if (IsHandleCreated) HideCaret(Handle);
+    }
+
+    void Record(bool on)
+    {
+        recording = on;
+        BackColor = on ? Theme.SelectionBack : Theme.Input;
+        Font = on ? Theme.Strong : Theme.Body;
+        Show(on ? Prompt : SettingsForm.Format(value));
+    }
+
+    // Esc while recording: keep the old hotkey
+    public bool Cancel()
+    {
+        if (!recording) return false;
+        Record(false);
+        var form = FindForm();
+        if (form != null) form.ActiveControl = null;
+        return true;
+    }
+
+    protected override void OnEnter(EventArgs e) { Record(true); base.OnEnter(e); }
+    protected override void OnLeave(EventArgs e) { Record(false); base.OnLeave(e); }
+    protected override void OnMouseUp(MouseEventArgs e) { if (!recording) Record(true); else Show(Text); base.OnMouseUp(e); }
+    protected override void OnGotFocus(EventArgs e) { base.OnGotFocus(e); BeginInvoke(new Action(() => Show(Text))); }
+
     protected override bool IsInputKey(Keys keyData) { return true; }
+
+    static string Modifiers(Keys m)
+    {
+        var parts = new List<string>();
+        if ((m & Keys.Control) != 0) parts.Add("Ctrl");
+        if ((m & Keys.Alt) != 0) parts.Add("Alt");
+        if ((m & Keys.Shift) != 0) parts.Add("Shift");
+        return string.Join("+", parts);
+    }
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
         e.SuppressKeyPress = true;
         e.Handled = true;
+        if (!recording) Record(true);
         Keys code = e.KeyCode;
         if (code == Keys.ShiftKey || code == Keys.ControlKey || code == Keys.Menu || code == Keys.LWin || code == Keys.RWin)
         {
-            Text = (e.Modifiers == Keys.None ? "" : SettingsForm.Format(e.Modifiers)) + "…";
+            Show(Modifiers(e.Modifiers) + "+…");
             return;
         }
-        if ((code == Keys.Back || code == Keys.Delete) && e.Modifiers == Keys.None) { Value = Keys.None; return; }
+        if ((code == Keys.Back || code == Keys.Delete) && e.Modifiers == Keys.None) { Finish(Keys.None); return; }
         // Single letters and digits without modifiers would get in the way of typing
         bool plain = e.Modifiers == Keys.None || e.Modifiers == Keys.Shift;
         if (plain && ((code >= Keys.A && code <= Keys.Z) || (code >= Keys.D0 && code <= Keys.D9) || code == Keys.Space))
         {
-            Text = SettingsForm.NeedModifier;
+            Show(SettingsForm.NeedModifier);
             return;
         }
-        Value = code | e.Modifiers;
+        Finish(code | e.Modifiers);
+    }
+
+    // A hotkey is set: show it and stop listening, so the next keys don't change it by accident
+    void Finish(Keys k)
+    {
+        value = k;
+        Record(false);
+        var form = FindForm();
+        if (form != null) form.ActiveControl = null;
     }
 
     protected override void OnKeyUp(KeyEventArgs e)
     {
-        if (Text.EndsWith("…") || Text == SettingsForm.NeedModifier) Text = SettingsForm.Format(value);
+        // Modifiers released without a key, or a refused key: ask again
+        if (recording && (Text.EndsWith("…") || Text == SettingsForm.NeedModifier) && e.Modifiers == Keys.None) Show(Prompt);
         base.OnKeyUp(e);
-    }
-
-    protected override void OnLeave(EventArgs e)
-    {
-        Text = SettingsForm.Format(value);
-        base.OnLeave(e);
     }
 }

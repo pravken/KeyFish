@@ -50,7 +50,6 @@ Once a day KeyFish asks GitHub whether a new version is out. Nothing else is sen
 Interface language	Langue de l'interface
 KeyFish is free	KeyFish est gratuit
 If it saves you time, you can buy the author a coffee.	S'il vous fait gagner du temps, vous pouvez offrir un café à l'auteur.
-Click a field and press the keys. Backspace turns a hotkey off.	Cliquez sur un champ et appuyez sur les touches. Retour arrière désactive le raccourci.
 Reset	Réinitialiser
 Type an abbreviation and a space, and KeyFish replaces it with the text. It works in the other layout too: "thx" expands even when typed as «ерч».	Tapez une abréviation et une espace, KeyFish la remplace par le texte. Cela marche aussi dans l'autre disposition : « stp » est remplacé même tapé « ыез ».
 Abbreviation	Abréviation
@@ -78,3 +77,5 @@ The downloaded file has the wrong version — update cancelled.	Le fichier tél�
 No permission to write to the app folder. Please download the new version manually.	Pas le droit d'écrire dans le dossier de l'application. Téléchargez la nouvelle version manuellement.
 Update failed: 	Échec de la mise à jour :
 Same as Windows	Comme Windows
+Press the keys…	Appuyez sur les touches…
+Click a field and press the new keys. Esc cancels, Backspace turns a hotkey off.	Cliquez sur un champ et appuyez sur les nouvelles touches. Échap annule, Retour arrière désactive le raccourci.

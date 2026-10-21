@@ -50,7 +50,6 @@ Once a day KeyFish asks GitHub whether a new version is out. Nothing else is sen
 Interface language	Језик интерфејса
 KeyFish is free	KeyFish је бесплатан
 If it saves you time, you can buy the author a coffee.	Ако вам штеди време, можете аутора частити кафом.
-Click a field and press the keys. Backspace turns a hotkey off.	Кликните поље и притисните тастере. Backspace искључује пречицу.
 Reset	Врати
 Type an abbreviation and a space, and KeyFish replaces it with the text. It works in the other layout too: "thx" expands even when typed as «ерч».	Откуцајте скраћеницу и размак — KeyFish ће је заменити текстом. Ради и у другом распореду: „хвл“ ће се заменити чак и ако је откуцано „hvl“.
 Abbreviation	Скраћеница
@@ -78,3 +77,5 @@ The downloaded file has the wrong version — update cancelled.	Преузета
 No permission to write to the app folder. Please download the new version manually.	Нема дозволе за упис у фасциклу програма. Преузмите нову верзију ручно.
 Update failed: 	Ажурирање није успело:
 Same as Windows	Као у Windows-у
+Press the keys…	Притисните тастере…
+Click a field and press the new keys. Esc cancels, Backspace turns a hotkey off.	Кликните поље и притисните нове тастере. Esc отказује, Backspace искључује пречицу.
