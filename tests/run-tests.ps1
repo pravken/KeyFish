@@ -1,5 +1,5 @@
 ﻿# End-to-end typing tests for KeyFish. They press real keys, so don't touch the keyboard or mouse while they run.
-# Your replacements, word lists and settings are backed up first and restored at the end.
+# Your replacements, word lists and settings are backed up to tests\backup first and restored at the end (or on the next run, if this one is cut short).
 # Usage: powershell -ExecutionPolicy Bypass -File tests\run-tests.ps1
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
@@ -11,18 +11,42 @@ New-Item -ItemType Directory -Force $bin | Out-Null
 & $csc /nologo /codepage:65001 /out:"$bin\BrowserTyper.exe" "$PSScriptRoot\BrowserTyper.cs"
 Copy-Item "$PSScriptRoot\pw.html", "$PSScriptRoot\tx.html" $bin -Force
 
-# Back up the user's files and settings, then use a known setup
+# The user's files and settings are backed up to tests\backup before the tests change them. The copy is on disk,
+# so a run that was cut short (window closed, power lost) is undone by the next run before it starts.
+# "complete" is written last: without it the copy is unfinished, and the user's own files were never touched
 $files = 'replacements.txt', 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt'
-$backup = @{}; foreach ($f in $files) { $p = Join-Path $root $f; $backup[$f] = if (Test-Path $p) { [IO.File]::ReadAllBytes($p) } else { $null } }
 $regNames = 'Typos', 'StatsTotal', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect', 'QuickKey'
-$regBackup = @{}; foreach ($n in $regNames) { $regBackup[$n] = (Get-ItemProperty $key -Name $n -ErrorAction SilentlyContinue).$n }
+$backupDir = Join-Path $PSScriptRoot 'backup'
+
+function Restore-Backup {
+  Get-Process KeyFish -ErrorAction SilentlyContinue | Stop-Process; Start-Sleep -Milliseconds 800
+  foreach ($f in $files) {
+    $p = Join-Path $root $f; $saved = Join-Path $backupDir $f
+    if (Test-Path $saved) { Copy-Item $saved $p -Force } elseif (Test-Path $p) { Remove-Item $p }
+  }
+  foreach ($line in Get-Content (Join-Path $backupDir 'registry.txt')) {
+    $n, $v = $line -split '=', 2
+    if ($v -ne '') { Set-ItemProperty $key -Name $n -Value ([int]$v) -Type DWord } else { Remove-ItemProperty $key -Name $n -ErrorAction SilentlyContinue }
+  }
+  Remove-Item $backupDir -Recurse -Force
+}
+
+if (Test-Path (Join-Path $backupDir 'complete')) { Restore-Backup; "The previous run was cut short: your files and settings were restored first" }
+elseif (Test-Path $backupDir) { Remove-Item $backupDir -Recurse -Force }
+
+New-Item -ItemType Directory -Force $backupDir | Out-Null
+foreach ($f in $files) { $p = Join-Path $root $f; if (Test-Path $p) { Copy-Item $p (Join-Path $backupDir $f) } }
+if (-not (Test-Path $key)) { New-Item $key | Out-Null }
+$regNames | ForEach-Object { "$_=" + (Get-ItemProperty $key -Name $_ -ErrorAction SilentlyContinue).$_ } | Set-Content (Join-Path $backupDir 'registry.txt') -Encoding ascii
+Set-Content (Join-Path $backupDir 'complete') 'ok' -Encoding ascii
+
 [IO.File]::WriteAllText((Join-Path $root 'replacements.txt'), "спс = спасибо`r`nсув = С уважением,\nТест`r`nln2 = C:\\new`r`n", (New-Object Text.UTF8Encoding $false))
 foreach ($f in 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt') { $p = Join-Path $root $f; if (Test-Path $p) { Remove-Item $p } }
-if (-not (Test-Path $key)) { New-Item $key | Out-Null }
 foreach ($n in 'Typos', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect', 'QuickKey') { Set-ItemProperty $key -Name $n -Value 1 -Type DWord }   # QuickKey 1: double Shift
 Get-Process KeyFish -ErrorAction SilentlyContinue | Stop-Process; Start-Sleep -Milliseconds 800
 explorer.exe (Join-Path $root 'KeyFish.exe'); Start-Sleep 5
 
+try {
 $w = '~' * 30
 # name, script, expected text, extra Typer argument
 $tests = @(
@@ -65,10 +89,10 @@ foreach ($b in @(@('browser password', 'pw', 'KFPW', 'KFPW:ghbdtn vbh'), @('brow
   Start-Sleep 1
 }
 "passed: $pass of $total"
-
-# Restore everything and start KeyFish normally again
-foreach ($f in $files) { $p = Join-Path $root $f; if ($backup[$f]) { [IO.File]::WriteAllBytes($p, $backup[$f]) } elseif (Test-Path $p) { Remove-Item $p } }
-Get-Process KeyFish -ErrorAction SilentlyContinue | Stop-Process; Start-Sleep -Milliseconds 800
-foreach ($n in $regNames) { if ($null -ne $regBackup[$n]) { Set-ItemProperty $key -Name $n -Value $regBackup[$n] -Type DWord } else { Remove-ItemProperty $key -Name $n -ErrorAction SilentlyContinue } }
-explorer.exe (Join-Path $root 'KeyFish.exe')
-"tests finished"
+}
+finally {
+  # Restore everything and start KeyFish normally again (also when a test fails with an error)
+  Restore-Backup
+  explorer.exe (Join-Path $root 'KeyFish.exe')
+  "tests finished"
+}
