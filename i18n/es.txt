@@ -79,3 +79,26 @@ Update failed: 	Error al actualizar:
 Same as Windows	Como Windows
 Press the keys…	Pulsa las teclas…
 Click a field and press the new keys. Esc cancels, Backspace turns a hotkey off.	Haz clic en un campo y pulsa las nuevas teclas. Esc cancela, Retroceso desactiva el atajo.
+Paused until {0}	En pausa hasta las {0}
+Pause for 1 hour	Pausar 1 hora
+Resume (paused until {0})	Reanudar (en pausa hasta las {0})
+Recent corrections	Correcciones recientes
+Nothing corrected yet	Aún no se ha corregido nada
+Click one to never correct it again:	Haz clic en una para no volver a corregirla:
+"{0}" is now in "Never correct".	«{0}» ahora está en «No corregir nunca».
+Clear the list	Vaciar la lista
+Show the layout at the cursor	Mostrar la distribución junto al cursor
+When the layout changes, EN, RU and so on appear next to the text cursor for a second, or next to the mouse pointer if the app doesn't tell where its cursor is.	Cuando cambia la distribución, aparece EN, ES, etc. un segundo junto al cursor de texto, o junto al puntero si la aplicación no indica dónde está su cursor.
+Recent corrections in the fish menu	Correcciones recientes en el menú del pez
+Click a correction in the menu and KeyFish won't correct it again. The list is kept only in memory.	Haz clic en una corrección del menú y KeyFish no volverá a hacerla. La lista solo se guarda en memoria.
+Off	Desactivado
+Double Shift	Doble Mayús
+Fix the last word with one key	Corregir la última palabra con una tecla
+Does the same as the first hotkey. Shift+Caps Lock still turns capital letters on and off.	Hace lo mismo que el primer atajo. Mayús+Bloq Mayús sigue activando las mayúsculas.
+Import…	Importar…
+Import	Importar
+Nothing to add was found in the file.	No se encontró nada que añadir en el archivo.
+Added: {0}. Already in the list: {1}. Click Save to keep the changes.	Añadidas: {0}. Ya estaban en la lista: {1}. Pulsa Guardar para conservar los cambios.
+Replacements (txt, csv, AutoHotkey, Espanso)	Reemplazos (txt, csv, AutoHotkey, Espanso)
+All files	Todos los archivos
+Word lists (txt, csv)	Listas de palabras (txt, csv)

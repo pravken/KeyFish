@@ -79,3 +79,26 @@ Update failed: 	Aktualizacja nie powiodła się:
 Same as Windows	Jak w Windows
 Press the keys…	Naciśnij klawisze…
 Click a field and press the new keys. Esc cancels, Backspace turns a hotkey off.	Kliknij pole i naciśnij nowe klawisze. Esc anuluje, Backspace wyłącza skrót.
+Paused until {0}	Wstrzymano do {0}
+Pause for 1 hour	Wstrzymaj na 1 godzinę
+Resume (paused until {0})	Wznów poprawianie (wstrzymano do {0})
+Recent corrections	Ostatnie poprawki
+Nothing corrected yet	Jeszcze nic nie poprawiono
+Click one to never correct it again:	Kliknij, aby już tak nie poprawiać:
+"{0}" is now in "Never correct".	„{0}” dodano do „Nie poprawiaj”.
+Clear the list	Wyczyść listę
+Show the layout at the cursor	Pokazuj układ przy kursorze
+When the layout changes, EN, RU and so on appear next to the text cursor for a second, or next to the mouse pointer if the app doesn't tell where its cursor is.	Gdy układ się zmienia, przy kursorze tekstu na sekundę pojawia się EN, PL itd., a jeśli program nie podaje, gdzie jest kursor — przy myszy.
+Recent corrections in the fish menu	Ostatnie poprawki w menu rybki
+Click a correction in the menu and KeyFish won't correct it again. The list is kept only in memory.	Kliknij poprawkę w menu, a KeyFish nie będzie już tak poprawiać. Lista jest tylko w pamięci.
+Off	Wyłączone
+Double Shift	Podwójny Shift
+Fix the last word with one key	Popraw ostatnie słowo jednym klawiszem
+Does the same as the first hotkey. Shift+Caps Lock still turns capital letters on and off.	Działa jak pierwszy skrót. Shift+Caps Lock nadal włącza wielkie litery.
+Import…	Importuj…
+Import	Import
+Nothing to add was found in the file.	W pliku nie znaleziono nic do dodania.
+Added: {0}. Already in the list: {1}. Click Save to keep the changes.	Dodano: {0}. Już na liście: {1}. Kliknij „Zapisz”, aby zachować zmiany.
+Replacements (txt, csv, AutoHotkey, Espanso)	Zamienniki (txt, csv, AutoHotkey, Espanso)
+All files	Wszystkie pliki
+Word lists (txt, csv)	Listy słów (txt, csv)

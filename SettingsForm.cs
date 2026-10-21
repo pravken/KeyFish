@@ -11,7 +11,8 @@ using System.Windows.Forms;
 // that used to be plain text files (replacements, apps, words)
 class SettingsForm : Form
 {
-    public bool AutoCorrect, Typos, QuietFullscreen, UndoCtrlZ, LayoutColor, Autostart, CheckUpdates;
+    public bool AutoCorrect, Typos, QuietFullscreen, UndoCtrlZ, LayoutColor, Autostart, CheckUpdates, LayoutBadge, RecentMenu;
+    public int QuickKey;                 // 0 — off, 1 — double Shift, 2 — Caps Lock
     public int Language;                 // see L.Choices
     public Keys[] Hotkeys;
     public string Replacements, Exclusions, Ignored, Learned, AppLayouts;
@@ -19,8 +20,8 @@ class SettingsForm : Form
     public Image Logo;
     public int StartPage;                // the section to open with
 
-    ToggleSwitch tAuto, tTypos, tQuiet, tCtrlZ, tColor, tAutostart, tUpdates;
-    DropDown cbLanguage;
+    ToggleSwitch tAuto, tTypos, tQuiet, tCtrlZ, tColor, tAutostart, tUpdates, tBadge, tRecent;
+    DropDown cbLanguage, cbQuickKey;
     HotkeyBox[] hotkeyBoxes;
     DataGridView gridReplacements, gridApps, gridIgnored, gridLearned;
 
@@ -205,6 +206,12 @@ class SettingsForm : Form
                 "Right after the fix, like Pause. The next Ctrl+Z works in the app as usual."), tCtrlZ = Toggle(UndoCtrlZ));
         Row(page, ref y, L.T("Цвет рыбки показывает раскладку", "Fish color shows the layout"),
             L.T("Синяя — латиница, оранжевая — другой алфавит.", "Blue — Latin, orange — another alphabet."), tColor = Toggle(LayoutColor));
+        Row(page, ref y, L.T("Показывать раскладку у курсора", "Show the layout at the cursor"),
+            L.T("Когда раскладка меняется, рядом с текстовым курсором на секунду появляется EN, RU и т. д. Если программа не сообщает, где курсор, — рядом с мышью.",
+                "When the layout changes, EN, RU and so on appear next to the text cursor for a second, or next to the mouse pointer if the app doesn't tell where its cursor is."), tBadge = Toggle(LayoutBadge));
+        Row(page, ref y, L.T("Последние исправления в меню рыбки", "Recent corrections in the fish menu"),
+            L.T("Нажмите на исправление в меню, и KeyFish больше не будет так исправлять. Список хранится только в памяти.",
+                "Click a correction in the menu and KeyFish won't correct it again. The list is kept only in memory."), tRecent = Toggle(RecentMenu));
         Row(page, ref y, L.T("Запускать вместе с Windows", "Start with Windows"), null, tAutostart = Toggle(Autostart));
         Row(page, ref y, L.T("Проверять обновления", "Check for updates"),
             L.T("Раз в день KeyFish спрашивает у GitHub, вышла ли новая версия. Больше ничего не отправляется.",
@@ -244,6 +251,13 @@ class SettingsForm : Form
             hotkeyBoxes[i] = box;
             Row(page, ref y, App.HotkeyTitles[i], null, holder);
         }
+
+        cbQuickKey = new DropDown { Width = 260 };
+        cbQuickKey.Items.AddRange(new[] { L.T("Выключено", "Off"), L.T("Двойной Shift", "Double Shift"), "Caps Lock" });
+        cbQuickKey.SelectedIndex = Math.Max(0, Math.Min(QuickKey, 2));
+        Row(page, ref y, L.T("Исправить последнее слово одной клавишей", "Fix the last word with one key"),
+            L.T("Делает то же, что первое сочетание. Caps Lock вместе с Shift по-прежнему включает заглавные буквы.",
+                "Does the same as the first hotkey. Shift+Caps Lock still turns capital letters on and off."), cbQuickKey);
         return page;
     }
 
@@ -267,9 +281,10 @@ class SettingsForm : Form
         val.Multiline = true; val.AcceptsReturn = true;
         val.Location = new Point(206, 32); val.Size = new Size(270, 84);
         Theme.DarkScrollbars(val);
-        var add = new RoundButton { Text = L.T("Добавить", "Add"), AccentStyle = true, Location = new Point(490, 30), Size = new Size(134, 32) };
-        var del = new RoundButton { Text = L.T("Удалить", "Delete"), Location = new Point(490, 70), Size = new Size(134, 32) };
-        editor.Controls.AddRange(new Control[] { lKey, lVal, key, arrow, val, add, del });
+        var add = new RoundButton { Text = L.T("Добавить", "Add"), AccentStyle = true, Location = new Point(490, 14), Size = new Size(134, 32) };
+        var del = new RoundButton { Text = L.T("Удалить", "Delete"), Location = new Point(490, 50), Size = new Size(134, 32) };
+        var import = new RoundButton { Text = L.T("Импорт…", "Import…"), Location = new Point(490, 86), Size = new Size(134, 32) };
+        editor.Controls.AddRange(new Control[] { lKey, lVal, key, arrow, val, add, del, import });
         page.Controls.Add(editor);
         y += editor.Height + 10;
 
@@ -322,6 +337,21 @@ class SettingsForm : Form
             key.Focus();
         };
         del.Click += (s, e) => { DeleteSelected(grid); key.Text = val.Text = ""; refresh(); };
+        // Replacements from a file of another program; the ones already in the table stay as they are
+        import.Click += (s, e) =>
+        {
+            string path = PickFile(Importer.ReplacementFilter);
+            if (path == null) return;
+            int added = 0, had = 0;
+            foreach (var kv in Importer.Replacements(path))
+            {
+                if (grid.Rows.Cast<DataGridViewRow>().Any(r => string.Equals((string)r.Cells[0].Value, kv.Key, StringComparison.OrdinalIgnoreCase))) { had++; continue; }
+                grid.Rows[grid.Rows.Add(kv.Key, Show(kv.Value))].Tag = kv.Value;
+                added++;
+            }
+            ImportResult(added, had);
+            refresh();
+        };
         DeleteWithKey(grid);
         refresh();
         return page;
@@ -533,7 +563,8 @@ class SettingsForm : Form
         grid.Location = new Point(6, 84);
         grid.Size = new Size(width - 12, card.Height - 84 - 50);
         var del = new RoundButton { Text = L.T("Удалить", "Delete"), Location = new Point(14, card.Height - 44), Size = new Size(100, 30) };
-        card.Controls.AddRange(new Control[] { t, input, add, grid, del });
+        var import = new RoundButton { Text = L.T("Импорт…", "Import…"), Location = new Point(122, card.Height - 44), Size = new Size(100, 30) };
+        card.Controls.AddRange(new Control[] { t, input, add, grid, del, import });
         page.Controls.Add(card);
 
         foreach (string w in Lines(words)) grid.Rows.Add(w);
@@ -551,9 +582,39 @@ class SettingsForm : Form
         grid.SelectionChanged += (s, e) => refresh();
         add.Click += (s, e) => doAdd();
         del.Click += (s, e) => { DeleteSelected(grid); refresh(); };
+        // A word list from a file: one word per line (or the first column of a table)
+        import.Click += (s, e) =>
+        {
+            string path = PickFile(Importer.WordFilter);
+            if (path == null) return;
+            int added = 0, had = 0;
+            foreach (string w in Importer.Words(path))
+            {
+                if (grid.Rows.Cast<DataGridViewRow>().Any(r => string.Equals((string)r.Cells[0].Value, w, StringComparison.OrdinalIgnoreCase))) { had++; continue; }
+                grid.Rows.Add(w);
+                added++;
+            }
+            ImportResult(added, had);
+            refresh();
+        };
         DeleteWithKey(grid);
         refresh();
         return grid;
+    }
+
+    string PickFile(string filter)
+    {
+        using (var dialog = new OpenFileDialog { Filter = filter, Title = L.T("Импорт", "Import") })
+            return dialog.ShowDialog(this) == DialogResult.OK ? dialog.FileName : null;
+    }
+
+    void ImportResult(int added, int had)
+    {
+        string text = added + had == 0
+            ? L.T("В файле не нашлось ничего, что можно добавить.", "Nothing to add was found in the file.")
+            : L.F("Добавлено: {0}. Уже были в списке: {1}. Изменения сохранятся по кнопке «Сохранить».",
+                  "Added: {0}. Already in the list: {1}. Click Save to keep the changes.", added, had);
+        MessageBox.Show(this, text, L.T("Импорт", "Import"), MessageBoxButtons.OK, added + had == 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
     }
 
     // ---------- Saving ----------
@@ -567,6 +628,9 @@ class SettingsForm : Form
         LayoutColor = tColor.Checked;
         Autostart = tAutostart.Checked;
         CheckUpdates = tUpdates.Checked;
+        LayoutBadge = tBadge.Checked;
+        RecentMenu = tRecent.Checked;
+        QuickKey = cbQuickKey.SelectedIndex;
         Language = cbLanguage.SelectedIndex;
         for (int i = 0; i < Hotkeys.Length; i++) Hotkeys[i] = hotkeyBoxes[i].Value;
 
@@ -730,5 +794,185 @@ class HotkeyBox : TextBox
         // Modifiers released without a key, or a refused key: ask again
         if (recording && (Text.EndsWith("…") || Text == SettingsForm.NeedModifier) && e.Modifiers == Keys.None) Show(Prompt);
         base.OnKeyUp(e);
+    }
+}
+
+// Import of replacements and word lists from other programs' files. Understands the common plain formats:
+// "abbreviation = text", a table (tab, comma or semicolon between the columns), AutoHotkey hotstrings
+// (::btw::by the way) and Espanso matches (trigger / replace). Anything else in the file is skipped
+static class Importer
+{
+    public static string ReplacementFilter
+    {
+        get
+        {
+            return L.T("Автозамены (txt, csv, AutoHotkey, Espanso)", "Replacements (txt, csv, AutoHotkey, Espanso)") +
+                   "|*.txt;*.csv;*.tsv;*.ahk;*.yml;*.yaml|" + L.T("Все файлы", "All files") + "|*.*";
+        }
+    }
+
+    public static string WordFilter
+    {
+        get { return L.T("Списки слов (txt, csv)", "Word lists (txt, csv)") + "|*.txt;*.csv;*.tsv;*.dic|" + L.T("Все файлы", "All files") + "|*.*"; }
+    }
+
+    public static List<KeyValuePair<string, string>> Replacements(string path)
+    {
+        var list = new List<KeyValuePair<string, string>>();
+        string[] lines = ReadLines(path);
+        if (lines == null) return list;
+        string ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
+        if (ext == ".yml" || ext == ".yaml" || lines.Any(l => l.TrimStart().StartsWith("- trigger:")))
+        {
+            Espanso(lines, list);
+            return list;
+        }
+        var hotstring = new System.Text.RegularExpressions.Regex(@"^:[^:]*:(.+?)::(.+)$");
+        foreach (string raw in lines)
+        {
+            string s = raw.Trim();
+            if (s.Length == 0 || s.StartsWith("#") || s.StartsWith(";") || s.StartsWith("//")) continue;
+            var m = hotstring.Match(s);
+            if (m.Success) { Add(list, m.Groups[1].Value, AutoHotkeyText(m.Groups[2].Value)); continue; }
+            string[] cells = Cells(s, ext == ".csv");
+            if (cells != null) { Add(list, cells[0], cells[1].Replace("\\n", "\n")); continue; }
+            foreach (var kv in ReplacementFile.Parse(s)) Add(list, kv.Key, kv.Value);
+        }
+        return list;
+    }
+
+    public static List<string> Words(string path)
+    {
+        var list = new List<string>();
+        string[] lines = ReadLines(path);
+        if (lines == null) return list;
+        foreach (string raw in lines)
+        {
+            string s = raw.Trim();
+            if (s.Length == 0 || s.StartsWith("#") || s.StartsWith(";") || s.StartsWith("//")) continue;
+            int cut = s.IndexOfAny(new[] { '\t', ',', ';', '/' });   // a table's first column; "word/flags" in spell-checker lists
+            if (cut >= 0) s = s.Substring(0, cut);
+            s = s.Trim().Trim('"').Trim();
+            if (s.Length > 0 && s.Length <= 40 && s.IndexOf(' ') < 0 && s.Any(char.IsLetter) && !list.Contains(s, StringComparer.OrdinalIgnoreCase))
+                list.Add(s);
+        }
+        return list;
+    }
+
+    static void Add(List<KeyValuePair<string, string>> list, string key, string value)
+    {
+        key = key.Trim();
+        value = value.Trim();
+        // The same rules as the editor: one word without "=", not starting with "#", and some text to put in
+        if (key.Length == 0 || key.Length > 40 || key.IndexOfAny(new[] { ' ', '=', '\t' }) >= 0 || key.StartsWith("#") || value.Length == 0) return;
+        if (list.Any(kv => string.Equals(kv.Key, key, StringComparison.OrdinalIgnoreCase))) return;
+        list.Add(new KeyValuePair<string, string>(key, value));
+    }
+
+    // Two cells from a table row: tab-separated, or comma/semicolon-separated with "quoted" cells. null if it isn't one
+    static string[] Cells(string s, bool csv)
+    {
+        int tab = s.IndexOf('\t');
+        if (tab > 0) return new[] { s.Substring(0, tab), Unquote(s.Substring(tab + 1).Split('\t')[0]) };
+        if (!csv) return null;
+        var cells = new List<string>();
+        var cell = new StringBuilder();
+        bool quoted = false;
+        for (int i = 0; i < s.Length; i++)
+        {
+            char c = s[i];
+            if (quoted)
+            {
+                if (c == '"' && i + 1 < s.Length && s[i + 1] == '"') { cell.Append('"'); i++; }
+                else if (c == '"') quoted = false;
+                else cell.Append(c);
+            }
+            else if (c == '"') quoted = true;
+            else if (c == ',' || c == ';') { cells.Add(cell.ToString()); cell.Clear(); }
+            else cell.Append(c);
+        }
+        cells.Add(cell.ToString());
+        return cells.Count >= 2 ? new[] { cells[0], cells[1] } : null;
+    }
+
+    static string Unquote(string s)
+    {
+        s = s.Trim();
+        return s.Length >= 2 && s[0] == '"' && s[s.Length - 1] == '"' ? s.Substring(1, s.Length - 2).Replace("\"\"", "\"") : s;
+    }
+
+    // AutoHotkey escapes: `n a line break, `t a tab, `` a backtick
+    static string AutoHotkeyText(string s)
+    {
+        var sb = new StringBuilder();
+        for (int i = 0; i < s.Length; i++)
+        {
+            if (s[i] == '`' && i + 1 < s.Length)
+            {
+                char n = s[++i];
+                sb.Append(n == 'n' ? '\n' : n == 't' ? '\t' : n);
+            }
+            else sb.Append(s[i]);
+        }
+        return sb.ToString();
+    }
+
+    // Espanso: "- trigger: ..." followed by "replace: ..." (one-line values; forms and variables are skipped)
+    static void Espanso(string[] lines, List<KeyValuePair<string, string>> list)
+    {
+        string trigger = null;
+        foreach (string raw in lines)
+        {
+            string s = raw.Trim();
+            if (s.StartsWith("- ")) { trigger = null; s = s.Substring(2).Trim(); }
+            if (s.StartsWith("trigger:")) trigger = YamlValue(s.Substring(8));
+            else if (s.StartsWith("replace:") && trigger != null)
+            {
+                string value = YamlValue(s.Substring(8));
+                if (value != null && value != "|" && value != ">" && value.IndexOf("{{", StringComparison.Ordinal) < 0) Add(list, trigger, value);
+                trigger = null;
+            }
+        }
+    }
+
+    static string YamlValue(string s)
+    {
+        s = s.Trim();
+        if (s.Length >= 2 && s[0] == '\'' && s[s.Length - 1] == '\'') return s.Substring(1, s.Length - 2).Replace("''", "'");
+        if (s.Length >= 2 && s[0] == '"' && s[s.Length - 1] == '"')
+        {
+            var sb = new StringBuilder();
+            string inner = s.Substring(1, s.Length - 2);
+            for (int i = 0; i < inner.Length; i++)
+            {
+                if (inner[i] == '\\' && i + 1 < inner.Length)
+                {
+                    char n = inner[++i];
+                    sb.Append(n == 'n' ? '\n' : n == 't' ? '\t' : n);
+                }
+                else sb.Append(inner[i]);
+            }
+            return sb.ToString();
+        }
+        return s;
+    }
+
+    // UTF-8 or UTF-16 (with a BOM), otherwise UTF-8 if it is valid, otherwise the old Cyrillic Windows encoding
+    static string[] ReadLines(string path)
+    {
+        byte[] bytes;
+        try { bytes = System.IO.File.ReadAllBytes(path); }
+        catch { return null; }
+        if (bytes.Length > 5 * 1024 * 1024) return null;   // not a list of replacements
+        string text;
+        if (bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE) text = Encoding.Unicode.GetString(bytes, 2, bytes.Length - 2);
+        else if (bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF) text = Encoding.BigEndianUnicode.GetString(bytes, 2, bytes.Length - 2);
+        else
+        {
+            int start = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF ? 3 : 0;
+            try { text = new UTF8Encoding(false, true).GetString(bytes, start, bytes.Length - start); }
+            catch (DecoderFallbackException) { text = Encoding.GetEncoding(1251).GetString(bytes); }
+        }
+        return text.Replace("\r\n", "\n").Split('\n');
     }
 }

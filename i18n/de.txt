@@ -79,3 +79,26 @@ Update failed: 	Update fehlgeschlagen:
 Same as Windows	Wie in Windows
 Press the keys…	Tasten drücken…
 Click a field and press the new keys. Esc cancels, Backspace turns a hotkey off.	Feld anklicken und die neuen Tasten drücken. Esc bricht ab, Rücktaste schaltet ein Kürzel aus.
+Paused until {0}	Pausiert bis {0}
+Pause for 1 hour	1 Stunde pausieren
+Resume (paused until {0})	Fortsetzen (pausiert bis {0})
+Recent corrections	Letzte Korrekturen
+Nothing corrected yet	Noch nichts korrigiert
+Click one to never correct it again:	Klicken, um das nie wieder zu korrigieren:
+"{0}" is now in "Never correct".	„{0}“ steht jetzt unter „Nie korrigieren“.
+Clear the list	Liste leeren
+Show the layout at the cursor	Layout am Cursor anzeigen
+When the layout changes, EN, RU and so on appear next to the text cursor for a second, or next to the mouse pointer if the app doesn't tell where its cursor is.	Wenn das Layout wechselt, erscheint neben dem Textcursor kurz EN, DE usw., oder neben dem Mauszeiger, wenn die App ihren Cursor nicht meldet.
+Recent corrections in the fish menu	Letzte Korrekturen im Fischmenü
+Click a correction in the menu and KeyFish won't correct it again. The list is kept only in memory.	Klicken Sie im Menü auf eine Korrektur, und KeyFish korrigiert das nicht mehr. Die Liste bleibt nur im Arbeitsspeicher.
+Off	Aus
+Double Shift	Doppeltes Shift
+Fix the last word with one key	Letztes Wort mit einer Taste korrigieren
+Does the same as the first hotkey. Shift+Caps Lock still turns capital letters on and off.	Wirkt wie das erste Tastenkürzel. Shift+Feststelltaste schaltet weiterhin Großbuchstaben um.
+Import…	Importieren…
+Import	Importieren
+Nothing to add was found in the file.	In der Datei wurde nichts gefunden, das sich hinzufügen lässt.
+Added: {0}. Already in the list: {1}. Click Save to keep the changes.	Hinzugefügt: {0}. Schon in der Liste: {1}. Mit „Speichern“ übernehmen.
+Replacements (txt, csv, AutoHotkey, Espanso)	Ersetzungen (txt, csv, AutoHotkey, Espanso)
+All files	Alle Dateien
+Word lists (txt, csv)	Wortlisten (txt, csv)

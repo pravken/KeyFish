@@ -8,7 +8,7 @@ using System.Windows.Forms;
 // End-to-end typing test: opens its own window, types a script with real keystrokes and saves the resulting text.
 // Usage: Typer.exe <output file> <script> [full]
 // Script: letters and ; . , are keys, ' ' space, '<' Backspace, '#' CapsLock, '|' Pause, '~' a 60 ms pause,
-// '^x' Shift+x, '%x' Ctrl+x, '[' hold Ctrl, ']' release Ctrl. "full" makes the window borderless full screen.
+// '^x' Shift+x, '%x' Ctrl+x, '[' hold Ctrl, ']' release Ctrl, '!' a tap of Shift alone. "full" makes the window borderless full screen.
 static class Typer
 {
     [DllImport("user32.dll")] static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
@@ -35,6 +35,7 @@ static class Typer
             if (c == '[') { steps.Enqueue(() => keybd_event(0x11, 0, 0, UIntPtr.Zero)); continue; }
             if (c == ']') { steps.Enqueue(() => keybd_event(0x11, 0, 2, UIntPtr.Zero)); continue; }
             if (c == '~') { steps.Enqueue(() => { }); continue; }
+            if (c == '!') { steps.Enqueue(() => Key(0x10)); continue; }
             bool s = shift, k = ctrl;
             shift = ctrl = false;
             byte vk = c == '<' ? (byte)0x08 : c == '#' ? (byte)0x14 : c == '|' ? (byte)0x13 : c == ' ' ? (byte)0x20 :

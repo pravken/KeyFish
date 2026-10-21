@@ -642,3 +642,129 @@ class DropDown : Control
         base.Dispose(disposing);
     }
 }
+// The layout next to the text caret (or the mouse pointer, where an app has no caret Windows can see):
+// a small "EN" / "RU" tag that shows for a moment when the layout changes. It never takes focus and lets
+// clicks through. Drawn into a per-pixel transparent window, so the rounded edges are smooth
+class LayoutBadge : Form
+{
+    readonly Timer timer = new Timer { Interval = 30 };
+    int shownAt;
+    Bitmap picture;
+    Point where;
+
+    public LayoutBadge()
+    {
+        FormBorderStyle = FormBorderStyle.None;
+        ShowInTaskbar = false;
+        StartPosition = FormStartPosition.Manual;
+        timer.Tick += (s, e) => Step();
+    }
+
+    protected override bool ShowWithoutActivation { get { return true; } }
+
+    protected override CreateParams CreateParams
+    {
+        get
+        {
+            var cp = base.CreateParams;
+            // layered, click-through, no taskbar button, topmost, never activated
+            cp.ExStyle |= 0x80000 | 0x20 | 0x80 | 0x8 | 0x08000000;
+            return cp;
+        }
+    }
+
+    public void Flash(string text, bool latin)
+    {
+        if (picture != null) picture.Dispose();
+        picture = Render(text, latin ? Color.FromArgb(0, 103, 192) : Color.FromArgb(222, 100, 0));
+        where = Place(picture.Size);
+        shownAt = Environment.TickCount;
+        Draw(255);
+        Native.ShowWindow(Handle, 4);   // SW_SHOWNOACTIVATE
+        Native.SetWindowPos(Handle, new IntPtr(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);   // topmost, no move/size/activate
+        timer.Start();
+    }
+
+    // Visible for a second, then fades out
+    void Step()
+    {
+        int t = Environment.TickCount - shownAt;
+        if (t < 1000) return;
+        if (t >= 1300) { timer.Stop(); Native.ShowWindow(Handle, 0); return; }
+        Draw((byte)(255 * (1300 - t) / 300));
+    }
+
+    static Bitmap Render(string text, Color fill)
+    {
+        float scale;
+        using (var screen = Graphics.FromHwnd(IntPtr.Zero)) scale = screen.DpiX / 96f;
+        using (var font = new Font("Segoe UI Semibold", 12f * scale, GraphicsUnit.Pixel))
+        {
+            Size measured = TextRenderer.MeasureText(text, font);
+            int w = measured.Width + (int)(4 * scale), h = (int)(18 * scale);
+            var bmp = new Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+                using (var path = Theme.Rounded(new RectangleF(0.5f, 0.5f, w - 1, h - 1), 4 * scale))
+                using (var b = new SolidBrush(fill))
+                    g.FillPath(b, path);
+                using (var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                    g.DrawString(text, font, Brushes.White, new RectangleF(0, 0, w, h + 1), sf);
+            }
+            return bmp;
+        }
+    }
+
+    // Under the caret if the focused app shows one, otherwise next to the mouse pointer
+    static Point Place(Size size)
+    {
+        IntPtr fg = W.GetForegroundWindow();
+        uint pid;
+        var info = new W.GUITHREADINFO();
+        info.cbSize = Marshal.SizeOf(info);
+        if (fg != IntPtr.Zero && W.GetGUIThreadInfo(W.GetWindowThreadProcessId(fg, out pid), ref info) && info.hwndCaret != IntPtr.Zero)
+        {
+            var p = new Native.POINT { x = info.rcCaret.left, y = info.rcCaret.bottom };
+            if (Native.ClientToScreen(info.hwndCaret, ref p) && (p.x != 0 || p.y != 0)) return Fit(new Point(p.x, p.y + 3), size);
+        }
+        var c = Cursor.Position;
+        return Fit(new Point(c.X + 14, c.Y + 20), size);
+    }
+
+    static Point Fit(Point p, Size size)
+    {
+        var area = Screen.FromPoint(p).WorkingArea;
+        return new Point(Math.Max(area.Left, Math.Min(p.X, area.Right - size.Width)), Math.Max(area.Top, Math.Min(p.Y, area.Bottom - size.Height)));
+    }
+
+    void Draw(byte alpha)
+    {
+        IntPtr screen = Native.GetDC(IntPtr.Zero);
+        IntPtr mem = Native.CreateCompatibleDC(screen);
+        IntPtr bitmap = picture.GetHbitmap(Color.FromArgb(0));
+        IntPtr old = Native.SelectObject(mem, bitmap);
+        try
+        {
+            var size = new Native.SIZE { cx = picture.Width, cy = picture.Height };
+            var pos = new Native.POINT { x = where.X, y = where.Y };
+            var src = new Native.POINT();
+            var blend = new Native.BLENDFUNCTION { BlendOp = 0, SourceConstantAlpha = alpha, AlphaFormat = 1 };   // AC_SRC_ALPHA
+            Native.UpdateLayeredWindow(Handle, screen, ref pos, ref size, mem, ref src, 0, ref blend, 2);          // ULW_ALPHA
+        }
+        finally
+        {
+            Native.SelectObject(mem, old);
+            Native.DeleteObject(bitmap);
+            Native.DeleteDC(mem);
+            Native.ReleaseDC(IntPtr.Zero, screen);
+        }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) { timer.Dispose(); if (picture != null) picture.Dispose(); }
+        base.Dispose(disposing);
+    }
+}

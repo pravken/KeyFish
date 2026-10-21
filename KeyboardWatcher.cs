@@ -20,6 +20,84 @@ class KeyboardWatcher
         public int TerminatorVk;
         public IntPtr OriginalLayout;        // the layout the user typed in, restored on undo
         public IntPtr Hwnd;
+        public RecentFix Recent;             // its entry in the tray menu list, dropped on undo
+    }
+
+    // Recent auto-fixes for the tray menu, newest first. Kept only in memory and only while the option is on
+    public class RecentFix
+    {
+        public string From, To;
+        public List<string> Words;           // what goes to "Never correct" if the user picks it
+    }
+
+    public volatile bool KeepRecent = true;
+    readonly List<RecentFix> recent = new List<RecentFix>();
+
+    public List<RecentFix> Recent { get { lock (sync) return new List<RecentFix>(recent); } }
+
+    public void ClearRecent() { lock (sync) recent.Clear(); }
+
+    // The user picked a fix in the tray menu: its words are never corrected again
+    public void NeverCorrect(RecentFix fix)
+    {
+        lock (sync)
+        {
+            foreach (string w in fix.Words) AddIgnored(w);
+            recent.Remove(fix);
+        }
+    }
+
+    RecentFix Remember(string from, string to, List<string> words)
+    {
+        if (!KeepRecent) return null;
+        var fix = new RecentFix { From = from, To = to, Words = new List<string>(words) };
+        recent.Insert(0, fix);
+        if (recent.Count > 10) recent.RemoveAt(10);
+        return fix;
+    }
+
+    // Double Shift or Caps Lock: the same as the first hotkey (undo a fresh fix, or switch the last word).
+    // Raised on the hook thread, so the handler must only pass it on
+    public event Action QuickFix;
+    public volatile int QuickKey;        // 0 — off, 1 — double Shift, 2 — Caps Lock
+    bool shiftClean, capsSwallowed;      // Shift is down with no other key yet; Caps Lock down was swallowed
+    int shiftDownAt, lastShiftTap;
+
+    // Watches the quick key; true means the keystroke is swallowed
+    bool OnQuickKey(int vk, bool down)
+    {
+        int mode = QuickKey;
+        bool shift = vk == 0x10 || vk == 0xA0 || vk == 0xA1;
+        if (mode == 1)
+        {
+            int now = Environment.TickCount;
+            if (shift && down) { if (!shiftClean) { shiftClean = true; shiftDownAt = now; } }
+            else if (shift)
+            {
+                // A short tap of Shift alone; two of them in a row fire
+                if (shiftClean && now - shiftDownAt < 300)
+                {
+                    if (lastShiftTap != 0 && now - lastShiftTap < 400) { lastShiftTap = 0; Fire(); }
+                    else lastShiftTap = now;
+                }
+                shiftClean = false;
+            }
+            else if (down) { shiftClean = false; lastShiftTap = 0; }
+        }
+        else if (mode == 2 && vk == 0x14)
+        {
+            // Caps Lock fixes the word; Shift+Caps Lock still turns capitals on and off
+            if (down && !capsSwallowed && Down(0x10)) return false;
+            if (down) { if (!capsSwallowed) { capsSwallowed = true; Fire(); } return true; }
+            if (capsSwallowed) { capsSwallowed = false; return true; }
+        }
+        return false;
+    }
+
+    void Fire()
+    {
+        var handler = QuickFix;
+        if (handler != null) handler();
     }
 
     // A recently typed word, kept so it can be corrected after the fact
@@ -194,7 +272,10 @@ class KeyboardWatcher
         lastHookEvent = Environment.TickCount;
         int msg = wParam.ToInt32();
         if (code >= 0 && (msg == 0x0201 || msg == 0x0204 || msg == 0x0207)) // L/R/M button down
+        {
+            lastShiftTap = 0;
             lock (sync) { ResetAll(); last = null; }
+        }
         return W.CallNextHookEx(IntPtr.Zero, code, wParam, lParam);
     }
 
@@ -213,6 +294,13 @@ class KeyboardWatcher
             {
                 ctrlHeld = down;
                 if (!down) ctrlLifted = false;
+            }
+            if (k.dwExtraInfo != W.Marker && QuickKey != 0)
+            {
+                bool swallowQuick;
+                try { swallowQuick = OnQuickKey((int)k.vkCode, down); }
+                catch { swallowQuick = false; }
+                if (swallowQuick) return (IntPtr)1;
             }
             if (down && k.dwExtraInfo != W.Marker)
             {
@@ -477,6 +565,7 @@ class KeyboardWatcher
         var c = last;
         last = null;
         foreach (string w in c.OriginalWords) AddIgnored(w);
+        recent.Remove(c.Recent);
         W.SwitchLayout(c.Hwnd, c.OriginalLayout);
         var original = Layouts.Get(c.OriginalLayout);
         context = original == null ? null : original.Lang;
@@ -629,7 +718,8 @@ class KeyboardWatcher
         last = new Correction
         {
             Original = original.ToString(), Replaced = replaced.ToString(), OriginalWords = originalWords,
-            LastWordLength = fixedCase.Length, TerminatorVk = terminatorVk, OriginalLayout = current.Hkl, Hwnd = hwnd
+            LastWordLength = fixedCase.Length, TerminatorVk = terminatorVk, OriginalLayout = current.Hkl, Hwnd = hwnd,
+            Recent = Remember(original.ToString(), replaced.ToString(), originalWords)
         };
         pending = true;
         Interlocked.Increment(ref correctionCount);
@@ -658,6 +748,7 @@ class KeyboardWatcher
             if (c == null || pending || W.GetForegroundWindow() != c.Hwnd) return false;
             last = null;
             foreach (string w in c.OriginalWords) AddIgnored(w);
+            recent.Remove(c.Recent);
             history.Clear();
             context = null;
             pending = true;
@@ -700,7 +791,8 @@ class KeyboardWatcher
             last = new Correction
             {
                 Original = typed, Replaced = text, OriginalWords = new List<string> { typed },
-                LastWordLength = text.Length, TerminatorVk = job.TerminatorVk, OriginalLayout = rec.Layout.Hkl, Hwnd = job.Hwnd
+                LastWordLength = text.Length, TerminatorVk = job.TerminatorVk, OriginalLayout = rec.Layout.Hkl, Hwnd = job.Hwnd,
+                Recent = Remember(typed, text, new List<string> { typed })
             };
             rec.Shown = text;
             rec.Changed = true;

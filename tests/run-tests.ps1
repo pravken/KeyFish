@@ -14,12 +14,12 @@ Copy-Item "$PSScriptRoot\pw.html", "$PSScriptRoot\tx.html" $bin -Force
 # Back up the user's files and settings, then use a known setup
 $files = 'replacements.txt', 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt'
 $backup = @{}; foreach ($f in $files) { $p = Join-Path $root $f; $backup[$f] = if (Test-Path $p) { [IO.File]::ReadAllBytes($p) } else { $null } }
-$regNames = 'Typos', 'StatsTotal', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect'
+$regNames = 'Typos', 'StatsTotal', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect', 'QuickKey'
 $regBackup = @{}; foreach ($n in $regNames) { $regBackup[$n] = (Get-ItemProperty $key -Name $n -ErrorAction SilentlyContinue).$n }
 [IO.File]::WriteAllText((Join-Path $root 'replacements.txt'), "спс = спасибо`r`nсув = С уважением,\nТест`r`nln2 = C:\\new`r`n", (New-Object Text.UTF8Encoding $false))
 foreach ($f in 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt') { $p = Join-Path $root $f; if (Test-Path $p) { Remove-Item $p } }
 if (-not (Test-Path $key)) { New-Item $key | Out-Null }
-foreach ($n in 'Typos', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect') { Set-ItemProperty $key -Name $n -Value 1 -Type DWord }
+foreach ($n in 'Typos', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect', 'QuickKey') { Set-ItemProperty $key -Name $n -Value 1 -Type DWord }   # QuickKey 1: double Shift
 Get-Process KeyFish -ErrorAction SilentlyContinue | Stop-Process; Start-Sleep -Milliseconds 800
 explorer.exe (Join-Path $root 'KeyFish.exe'); Start-Sleep 5
 
@@ -42,7 +42,9 @@ $tests = @(
   @('quiet in full screen',   'ghbdtn ~~~~',                              'ghbdtn ', 'full'),
   @('undo with Ctrl+Z',       'hello ~~cjkywt ~~~~%z~~~~~~',              'hello cjkywt ', ''),
   @('Ctrl+Z then a letter',   'hello ~~ljvf ~~~~%z~~~~b~~~~',             'hello ljvf b', ''),
-  @('hold Ctrl, Z, release',  'hello ~~dtxth ~~~~[z~~~~]~~b~~~~',         'hello dtxth b', '')
+  @('hold Ctrl, Z, release',  'hello ~~dtxth ~~~~[z~~~~]~~b~~~~',         'hello dtxth b', ''),
+  @('double Shift fixes word', "hello ~~ghjcnj~~!~!$w",                   'hello просто', ''),
+  @('double Shift undoes fix', 'hello ~~cjkywt ~~~~!~!~~~~~~',              'hello cjkywt ', '')
 )
 $pass = 0; $total = 0
 foreach ($t in $tests) {

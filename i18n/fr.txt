@@ -79,3 +79,26 @@ Update failed: 	Échec de la mise à jour :
 Same as Windows	Comme Windows
 Press the keys…	Appuyez sur les touches…
 Click a field and press the new keys. Esc cancels, Backspace turns a hotkey off.	Cliquez sur un champ et appuyez sur les nouvelles touches. Échap annule, Retour arrière désactive le raccourci.
+Paused until {0}	En pause jusqu'à {0}
+Pause for 1 hour	Pause d'une heure
+Resume (paused until {0})	Reprendre (en pause jusqu'à {0})
+Recent corrections	Corrections récentes
+Nothing corrected yet	Rien de corrigé pour l'instant
+Click one to never correct it again:	Cliquez sur une correction pour ne plus la faire :
+"{0}" is now in "Never correct".	« {0} » est maintenant dans « Ne jamais corriger ».
+Clear the list	Vider la liste
+Show the layout at the cursor	Afficher la disposition près du curseur
+When the layout changes, EN, RU and so on appear next to the text cursor for a second, or next to the mouse pointer if the app doesn't tell where its cursor is.	Quand la disposition change, EN, FR, etc. s'affiche une seconde près du curseur de texte, ou près du pointeur si l'application n'indique pas son curseur.
+Recent corrections in the fish menu	Corrections récentes dans le menu du poisson
+Click a correction in the menu and KeyFish won't correct it again. The list is kept only in memory.	Cliquez sur une correction dans le menu et KeyFish ne la refera plus. La liste reste uniquement en mémoire.
+Off	Désactivé
+Double Shift	Double Maj
+Fix the last word with one key	Corriger le dernier mot avec une touche
+Does the same as the first hotkey. Shift+Caps Lock still turns capital letters on and off.	Fait la même chose que le premier raccourci. Maj+Verr. Maj active toujours les majuscules.
+Import…	Importer…
+Import	Importer
+Nothing to add was found in the file.	Rien à ajouter n'a été trouvé dans le fichier.
+Added: {0}. Already in the list: {1}. Click Save to keep the changes.	Ajoutés : {0}. Déjà dans la liste : {1}. Cliquez sur Enregistrer pour garder les changements.
+Replacements (txt, csv, AutoHotkey, Espanso)	Remplacements (txt, csv, AutoHotkey, Espanso)
+All files	Tous les fichiers
+Word lists (txt, csv)	Listes de mots (txt, csv)

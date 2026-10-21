@@ -79,3 +79,26 @@ Update failed: 	Не вдалося оновити:
 Same as Windows	Як у Windows
 Press the keys…	Натисніть поєднання…
 Click a field and press the new keys. Esc cancels, Backspace turns a hotkey off.	Клацніть поле й натисніть нове поєднання. Esc — скасувати, Backspace — вимкнути поєднання.
+Paused until {0}	Пауза до {0}
+Pause for 1 hour	Пауза на 1 годину
+Resume (paused until {0})	Продовжити виправляти (пауза до {0})
+Recent corrections	Останні виправлення
+Nothing corrected yet	Поки нічого не виправлено
+Click one to never correct it again:	Натисніть, щоб більше так не виправляти:
+"{0}" is now in "Never correct".	«{0}» додано до «Не виправляти».
+Clear the list	Очистити список
+Show the layout at the cursor	Показувати розкладку біля курсора
+When the layout changes, EN, RU and so on appear next to the text cursor for a second, or next to the mouse pointer if the app doesn't tell where its cursor is.	Коли розкладка змінюється, біля текстового курсора на секунду з'являється EN, UK тощо. Якщо програма не повідомляє, де курсор, — біля миші.
+Recent corrections in the fish menu	Останні виправлення в меню рибки
+Click a correction in the menu and KeyFish won't correct it again. The list is kept only in memory.	Натисніть на виправлення в меню, і KeyFish більше так не виправлятиме. Список зберігається лише в пам'яті.
+Off	Вимкнено
+Double Shift	Подвійний Shift
+Fix the last word with one key	Виправити останнє слово однією клавішею
+Does the same as the first hotkey. Shift+Caps Lock still turns capital letters on and off.	Робить те саме, що перше поєднання. Shift+Caps Lock, як і раніше, вмикає великі літери.
+Import…	Імпорт…
+Import	Імпорт
+Nothing to add was found in the file.	У файлі не знайшлося нічого, що можна додати.
+Added: {0}. Already in the list: {1}. Click Save to keep the changes.	Додано: {0}. Уже були в списку: {1}. Зміни збережуться після натискання «Зберегти».
+Replacements (txt, csv, AutoHotkey, Espanso)	Автозаміни (txt, csv, AutoHotkey, Espanso)
+All files	Усі файли
+Word lists (txt, csv)	Списки слів (txt, csv)

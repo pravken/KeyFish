@@ -78,3 +78,26 @@ Update failed: 	Не ўдалося абнавіць:
 Same as Windows	Як у Windows
 Press the keys…	Націсніце спалучэнне…
 Click a field and press the new keys. Esc cancels, Backspace turns a hotkey off.	Пстрыкніце поле і націсніце новае спалучэнне. Esc — адмена, Backspace — выключыць спалучэнне.
+Paused until {0}	Паўза да {0}
+Pause for 1 hour	Паўза на 1 гадзіну
+Resume (paused until {0})	Працягнуць выпраўляць (паўза да {0})
+Recent corrections	Апошнія выпраўленні
+Nothing corrected yet	Пакуль нічога не выпраўлена
+Click one to never correct it again:	Націсніце, каб больш так не выпраўляць:
+"{0}" is now in "Never correct".	«{0}» дададзена ў «Не выпраўляць».
+Clear the list	Ачысціць спіс
+Show the layout at the cursor	Паказваць раскладку каля курсора
+When the layout changes, EN, RU and so on appear next to the text cursor for a second, or next to the mouse pointer if the app doesn't tell where its cursor is.	Калі раскладка мяняецца, каля тэкставага курсора на секунду з'яўляецца EN, BE і г. д. Калі праграма не паведамляе, дзе курсор, — каля мышы.
+Recent corrections in the fish menu	Апошнія выпраўленні ў меню рыбкі
+Click a correction in the menu and KeyFish won't correct it again. The list is kept only in memory.	Націсніце на выпраўленне ў меню, і KeyFish больш так не будзе выпраўляць. Спіс захоўваецца толькі ў памяці.
+Off	Выключана
+Double Shift	Двайны Shift
+Fix the last word with one key	Выправіць апошняе слова адной клавішай
+Does the same as the first hotkey. Shift+Caps Lock still turns capital letters on and off.	Робіць тое ж, што першае спалучэнне. Shift+Caps Lock, як і раней, уключае вялікія літары.
+Import…	Імпарт…
+Import	Імпарт
+Nothing to add was found in the file.	У файле не знайшлося нічога, што можна дадаць.
+Added: {0}. Already in the list: {1}. Click Save to keep the changes.	Дададзена: {0}. Ужо былі ў спісе: {1}. Змены захаваюцца пасля націску «Захаваць».
+Replacements (txt, csv, AutoHotkey, Espanso)	Аўтазамены (txt, csv, AutoHotkey, Espanso)
+All files	Усе файлы
+Word lists (txt, csv)	Спісы слоў (txt, csv)

@@ -10,6 +10,10 @@
 • The fish is now drawn in detail, and the About window hides a little surprise 🐟
 • Pause on selected text converts it to your other installed layout, not just English ⇄ Russian
 • New Support ☕ button in the About window and in Settings
+• Fix the last word with one key: double Shift or Caps Lock (off by default; Shift+Caps Lock still turns capitals on)
+• The layout can show next to the text cursor for a moment when it changes (off by default)
+• The fish menu: pause corrections for an hour, and recent corrections — click one and KeyFish won't correct it that way again. While KeyFish isn't correcting, the fish is grey
+• Import replacements and word lists from other programs: plain text, CSV/TSV, AutoHotkey hotstrings, Espanso
 • More reliable: if Windows quietly turns off KeyFish's keyboard watching (it does that to a program that answered too slowly once), KeyFish notices and turns it back on; files are read and written in the background so typing is never held up
 • Terminals, SSH clients, virtual machines, remote desktops and more password managers are excluded by default (added to your list once)
 • Text KeyFish puts on the clipboard stays out of clipboard history (Win+V) and cloud sync

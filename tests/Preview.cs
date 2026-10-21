@@ -41,7 +41,7 @@ static class Preview
             foreach (var h in hkl) layouts.Add(LayoutTable.FromHkl(h));
             form = new SettingsForm
             {
-                AutoCorrect = true, QuietFullscreen = true, UndoCtrlZ = true, LayoutColor = true, Autostart = true, CheckUpdates = true,
+                AutoCorrect = true, QuietFullscreen = true, UndoCtrlZ = true, LayoutColor = true, Autostart = true, CheckUpdates = true, RecentMenu = true, QuickKey = 1,
                 Hotkeys = (Keys[])App.HotkeyDefaults.Clone(), Language = 0, StartPage = page, Logo = FishLogo.Render(72),
                 Replacements = "спс = спасибо\nсув = С уважением,\\nМаксим\nthx = thank you\n",
                 Exclusions = "Code\ncmd\nWindowsTerminal\n", AppLayouts = "Telegram = " + hkl[hkl.Length - 1].ToInt64().ToString("X") + "\nCode = " + hkl[0].ToInt64().ToString("X") + "\n",

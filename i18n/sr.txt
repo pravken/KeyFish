@@ -79,3 +79,26 @@ Update failed: 	Ажурирање није успело:
 Same as Windows	Као у Windows-у
 Press the keys…	Притисните тастере…
 Click a field and press the new keys. Esc cancels, Backspace turns a hotkey off.	Кликните поље и притисните нове тастере. Esc отказује, Backspace искључује пречицу.
+Paused until {0}	Пауза до {0}
+Pause for 1 hour	Пауза на 1 сат
+Resume (paused until {0})	Настави исправљање (пауза до {0})
+Recent corrections	Последње исправке
+Nothing corrected yet	Још ништа није исправљено
+Click one to never correct it again:	Кликните да се ово више не исправља:
+"{0}" is now in "Never correct".	„{0}“ је додато у „Не исправљај“.
+Clear the list	Обриши листу
+Show the layout at the cursor	Приказуј распоред поред курсора
+When the layout changes, EN, RU and so on appear next to the text cursor for a second, or next to the mouse pointer if the app doesn't tell where its cursor is.	Када се распоред промени, поред текстуалног курсора на секунду се појави EN, SR итд., а ако програм не јавља где је курсор — поред миша.
+Recent corrections in the fish menu	Последње исправке у менију рибице
+Click a correction in the menu and KeyFish won't correct it again. The list is kept only in memory.	Кликните на исправку у менију и KeyFish је више неће правити. Листа се чува само у меморији.
+Off	Искључено
+Double Shift	Двоструки Shift
+Fix the last word with one key	Исправи последњу реч једним тастером
+Does the same as the first hotkey. Shift+Caps Lock still turns capital letters on and off.	Ради исто што и прва пречица. Shift+Caps Lock и даље укључује велика слова.
+Import…	Увоз…
+Import	Увоз
+Nothing to add was found in the file.	У датотеци није нађено ништа што може да се дода.
+Added: {0}. Already in the list: {1}. Click Save to keep the changes.	Додато: {0}. Већ на листи: {1}. Кликните „Сачувај“ да задржите измене.
+Replacements (txt, csv, AutoHotkey, Espanso)	Замене (txt, csv, AutoHotkey, Espanso)
+All files	Све датотеке
+Word lists (txt, csv)	Листе речи (txt, csv)
