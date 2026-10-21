@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Text.RegularExpressions;
@@ -10,7 +11,8 @@ class AboutForm : Form
     const string ProjectUrl = "https://github.com/pravken/KeyFish";
     const string SupportUrl = "https://ko-fi.com/pravken";
 
-    public AboutForm(string stats, string changelog)
+    // layouts: the installed keyboard layouts, for the easter egg
+    public AboutForm(string stats, string changelog, ICollection<LayoutTable> layouts = null)
     {
         Text = L.T("О программе", "About KeyFish");
         StartPosition = FormStartPosition.CenterScreen;
@@ -26,7 +28,8 @@ class AboutForm : Form
         fish.EasterEgg += (s, e) =>
         {
             foreach (Control c in Controls) if (c is Aquarium) return;   // already playing
-            var tank = L.Ru ? new Aquarium("ghbdtn", "привет!") : L.Code == "uk" ? new Aquarium("ghbdsn", "привіт!") : new Aquarium("руддщ", "hello!");
+            string[] word = Greeting(layouts);
+            var tank = new Aquarium(word[0], word[1]);
             tank.Bounds = ClientRectangle;
             Controls.Add(tank);
             tank.BringToFront();
@@ -65,8 +68,50 @@ class AboutForm : Form
         KeyPreview = true;
         KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape || e.KeyCode == Keys.Enter) Close(); };
     }
-}
+    // "Hello" in each language KeyFish knows
+    static readonly Dictionary<string, string> Hello = new Dictionary<string, string>
+    {
+        { "en", "hello" }, { "ru", "привет" }, { "uk", "привіт" }, { "be", "прывітанне" }, { "de", "hallo" }, { "pl", "witaj" },
+        { "sr-latn", "zdravo" }, { "sr-cyrl", "здраво" }, { "bg", "здравей" }, { "mk", "здраво" }, { "fr", "bonjour" }, { "es", "hola" },
+        { "it", "ciao" }, { "pt", "olá" }, { "cs", "ahoj" }, { "tr", "merhaba" }, { "el", "γεια" }, { "he", "שלום" }, { "ka", "გამარჯობა" }
+    };
 
+    // The word for the easter egg: "hello" in one of the user's layouts (the interface language first) and the same keys
+    // pressed in an installed layout of another alphabet — exactly the mistake KeyFish fixes for this user.
+    // With a single alphabet installed: a built-in pair for the interface language
+    static string[] Greeting(ICollection<LayoutTable> layouts)
+    {
+        if (layouts != null)
+        {
+            string ui = L.Code == "sr" ? "sr-cyrl" : L.Code;
+            var targets = new List<LayoutTable>();
+            foreach (var t in layouts) if (t.Lang != null && Hello.ContainsKey(t.Lang)) targets.Add(t);
+            targets.Sort((a, b) => (b.Lang == ui ? 1 : 0) - (a.Lang == ui ? 1 : 0));
+            foreach (var target in targets)
+                foreach (var other in layouts)
+                {
+                    if (other.Script == null || other.Script == target.Script) continue;
+                    string right = Hello[target.Lang];
+                    var keys = target.Keys(right);
+                    if (keys == null) continue;
+                    string wrong = other.Type(keys);
+                    if (wrong.IndexOf('\uFFFD') < 0) return new[] { wrong, right + "!" };
+                }
+        }
+        switch (L.Code)
+        {
+            case "ru": return new[] { "ghbdtn", "привет!" };
+            case "uk": return new[] { "ghbdsn", "привіт!" };
+            case "be": return new[] { "ghsdbnfyyt", "прывітанне!" };
+            case "de": return new[] { "рфддщ", "hallo!" };
+            case "pl": return new[] { "цшефо", "witaj!" };
+            case "sr": return new[] { "хелло", "hello!" };
+            case "fr": return new[] { "ищтощгк", "bonjour!" };
+            case "es": return new[] { "рщдф", "hola!" };
+            default: return new[] { "руддщ", "hello!" };
+        }
+    }
+}
 // The full changelog in a scrollable window
 class ChangelogForm : Form
 {

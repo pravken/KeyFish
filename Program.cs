@@ -188,7 +188,7 @@ class App : ApplicationContext
         else stats = StatsLine(total) + (since > 0 ? L.F("", " (since {0})", sinceText) : "");   // no plural forms needed this way
 
         if (aboutForm != null) { aboutForm.Activate(); return; }
-        using (aboutForm = new AboutForm(stats, changes) { Icon = iconEn })
+        using (aboutForm = new AboutForm(stats, changes, new List<LayoutTable>(watcher.Layouts.All)) { Icon = iconEn })
             aboutForm.ShowDialog();
         aboutForm = null;
     }

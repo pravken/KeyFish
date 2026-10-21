@@ -37,7 +37,7 @@ Words	Словы
 Save	Захаваць
 Cancel	Адмена
 Fix the keyboard layout as you type	Выпраўляць раскладку пры наборы
-ghbdtn → привет, руддщ → hello. Replacements also work only while this is on.	ghsdsnfyyt → прывітанне, руддщ → hello. Аўтазамены таксама працуюць, толькі калі гэта ўключана.
+ghbdtn → привет, руддщ → hello. Replacements also work only while this is on.	ghsdbnfyyt → прывітанне, руддщ → hello. Аўтазамены таксама працуюць, толькі калі гэта ўключана.
 Fix typos	Выпраўляць памылкі друку
 Experimental: recieve → receive, using Windows spell check.	Эксперымент: праз праверку арфаграфіі Windows.
 Stay quiet in games and full-screen apps	Маўчаць у гульнях і поўнаэкранных праграмах

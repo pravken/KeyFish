@@ -48,7 +48,7 @@ static class Preview
                 Ignored = "lol\nкек\n", Learned = "ghbdtn\n", InstalledLayouts = layouts
             };
         }
-        else form = new AboutForm("Рыбка поймала 1 234 ошибки", "2.0.0\n• Новое\n\n1.8.3\n• Старое\n");
+        else form = new AboutForm("Рыбка поймала 1 234 ошибки", "2.0.0\n• Новое\n\n1.8.3\n• Старое\n", LayoutTable.Installed());
         string outPath = args[args[0] == "settings" ? 2 : 1];
         var timer = new Timer { Interval = args[0] == "aquarium" ? 3200 : 700 };
         form.Shown += (s, e) =>
