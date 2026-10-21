@@ -188,7 +188,6 @@ class Aquarium : Control
         this.wrong = wrong;
         this.right = right;
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
-        Cursor = Cursors.Hand;
         for (int i = 0; i < 26; i++) specks.Add(new PointF((float)random.NextDouble(), (float)random.NextDouble()));
         timer.Tick += (s, e) => { if (Elapsed > Duration) Finish(); else Invalidate(); };
         timer.Start();
@@ -203,8 +202,6 @@ class Aquarium : Control
         if (parent != null) parent.Controls.Remove(this);
         Dispose();
     }
-
-    protected override void OnClick(EventArgs e) { Finish(); }
 
     static float Ease(double x) { x = Math.Max(0, Math.Min(1, x)); return (float)(x * x * (3 - 2 * x)); }
 
