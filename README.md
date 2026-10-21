@@ -1,4 +1,4 @@
-<img src="tools/fish-preview.png" width="300" align="right">
+<p align="center"><img src="docs/cover-en.png" alt="KeyFish fixes text typed in the wrong keyboard layout" width="100%"></p>
 
 # KeyFish
 

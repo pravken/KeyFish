@@ -1,4 +1,4 @@
-<img src="tools/fish-preview.png" width="300" align="right">
+<p align="center"><img src="docs/cover-ru.png" alt="KeyFish исправляет текст, набранный не в той раскладке" width="100%"></p>
 
 # KeyFish
 
