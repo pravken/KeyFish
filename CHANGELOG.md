@@ -9,7 +9,8 @@
 • Sharp on high-DPI screens; the tray menu follows the Windows theme
 • The fish is now drawn in detail, and the About window hides a little surprise 🐟
 • Pause on selected text converts it to your other installed layout, not just English ⇄ Russian
-• New Support ☕ button in the About window and in Settings
+• A Support button at the top of Settings and in the About window
+• Smoother text in all windows, in Windows 11's own font
 • Fix the last word with one key: double Shift or Caps Lock (off by default; Shift+Caps Lock still turns capitals on)
 • The layout can show next to the text cursor for a moment when it changes (off by default)
 • The fish menu: pause corrections for an hour, and recent corrections — click one and KeyFish won't correct it that way again. While KeyFish isn't correcting, the fish is grey
