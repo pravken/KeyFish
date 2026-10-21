@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
@@ -72,8 +72,8 @@ class SettingsForm : Form
                                   "Stay quiet in games and full-screen apps"), QuietFullscreen, ref y);
         cbCtrlZ = Check(page, L.T("Ctrl+Z сразу после автоисправления отменяет его (следующий Ctrl+Z — как обычно)",
                                   "Ctrl+Z right after an auto-fix undoes it (the next Ctrl+Z works as usual)"), UndoCtrlZ, ref y);
-        cbColor = Check(page, L.T("Цвет рыбки по раскладке: синяя — EN, оранжевая — RU",
-                                  "Fish color shows the layout: blue — EN, orange — RU"), LayoutColor, ref y);
+        cbColor = Check(page, L.T("Цвет рыбки по раскладке: синяя — латиница, оранжевая — кириллица",
+                                  "Fish color shows the layout: blue — Latin, orange — Cyrillic"), LayoutColor, ref y);
         cbAutostart = Check(page, L.T("Запускать вместе с Windows", "Start with Windows"), Autostart, ref y);
         cbUpdates = Check(page, L.T("Проверять обновления", "Check for updates"), CheckUpdates, ref y);
 

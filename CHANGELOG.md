@@ -1,3 +1,12 @@
+2.0.0
+• More languages: Ukrainian, Belarusian, Serbian (Cyrillic and Latin), German and Polish, besides English and Russian. KeyFish uses the keyboard layouts you have installed in Windows and fixes words typed in the layout of the other alphabet: Latin ⇄ Cyrillic
+• Works with any layout arrangement (QWERTZ, AltGr letters such as ą or ł): keys are tracked by their position on the keyboard
+• With several Cyrillic or Latin layouts installed, KeyFish picks the language of the word and of the words before it, so a Ukrainian word goes to the Ukrainian layout
+• Serbian is written in both alphabets, so a correct Serbian Latin word is never "fixed" into Cyrillic
+• The tray fish shows the alphabet: blue — Latin, orange — Cyrillic
+• Pause on selected text converts it to your other installed layout, not just English ⇄ Russian
+• New Support ☕ button in the About window
+
 1.8.3
 • New About window: version, statistics and a link to the project; the list of changes now opens from a separate What's new button
 

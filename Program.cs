@@ -79,9 +79,10 @@ class App : ApplicationContext
     readonly KeyboardWatcher watcher;
     bool busy;
 
-    // The tray fish: blue for the English layout, orange for Russian; it blinks after an auto-fix
+    // The tray fish: blue for a Latin layout, orange for a Cyrillic one; it blinks after an auto-fix
     Icon iconEn, iconRu, blinkEn, blinkRu;
     bool showLayout, currentRu;
+    string currentLayoutName = "";
     int seenCorrections, blinkTicks;
     readonly System.Windows.Forms.Timer trayTimer = new System.Windows.Forms.Timer();
     readonly int ownPid = Process.GetCurrentProcess().Id;
@@ -98,7 +99,7 @@ class App : ApplicationContext
         {
             // The tray icon shows the alphabet of the layout: Cyrillic or Latin
             var layout = watcher.Layouts.Get(W.LayoutHkl(fg));
-            if (layout != null) currentRu = layout.Cyrillic;
+            if (layout != null) { currentRu = layout.Cyrillic; currentLayoutName = (layout.Name ?? "").Split('-')[0].ToUpperInvariant(); }
         }
 
         int corrections = watcher.CorrectionCount, events = corrections + watcher.ExpansionCount;
@@ -118,7 +119,7 @@ class App : ApplicationContext
         if (blinkTicks > 0) blinkTicks--;
         if (tray.Icon != want) tray.Icon = want;
 
-        string text = "KeyFish " + Application.ProductVersion + (showLayout ? (currentRu ? " — RU" : " — EN") : "") +
+        string text = "KeyFish " + Application.ProductVersion + (showLayout && currentLayoutName.Length > 0 ? " — " + currentLayoutName : "") +
                       "\n" + StatsLine(statsBase + corrections);
         if (text.Length > 63) text = text.Substring(0, 63);
         if (tray.Text != text) tray.Text = text;
