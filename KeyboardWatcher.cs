@@ -121,7 +121,7 @@ class KeyboardWatcher
         mouseProc = MouseHook;
 
         new Thread(() => Detector.LoadEmbedded()) { IsBackground = true }.Start();
-        StartPasswordGuard();
+        try { guard = new PasswordGuardClient(); } catch { }
         new Thread(Worker) { IsBackground = true }.Start();
         new Thread(() =>
         {
@@ -197,7 +197,7 @@ class KeyboardWatcher
                 return true;
             }
 
-            if (passwordFocused) guardSignal.Set(); // re-check: focus may have left the password field
+            if (passwordFocused) RequestFocusCheck(); // re-check: focus may have left the password field
             if (!Enabled || !Ready || passwordFocused) { ResetAll(); last = null; return false; }
 
             bool ctrl = Down(0x11);
@@ -237,7 +237,7 @@ class KeyboardWatcher
             {
                 if (word.Count == 0) wordStartedAt = Environment.TickCount;
                 if (word.Count < 40) word.Add(new KeyStroke(vk, Down(0x10), (W.GetKeyState(0x14) & 1) != 0));
-                guardSignal.Set();
+                RequestFocusCheck();
                 return false;
             }
 
@@ -613,55 +613,16 @@ class KeyboardWatcher
 
     public volatile bool QuietFullscreen = true;
 
-    // Focus is in a password field (any app, browsers included): then nothing is corrected or remembered
-    volatile bool passwordFocused;
-
-    readonly AutoResetEvent guardSignal = new AutoResetEvent(false);
-    volatile int focusCheckedAt, wordStartedAt;
-    IntPtr passwordWindow;               // the window where the password field was found; the flag clears when it loses the foreground
+    // Focus is in a password field (any app, browsers included): then nothing is corrected or remembered.
+    // The check itself runs in a separate guard process, see PasswordGuard.cs
+    PasswordGuardClient guard;
+    bool passwordFocused { get { return guard != null && guard.Password; } }
+    volatile int wordStartedAt;
 
     // Focus was checked after this word started; otherwise we can't know it isn't a password
-    bool FocusVerified { get { return focusCheckedAt - wordStartedAt >= 0; } }
+    bool FocusVerified { get { return guard != null && guard.CheckedAt - wordStartedAt >= 0; } }
 
-    // Check what has focus on focus changes and while typing. Events alone aren't enough: a browser reports
-    // the password field late, so at event time the focus is still the browser window, not the field
-    void StartPasswordGuard()
-    {
-        var t = new Thread(() =>
-        {
-            try { System.Windows.Automation.Automation.AddAutomationFocusChangedEventHandler((s, e) => guardSignal.Set()); }
-            catch { }
-            while (true)
-            {
-                guardSignal.WaitOne();
-                IntPtr foreground = W.GetForegroundWindow();
-                bool password = passwordFocused && foreground == passwordWindow;
-                try
-                {
-                    var element = System.Windows.Automation.AutomationElement.FocusedElement;
-                    if (element != null)
-                    {
-                        var info = element.Current;
-                        var type = info.ControlType;
-                        // Only a text field can change the decision. Browser popups ("suggest a strong password",
-                        // autofill) take focus for a moment, and at first the browser reports the whole page
-                        // (Document) as focused; neither means the password field was left
-                        if (info.IsPassword) password = true;
-                        else if (type == System.Windows.Automation.ControlType.Edit ||
-                                 type == System.Windows.Automation.ControlType.ComboBox) password = false;
-                    }
-                }
-                catch { }
-                if (password) passwordWindow = foreground;
-                passwordFocused = password;
-                focusCheckedAt = Environment.TickCount;
-                if (password) lock (sync) { ResetAll(); last = null; }
-                Thread.Sleep(100); // at most ten times a second; keystrokes in between merge into one check
-            }
-        }) { IsBackground = true };
-        t.SetApartmentState(ApartmentState.MTA);
-        t.Start();
-    }
+    void RequestFocusCheck() { if (guard != null) guard.RequestCheck(); }
 
     // A full-screen game, presentation or video: typing there isn't text, so don't correct
     static bool IsFullscreen(IntPtr hwnd)

@@ -1,0 +1,10 @@
+Windows Registry Editor Version 5.00
+
+; Makes Windows save a small crash dump when KeyFish.exe crashes, to %LOCALAPPDATA%\CrashDumps.
+; Double-click to turn it on (needs administrator rights); crash-dumps-off.reg turns it off again.
+; The dump holds part of KeyFish's memory, which can include the last few words typed:
+; send it only to the developer, don't post it publicly.
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\KeyFish.exe]
+"DumpType"=dword:00000001
+"DumpCount"=dword:00000003

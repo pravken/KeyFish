@@ -1,3 +1,7 @@
+1.8.2
+• Fixed a crash on some login pages and windows: the password-field check (Windows UI Automation) now runs in a small separate process, so a failure there can no longer close KeyFish — the check simply restarts
+• tools/crash-dumps-on.reg helps report a crash (see the README)
+
 1.8.1
 • Fixed: autostart silently did nothing if it pointed to a KeyFish.exe that was moved or deleted. KeyFish now repairs the entry on start, and Settings shows autostart as off when it can't work
 

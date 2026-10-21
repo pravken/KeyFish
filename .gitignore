@@ -6,3 +6,6 @@ exclusions.txt
 ignored-words.txt
 replacements.txt
 learned-words.txt
+
+# Test outputs
+tests/bin/

@@ -29,9 +29,13 @@ KeyFish has to see your keystrokes to fix them, so here is exactly what it does 
 
 - **Nothing is logged.** Only the word you're typing and the last few words are kept in memory, and they're dropped when you click, move the cursor or switch windows.
 - **Nothing about your typing leaves your computer.** The only network request is the update check: KeyFish asks GitHub for the latest release of this repository. Spell checking uses the one built into Windows.
-- **Password fields are off-limits.** In a password field of any app — browsers included — KeyFish doesn't correct or remember anything.
+- **Password fields are off-limits.** In a password field of any app — browsers included — KeyFish doesn't correct or remember anything. The check runs in a small separate process, so Task Manager shows two `KeyFish.exe`: the second one (`--password-guard`) only asks Windows UI Automation whether the focused field is a password field, and it closes together with KeyFish.
 - **What's stored on disk** is only what you ask for: your replacements, the lists of words to never or always correct (next to `KeyFish.exe`), and settings plus the mistake counter in the registry under `HKCU\Software\KeyFish`.
 - **Updates are verified.** One-click update downloads only from this repository's releases and checks the SHA-256 checksum published by the release build before replacing the app. Releases are built by GitHub Actions straight from the source code in this repository.
+
+## If KeyFish crashes
+
+Please open an issue and say what you were doing (which app or site, which key you pressed). If it happens again, double-click `tools/crash-dumps-on.reg` (needs administrator rights): Windows will then save a small crash dump to `%LOCALAPPDATA%\CrashDumps` the next time, which shows exactly where it failed. The dump can contain the last few words you typed, so send it privately rather than attaching it to a public issue. `tools/crash-dumps-off.reg` turns this off.
 
 ## Build
 

@@ -14,6 +14,14 @@ static class Program
     [STAThread]
     static void Main(string[] args)
     {
+        // The helper process that watches for password fields (see PasswordGuard.cs)
+        int parentPid;
+        if (args.Length == 2 && args[0] == "--password-guard" && int.TryParse(args[1], out parentPid))
+        {
+            PasswordGuardProcess.Run(parentPid);
+            return;
+        }
+
         bool updated = Array.IndexOf(args, "--updated") >= 0;
         bool created;
         using (var mutex = new Mutex(true, "KeyFish_SingleInstance", out created))

@@ -1,0 +1,5 @@
+Windows Registry Editor Version 5.00
+
+; Turns off the KeyFish crash dumps enabled by crash-dumps-on.reg
+
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\KeyFish.exe]
