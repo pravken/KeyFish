@@ -86,7 +86,9 @@ public static class Detector
 
     static readonly Dictionary<string, int> Alphabets = new Dictionary<string, int>
     {
-        { "en", 26 }, { "ru", 33 }, { "uk", 33 }, { "be", 32 }, { "de", 30 }, { "pl", 32 }, { "sr-latn", 30 }, { "sr-cyrl", 30 }
+        { "en", 26 }, { "ru", 33 }, { "uk", 33 }, { "be", 32 }, { "de", 30 }, { "pl", 32 }, { "sr-latn", 30 }, { "sr-cyrl", 30 },
+        { "bg", 30 }, { "mk", 31 }, { "el", 34 }, { "he", 27 }, { "ka", 33 },
+        { "fr", 39 }, { "es", 33 }, { "it", 36 }, { "pt", 39 }, { "cs", 41 }, { "tr", 29 }
     };
 
     static readonly Dictionary<string, string[]> SingleLetterWords = new Dictionary<string, string[]>
@@ -97,8 +99,20 @@ public static class Detector
         { "be", new[] { "а", "з", "і", "у", "ў", "я" } },
         { "pl", new[] { "a", "i", "o", "u", "w", "z" } },
         { "sr-latn", new[] { "a", "i", "u", "o", "s", "k" } },
-        { "sr-cyrl", new[] { "а", "и", "у", "о", "с", "к" } }
+        { "sr-cyrl", new[] { "а", "и", "у", "о", "с", "к" } },
+        { "bg", new[] { "а", "в", "и", "с", "у", "я" } },
+        { "mk", new[] { "а", "в", "е", "и", "о", "с" } },
+        { "el", new[] { "ο", "η", "ή", "ω", "α" } },
+        { "fr", new[] { "a", "à", "y" } },
+        { "es", new[] { "a", "e", "o", "u", "y" } },
+        { "it", new[] { "a", "e", "è", "i", "o" } },
+        { "pt", new[] { "a", "e", "é", "o" } },
+        { "cs", new[] { "a", "i", "k", "o", "s", "u", "v", "z" } },
+        { "tr", new[] { "o" } }
     };
+
+    // Languages whose standard Windows layout puts letters on the keys of similar-sounding Latin letters
+    static readonly HashSet<string> Phonetic = new HashSet<string> { "sr-cyrl", "mk", "el" };
 
     public static IEnumerable<string> Languages { get { return Alphabets.Keys; } }
 
@@ -192,9 +206,9 @@ public static class Detector
         long ct = string.IsNullOrEmpty(t) ? 0 : T.Count(t);
         long ca = A.Count(a);
 
-        // The Serbian Cyrillic layout is phonetic: a word typed in the wrong layout turns into a transliteration
-        // (hello → хелло) that reads as plausible, so letter statistics can't tell — only the dictionary decides
-        bool strict = T.Lang == "sr-cyrl" || A.Lang == "sr-cyrl";
+        // Serbian Cyrillic, Macedonian and Greek layouts are phonetic: a word typed in the wrong layout turns into
+        // a transliteration (hello → хелло, ηελλο) that reads as plausible, so letter statistics can't tell — only the dictionary decides
+        bool strict = Phonetic.Contains(T.Lang) || Phonetic.Contains(A.Lang);
 
         // What was typed isn't a word at all (symbols inside), but the other layout gives a word
         if (t == null) return ca > 0 || (!strict && A.Score(a) > -3.2);

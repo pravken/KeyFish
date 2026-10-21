@@ -97,9 +97,9 @@ class App : ApplicationContext
         if (fg != IntPtr.Zero && pid != ownPid && cls != "Shell_TrayWnd" && cls != "NotifyIconOverflowWindow"
             && cls != "TopLevelWindowForOverflowXamlIsland")
         {
-            // The tray icon shows the alphabet of the layout: Cyrillic or Latin
+            // The tray icon shows the alphabet of the layout: Latin or another one
             var layout = watcher.Layouts.Get(W.LayoutHkl(fg));
-            if (layout != null) { currentRu = layout.Cyrillic; currentLayoutName = (layout.Name ?? "").Split('-')[0].ToUpperInvariant(); }
+            if (layout != null) { currentRu = layout.Script != null && layout.Script != "Latin"; currentLayoutName = (layout.Name ?? "").Split('-')[0].ToUpperInvariant(); }
         }
 
         int corrections = watcher.CorrectionCount, events = corrections + watcher.ExpansionCount;

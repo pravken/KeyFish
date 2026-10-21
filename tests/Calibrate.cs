@@ -14,24 +14,20 @@ static class Calibrate
     static readonly Dictionary<string, string> Klc = new Dictionary<string, string>
     {
         { "en", "kbdus" }, { "de", "kbdgr" }, { "pl", "kbdpl1" }, { "sr-latn", "kbdycl" },
-        { "ru", "kbdru" }, { "uk", "kbdur1" }, { "be", "kbdblr" }, { "sr-cyrl", "kbdycc" }
+        { "fr", "kbdfr" }, { "es", "kbdsp" }, { "it", "kbdit" }, { "pt", "kbdpo" }, { "cs", "kbdcz" }, { "tr", "kbdtuq" },
+        { "ru", "kbdru" }, { "uk", "kbdur1" }, { "be", "kbdblr" }, { "sr-cyrl", "kbdycc" },
+        { "bg", "kbdbulg" }, { "mk", "kbdmac" }, { "el", "kbdhe" }, { "he", "kbdheb" }, { "ka", "kbdgeo" }
     };
-    static readonly string[] Latin = { "en", "de", "pl", "sr-latn" };
-    static readonly string[] Cyrillic = { "ru", "uk", "be", "sr-cyrl" };
+    static readonly string[] Latin = { "en", "de", "pl", "sr-latn", "fr", "es", "it", "pt", "cs", "tr" };
+    static readonly string[] Cyrillic = { "ru", "uk", "be", "sr-cyrl", "bg", "mk", "el", "he", "ka" };   // every other alphabet, in fact
 
     // The same keys pressed in another layout; null if a letter can't be typed in the source layout
     static string Retype(string word, LayoutTable from, LayoutTable to)
     {
-        var sb = new StringBuilder();
-        foreach (char c in word)
-        {
-            int scan; bool shift, altGr;
-            if (!from.Find(c, out scan, out shift, out altGr)) return null;
-            char r = to.CharFor(scan, shift, false, altGr);
-            if (r == '\0') return null;
-            sb.Append(r);
-        }
-        return sb.ToString();
+        var keys = from.Keys(word);
+        if (keys == null) return null;
+        string r = to.Type(keys);
+        return r.IndexOf('\uFFFD') >= 0 ? null : r;
     }
 
     static void Main(string[] args)
@@ -68,11 +64,13 @@ static class Calibrate
         Console.WriteLine(heldOut ? "HELD-OUT (words the models have not seen)" : "FULL MODELS (5000 most frequent words)");
         Console.WriteLine("{0,-8} {1,-8} | caught: {1} words typed in {0} layout, {0} words typed in {1} layout | wrongly fixed: correct {0}, correct {1}", "latin", "cyrillic");
         bool withContext = args.Length > 3 && args[3] == "context";
+        bool all = args.Contains("all");
         if (withContext) Console.WriteLine("(with context: the previous word was in the language the user is writing in)");
         foreach (string L in Latin)
             foreach (string C in Cyrillic)
             {
                 if (L == "sr-latn" && C == "sr-cyrl") continue;   // the same language in two alphabets
+                if (L != "en" && C != "ru" && !all) continue;      // by default: every language against English or Russian
                 Func<string, string, string, string, double> rate = (lang, typedIn, other, mode) =>
                 {
                     string context = withContext ? lang : null;

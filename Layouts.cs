@@ -6,28 +6,100 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 
+// A physical key press: the scan code identifies the key itself, whatever the layout
+public struct KeyStroke
+{
+    public int Scan; public bool Shift, Caps, AltGr;
+    public KeyStroke(int scan, bool shift, bool caps, bool altGr) { Scan = scan; Shift = shift; Caps = caps; AltGr = altGr; }
+}
+
 // What every physical key types in one keyboard layout. Keys are scan codes, not virtual-key codes:
 // the same physical key has different virtual-key codes in, say, German QWERTZ and US QWERTY.
 public class LayoutTable
 {
     // Shift states: 0 — none, 1 — Shift, 2 — AltGr (Ctrl+Alt), 3 — Shift+AltGr
     readonly char[,] chars = new char[256, 4];
+    readonly char[,] dead = new char[256, 4];            // dead keys: an accent that goes onto the next letter (Greek ´, French ^)
     readonly bool[] capsLetter = new bool[256];          // CapsLock acts like Shift on this key
-    readonly Dictionary<char, int> reverse = new Dictionary<char, int>();   // char → scan * 4 + state
+    readonly Dictionary<char, int> reverse = new Dictionary<char, int>();       // char → scan * 4 + state
+    readonly Dictionary<char, int> reverseDead = new Dictionary<char, int>();   // combining accent → dead key
 
     public IntPtr Hkl;
-    public string Lang;      // language model code: en, ru, uk, be, de, pl, sr-latn, sr-cyrl; null if unsupported
-    public bool Cyrillic;    // the letters of this layout are Cyrillic
+    public string Lang;      // language model code (en, ru, el…); null if KeyFish has no model for the layout
+    public string Script;    // the alphabet of the layout's letters: Latin, Cyrillic, Greek, Hebrew, Georgian
     public string Name;
 
     public char CharFor(int scan, bool shift, bool caps, bool altGr)
     {
         if (scan <= 0 || scan > 255) return '\0';
-        bool upper = shift ^ (caps && capsLetter[scan]);
-        return chars[scan, (upper ? 1 : 0) + (altGr ? 2 : 0)];
+        return chars[scan, State(scan, shift, caps, altGr)];
     }
 
-    // The key (and shift state) that types this character, for converting selected text
+    public char DeadFor(int scan, bool shift, bool caps, bool altGr)
+    {
+        if (scan <= 0 || scan > 255) return '\0';
+        return dead[scan, State(scan, shift, caps, altGr)];
+    }
+
+    int State(int scan, bool shift, bool caps, bool altGr)
+    {
+        bool upper = shift ^ (caps && capsLetter[scan]);
+        return (upper ? 1 : 0) + (altGr ? 2 : 0);
+    }
+
+    public bool IsDead(KeyStroke k) { return CharFor(k.Scan, k.Shift, k.Caps, k.AltGr) == '\0' && DeadFor(k.Scan, k.Shift, k.Caps, k.AltGr) != '\0'; }
+
+    // The text these keys type in this layout. A dead key puts its accent on the next letter (΄ + ε → έ);
+    // a key with nothing in this layout gives U+FFFD, which spoils the word
+    public string Type(List<KeyStroke> keys)
+    {
+        var sb = new StringBuilder(keys.Count);
+        char pending = '\0';
+        foreach (var k in keys)
+        {
+            char c = CharFor(k.Scan, k.Shift, k.Caps, k.AltGr);
+            if (c == '\0')
+            {
+                char d = DeadFor(k.Scan, k.Shift, k.Caps, k.AltGr);
+                if (d == '\0') { sb.Append('�'); continue; }
+                if (pending != '\0') sb.Append(pending);   // two dead keys in a row: Windows types the first one as is
+                pending = d;
+                continue;
+            }
+            if (pending != '\0')
+            {
+                char mark = Combining(pending);
+                string composed = mark == '\0' ? null : (c.ToString() + mark).Normalize(NormalizationForm.FormC);
+                // An accent that doesn't go onto this letter is typed separately, as Windows does
+                if (composed != null && composed.Length == 1) sb.Append(composed);
+                else sb.Append(pending).Append(c);
+                pending = '\0';
+            }
+            else sb.Append(c);
+        }
+        if (pending != '\0') sb.Append(pending);
+        return sb.ToString();
+    }
+
+    // The keys that type this text in this layout, including accented letters typed with a dead key; null if it can't be typed
+    public List<KeyStroke> Keys(string text)
+    {
+        var keys = new List<KeyStroke>(text.Length);
+        foreach (char c in text)
+        {
+            int scan; bool shift, altGr;
+            if (Find(c, out scan, out shift, out altGr)) { keys.Add(new KeyStroke(scan, shift, false, altGr)); continue; }
+            // έ = ε + combining acute: the dead key for the accent, then the letter
+            string d = c.ToString().Normalize(NormalizationForm.FormD);
+            int code;
+            if (d.Length != 2 || !reverseDead.TryGetValue(d[1], out code) || !Find(d[0], out scan, out shift, out altGr)) return null;
+            keys.Add(new KeyStroke(code / 4, (code & 1) != 0, false, (code & 2) != 0));
+            keys.Add(new KeyStroke(scan, shift, false, altGr));
+        }
+        return keys;
+    }
+
+    // The key (and shift state) that types this character directly
     public bool Find(char c, out int scan, out bool shift, out bool altGr)
     {
         int code;
@@ -35,6 +107,28 @@ public class LayoutTable
         if (!reverse.TryGetValue(c, out code)) return false;
         scan = code / 4; shift = (code & 1) != 0; altGr = (code & 2) != 0;
         return true;
+    }
+
+    // The combining mark for a spacing accent that dead keys type: ´ → U+0301 and so on
+    static char Combining(char accent)
+    {
+        switch (accent)
+        {
+            case '´': case '΄': case '\'': return '́';   // acute, Greek tonos
+            case '`': return '̀';
+            case '^': case 'ˆ': return '̂';
+            case '~': case '˜': return '̃';
+            case '¨': return '̈';                             // diaeresis
+            case '΅': return '̈́';                             // Greek dialytika with tonos
+            case 'ˇ': return '̌';                             // caron: č, ě
+            case '˘': return '̆';                             // breve
+            case '°': case '˚': return '̊';              // ring: ů
+            case '¸': return '̧';                             // cedilla: ç
+            case '˛': return '̨';                             // ogonek: ą
+            case '˝': return '̋';                             // double acute: ő
+            case '˙': return '̇';                             // dot above: ż
+            default: return '\0';
+        }
     }
 
     // Keys of the main block that type parts of words: digit row, three letter rows and the extra key next to left Shift.
@@ -54,30 +148,63 @@ public class LayoutTable
         if (!reverse.ContainsKey(c) || code % 4 < reverse[c] % 4) reverse[c] = code;
     }
 
+    void SetDead(int scan, int state, char c)
+    {
+        if (c == '\0' || !IsTypingKey(scan)) return;
+        dead[scan, state] = c;
+        char mark = Combining(c);
+        int code = scan * 4 + state;
+        if (mark != '\0' && (!reverseDead.ContainsKey(mark) || code % 4 < reverseDead[mark] % 4)) reverseDead[mark] = code;
+    }
+
+    public static string ScriptOf(char c)
+    {
+        if (!char.IsLetter(c)) return null;
+        if (c < 0x0250) return "Latin";
+        if (c >= 0x0370 && c <= 0x03FF) return "Greek";
+        if (c >= 0x0400 && c <= 0x04FF) return "Cyrillic";
+        if (c >= 0x0590 && c <= 0x05FF) return "Hebrew";
+        if (c >= 0x10A0 && c <= 0x10FF) return "Georgian";
+        return "Other";
+    }
+
     void Finish()
     {
-        int cyr = 0, lat = 0;
+        // The alphabet most unshifted letter keys type
+        var counts = new Dictionary<string, int>();
         for (int s = 0; s < 256; s++)
         {
-            char c = chars[s, 0];
-            if (c >= 'а' && c <= 'я' || c == 'і' || c == 'ў' || c == 'ј' || c == 'љ' || c == 'њ') cyr++;
-            else if (c >= 'a' && c <= 'z') lat++;
+            string script = ScriptOf(chars[s, 0]);
+            if (script == null) continue;
+            int n; counts.TryGetValue(script, out n); counts[script] = n + 1;
         }
-        Cyrillic = cyr > lat;
+        int best = 0;
+        foreach (var kv in counts) if (kv.Value > best) { best = kv.Value; Script = kv.Key; }
     }
 
     // The language model that fits a layout, from its language id and its alphabet
-    static string LangFor(int langId, bool cyrillic)
+    static string LangFor(int langId, string script)
     {
         switch (langId & 0x3FF)
         {
-            case 0x09: return cyrillic ? null : "en";
-            case 0x19: return cyrillic ? "ru" : null;
-            case 0x22: return cyrillic ? "uk" : null;
-            case 0x23: return cyrillic ? "be" : null;
-            case 0x07: return cyrillic ? null : "de";
-            case 0x15: return cyrillic ? null : "pl";
-            case 0x1A: return cyrillic ? "sr-cyrl" : "sr-latn";   // Serbian, also Croatian and Bosnian Latin
+            case 0x09: return script == "Latin" ? "en" : null;
+            case 0x07: return script == "Latin" ? "de" : null;
+            case 0x15: return script == "Latin" ? "pl" : null;
+            case 0x0C: return script == "Latin" ? "fr" : null;
+            case 0x0A: return script == "Latin" ? "es" : null;
+            case 0x10: return script == "Latin" ? "it" : null;
+            case 0x16: return script == "Latin" ? "pt" : null;
+            case 0x05: return script == "Latin" ? "cs" : null;
+            case 0x1F: return script == "Latin" ? "tr" : null;
+            case 0x19: return script == "Cyrillic" ? "ru" : null;
+            case 0x22: return script == "Cyrillic" ? "uk" : null;
+            case 0x23: return script == "Cyrillic" ? "be" : null;
+            case 0x02: return script == "Cyrillic" ? "bg" : null;
+            case 0x2F: return script == "Cyrillic" ? "mk" : null;
+            case 0x1A: return script == "Cyrillic" ? "sr-cyrl" : script == "Latin" ? "sr-latn" : null;   // Serbian, also Croatian and Bosnian Latin
+            case 0x08: return script == "Greek" ? "el" : null;
+            case 0x0D: return script == "Hebrew" ? "he" : null;
+            case 0x37: return script == "Georgian" ? "ka" : null;
             default: return null;
         }
     }
@@ -106,6 +233,7 @@ public class LayoutTable
                 // Flag 4: don't touch the system keyboard state (dead keys stay intact)
                 int n = ToUnicodeEx(vk, (uint)scan, state, buf, buf.Capacity, 4, hkl);
                 if (n == 1) t.Set(scan, s, buf[0]);
+                else if (n < 0 && buf.Length > 0) t.SetDead(scan, s, buf[0]);   // a dead key reports its accent
             }
             // Does CapsLock act like Shift on this key? Compare unshifted output with CapsLock on
             Array.Clear(state, 0, 256);
@@ -116,7 +244,7 @@ public class LayoutTable
         }
         t.Finish();
         int langId = (int)(hkl.ToInt64() & 0xFFFF);
-        t.Lang = LangFor(langId, t.Cyrillic);
+        t.Lang = LangFor(langId, t.Script);
         try { t.Name = new CultureInfo(langId).Name; } catch { t.Name = langId.ToString("X4"); }
         return t;
     }
@@ -125,10 +253,7 @@ public class LayoutTable
     public static List<LayoutTable> Installed()
     {
         var list = new List<LayoutTable>();
-        int n = GetKeyboardLayoutList(0, null);
-        var hkls = new IntPtr[n];
-        GetKeyboardLayoutList(n, hkls);
-        foreach (var h in hkls)
+        foreach (var h in InstalledHkls())
         {
             try { list.Add(FromHkl(h)); } catch { }
         }
@@ -177,13 +302,15 @@ public class LayoutTable
                 int s = columns[i] == 0 ? 0 : columns[i] == 1 ? 1 : columns[i] == 6 ? 2 : columns[i] == 7 ? 3 : -1;
                 if (s < 0) continue;
                 string v = parts[3 + i];
-                if (v == "-1" || v.EndsWith("@") || v == "%%") continue;
+                if (v == "-1" || v == "%%") continue;
+                bool isDead = v.EndsWith("@");
+                v = v.TrimEnd('@');
                 char c = v.Length == 1 ? v[0] : (char)Convert.ToInt32(v, 16);
-                t.Set(scan, s, c);
+                if (isDead) t.SetDead(scan, s, c); else t.Set(scan, s, c);
             }
         }
         t.Finish();
-        t.Lang = lang ?? LangFor(langId, t.Cyrillic);
+        t.Lang = lang ?? LangFor(langId, t.Script);
         t.Name = Path.GetFileNameWithoutExtension(path);
         return t;
     }

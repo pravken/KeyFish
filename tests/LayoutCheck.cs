@@ -20,7 +20,7 @@ static class LayoutCheck
         string dir = args[0];
         var installed = LayoutTable.Installed();
         foreach (var t in installed)
-            Console.WriteLine("installed: {0} hkl={1:X} lang={2} cyrillic={3}  {4}|{5}|{6}", t.Name, t.Hkl.ToInt64(), t.Lang ?? "-", t.Cyrillic,
+            Console.WriteLine("installed: {0} hkl={1:X} lang={2} script={3}  {4}|{5}|{6}", t.Name, t.Hkl.ToInt64(), t.Lang ?? "-", t.Script,
                 Row(t, 0x10, 0x1B, false), Row(t, 0x1E, 0x28, false), Row(t, 0x2C, 0x35, false));
 
         foreach (string file in Directory.GetFiles(dir, "*.klc").OrderBy(f => f))

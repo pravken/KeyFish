@@ -1,6 +1,6 @@
 ﻿# Downloads the open word lists and builds data/<language>.txt ("word count" per line, lowercase, letters only).
 # Sources (both CC BY-SA 4.0, so data/ is distributed under the same terms):
-#   FrequencyWords by Hermit Dave — https://github.com/hermitdave/FrequencyWords (en, ru, uk, sr, de, pl)
+#   FrequencyWords by Hermit Dave — https://github.com/hermitdave/FrequencyWords (every language except be)
 #   Belarusian AOSP dictionary — https://codeberg.org/Anibyl/Belarusian-AOSP-dictionary (be; no frequencies)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
@@ -18,6 +18,17 @@ $alphabets = @{
     de = 'a-zäöüß'
     pl = 'a-ząćęłńóśźż'
     'sr-latn' = 'abcdefghijklmnoprstuvzčćđšž'
+    bg = 'абвгдежзийклмнопрстуфхцчшщъьюя'
+    mk = 'абвгдѓежзѕијклљмнњопрстќуфхцчџш'
+    el = 'αβγδεζηθικλμνξοπρστυφχψωάέήίόύώϊϋΐΰς'
+    he = 'אבגדהוזחטיכךלמםנןסעפףצץקרשת'
+    ka = 'აბგდევზთიკლმნოპჟრსტუფქღყშჩცძწჭხჯჰ'
+    fr = 'a-zàâæçéèêëîïôœùûüÿ'
+    es = 'a-záéíñóúü'
+    it = 'a-zàèéìíîòóùú'
+    pt = 'a-záâãàçéêíóôõú'
+    cs = 'a-záčďéěíňóřšťúůýž'
+    tr = 'abcçdefgğhıijklmnoöprsştuüvyz'
 }
 
 function Save-List($name, $pairs) {
@@ -41,7 +52,7 @@ function Read-FrequencyWords($lang) {
     }
 }
 
-foreach ($lang in 'en', 'ru', 'uk', 'de', 'pl') { Save-List $lang (Read-FrequencyWords $lang) }
+foreach ($lang in 'en', 'ru', 'uk', 'de', 'pl', 'bg', 'mk', 'el', 'he', 'ka', 'fr', 'es', 'it', 'pt', 'cs', 'tr') { Save-List $lang (Read-FrequencyWords $lang) }
 
 # Serbian: the list is almost entirely Latin script; the Cyrillic model is the same list transliterated
 $sr = @(Read-FrequencyWords 'sr')

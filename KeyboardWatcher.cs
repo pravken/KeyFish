@@ -11,13 +11,6 @@ using System.Windows.Forms;
 // Watches typing and fixes words typed in the wrong layout or with wrong case
 class KeyboardWatcher
 {
-    // A physical key press: the scan code identifies the key itself, whatever the layout
-    struct KeyStroke
-    {
-        public int Scan; public bool Shift, Caps, AltGr;
-        public KeyStroke(int scan, bool shift, bool caps, bool altGr) { Scan = scan; Shift = shift; Caps = caps; AltGr = altGr; }
-    }
-
     class Correction
     {
         public string Original, Replaced;
@@ -98,8 +91,27 @@ class KeyboardWatcher
     public readonly LayoutSet Layouts = new LayoutSet();
     public bool Ready { get { return true; } }
 
-    // The layout of each alphabet the user typed in last (true — Cyrillic): breaks ties such as Russian vs Ukrainian
-    readonly Dictionary<bool, IntPtr> lastLayoutByScript = new Dictionary<bool, IntPtr>();
+    // Layouts the user typed in, most recent first: breaks ties such as Russian vs Ukrainian
+    readonly List<IntPtr> recentLayouts = new List<IntPtr>();
+
+    void UsedLayout(IntPtr hkl)
+    {
+        recentLayouts.Remove(hkl);
+        recentLayouts.Insert(0, hkl);
+        if (recentLayouts.Count > 8) recentLayouts.RemoveAt(8);
+    }
+
+    // Of these layouts, the one used most recently; -1 if none was used yet
+    int MostRecent(IList<LayoutTable> layouts)
+    {
+        int best = -1, bestPos = int.MaxValue;
+        for (int i = 0; i < layouts.Count; i++)
+        {
+            int pos = recentLayouts.IndexOf(layouts[i].Hkl);
+            if (pos >= 0 && pos < bestPos) { bestPos = pos; best = i; }
+        }
+        return best;
+    }
 
     readonly object sync = new object();
     readonly List<KeyStroke> word = new List<KeyStroke>();
@@ -245,14 +257,20 @@ class KeyboardWatcher
 
             // AltGr (right Alt, which Windows reports as Ctrl+Alt) types letters in many layouts: Polish ą, ł, ę…
             bool altGr = Down(0xA5) || (ctrl && Down(0x12));
-            bool typesChar = layout != null && LayoutTable.IsTypingKey(scan) && layout.CharFor(scan, shift, caps, altGr) != '\0';
+            bool typesChar = layout != null && LayoutTable.IsTypingKey(scan) &&
+                             (layout.CharFor(scan, shift, caps, altGr) != '\0' || layout.DeadFor(scan, shift, caps, altGr) != '\0');
             if (!(altGr && typesChar) && (ctrl || Down(0x12) || Down(0x5B) || Down(0x5C))) { ResetAll(); return false; }
 
             if (hwnd != wordHwnd) { ResetAll(); wordHwnd = hwnd; context = null; }
 
             if (vk == 0x08)
             {
-                if (word.Count > 0) word.RemoveAt(word.Count - 1);
+                if (word.Count > 0)
+                {
+                    word.RemoveAt(word.Count - 1);
+                    // An accented letter typed with a dead key is one character on screen: Backspace erases both keys
+                    if (word.Count > 0 && layout != null && layout.IsDead(word[word.Count - 1])) word.RemoveAt(word.Count - 1);
+                }
                 else { history.Clear(); partial = true; }
                 return false;
             }
@@ -325,51 +343,53 @@ class KeyboardWatcher
         learned.Remove(s);
     }
 
-    // The user fixed a word with Pause, so it gets corrected automatically next time
-    // Selected text retyped in the layout of the other alphabet: the same keys, as if pressed there.
-    // Among several layouts of that alphabet, the one whose dictionary knows most of the words wins,
+    // Selected text retyped in a layout of another alphabet: the same keys, as if pressed there.
+    // Among several such layouts, the one whose dictionary knows most of the words wins,
     // ties go to the one used last. Returns null if no installed layout fits
     public string ConvertText(string text, IntPtr hwnd, out LayoutTable target)
     {
         target = null;
-        int lat = 0, cyr = 0;
+        var counts = new Dictionary<string, int>();
         foreach (char ch in text)
         {
-            if (!char.IsLetter(ch)) continue;
-            if (ch >= 'Ѐ' && ch <= 'ӿ') cyr++; else lat++;
+            string sc = LayoutTable.ScriptOf(ch);
+            if (sc == null) continue;
+            int n; counts.TryGetValue(sc, out n); counts[sc] = n + 1;
         }
-        bool fromCyrillic = cyr > lat;
+        string script = null;
+        int most = 0;
+        foreach (var kv in counts) if (kv.Value > most) { most = kv.Value; script = kv.Key; }
+        if (script == null) return null;
 
-        IntPtr lastSame, lastOther;
-        lock (sync)
-        {
-            lastLayoutByScript.TryGetValue(fromCyrillic, out lastSame);
-            lastLayoutByScript.TryGetValue(!fromCyrillic, out lastOther);
-        }
+        var all = new List<LayoutTable>(Layouts.All);
         // The text was typed in the window's layout if that has the right alphabet, otherwise in the one used last
         LayoutTable source = Layouts.Get(W.LayoutHkl(hwnd));
-        if (source == null || source.Cyrillic != fromCyrillic)
+        if (source == null || source.Script != script)
         {
-            source = null;
-            foreach (var t in Layouts.All)
-                if (t.Cyrillic == fromCyrillic && (source == null || t.Hkl == lastSame)) source = t;
+            var same = all.FindAll(t => t.Script == script);
+            int i;
+            lock (sync) i = MostRecent(same);
+            source = i >= 0 ? same[i] : same.Count > 0 ? same[0] : null;
         }
         if (source == null) return null;
 
+        var others = all.FindAll(t => t.Script != script && t.Script != null);
+        int recent;
+        lock (sync) recent = MostRecent(others);
         string best = null;
         double bestScore = double.MinValue;
-        foreach (var t in Layouts.All)
+        for (int i = 0; i < others.Count; i++)
         {
-            if (t.Cyrillic == fromCyrillic) continue;
+            var t = others[i];
             var sb = new StringBuilder(text.Length);
             foreach (char ch in text)
             {
-                int scan; bool shift, altGr;
-                char r = source.Find(ch, out scan, out shift, out altGr) ? t.CharFor(scan, shift, false, altGr) : '\0';
-                sb.Append(r == '\0' ? ch : r);
+                var keys = source.Keys(ch.ToString());
+                string r = keys == null ? null : t.Type(keys);
+                sb.Append(r == null || r.IndexOf('\uFFFD') >= 0 ? ch.ToString() : r);
             }
             string s = sb.ToString();
-            double score = t.Hkl == lastOther ? 0.5 : 0;
+            double score = i == recent ? 0.5 : 0;
             var model = Detector.Loaded(t.Lang);
             if (model != null)
                 foreach (string w in s.Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
@@ -379,10 +399,11 @@ class KeyboardWatcher
                 }
             if (score > bestScore) { bestScore = score; best = s; target = t; }
         }
-        if (target != null) lock (sync) lastLayoutByScript[target.Cyrillic] = target.Hkl;
+        if (target != null) lock (sync) UsedLayout(target.Hkl);
         return best;
     }
 
+    // The user fixed a word with Pause, so it gets corrected automatically next time
     public void Learn(string typed, string result, string resultLang)
     {
         string w = typed.Trim();
@@ -438,23 +459,20 @@ class KeyboardWatcher
         foreach (char c in typed)
             if (char.IsDigit(c) || c == '@' || c == '_') { history.Clear(); return false; }
 
-        // The same keys in every installed layout of the other alphabet
+        // The same keys in every installed layout of another alphabet
         var others = new List<LayoutTable>();
         var alts = new List<string>();
         var altModels = new List<LangModel>();
-        int preferred = -1;
-        IntPtr lastOther;
-        lastLayoutByScript.TryGetValue(!current.Cyrillic, out lastOther);
         foreach (var t in Layouts.All)
         {
-            if (t.Cyrillic == current.Cyrillic) continue;
+            if (t.Script == current.Script) continue;
             var m = Detector.Loaded(t.Lang);
             if (m == null) continue;
-            if (t.Hkl == lastOther) preferred = others.Count;
             others.Add(t);
             alts.Add(Build(word, t));
             altModels.Add(m);
         }
+        int preferred = MostRecent(others);
 
         var rec = new WordRec { Keys = new List<KeyStroke>(word), Shown = typed, Layout = current, TerminatorVk = terminatorVk };
 
@@ -471,7 +489,7 @@ class KeyboardWatcher
             rec.Shown = expansion;
             rec.Changed = true;
             PushHistory(rec);
-            if (via != null) { context = via.Lang; lastLayoutByScript[via.Cyrillic] = via.Hkl; }
+            if (via != null) { context = via.Lang; UsedLayout(via.Hkl); }
             last = new Correction
             {
                 Original = typed, Replaced = expansion, OriginalWords = new List<string>(),
@@ -481,7 +499,7 @@ class KeyboardWatcher
             Interlocked.Increment(ref expansionCount);
             jobs.Add(new Job
             {
-                Backspaces = word.Count, Text = expansion, TerminatorVk = terminatorVk,
+                Backspaces = typed.Length, Text = expansion, TerminatorVk = terminatorVk,
                 Layout = via != null ? via.Hkl : IntPtr.Zero, Hwnd = hwnd
             });
             return true;
@@ -505,7 +523,7 @@ class KeyboardWatcher
         if (convert || (!string.IsNullOrEmpty(core) && targetModel.Count(core) > 0))
         {
             context = target.Lang;
-            lastLayoutByScript[target.Cyrillic] = target.Hkl;
+            UsedLayout(target.Hkl);
         }
 
         // A word was confidently corrected, so check the short words before it: "f vj;yj" → "а можно"
@@ -536,7 +554,7 @@ class KeyboardWatcher
         var original = new StringBuilder();
         var replaced = new StringBuilder();
         var originalWords = new List<string>();
-        int backspaces = word.Count;
+        int backspaces = typed.Length;   // characters on screen: a dead key and its letter are one
         foreach (var p in retro)
         {
             string pAlt = Build(p.Keys, target);
@@ -689,16 +707,7 @@ class KeyboardWatcher
     }
 
     // The word these keys type in the given layout
-    static string Build(List<KeyStroke> keys, LayoutTable t)
-    {
-        var sb = new StringBuilder(keys.Count);
-        foreach (var k in keys)
-        {
-            char c = t.CharFor(k.Scan, k.Shift, k.Caps, k.AltGr);
-            sb.Append(c == '\0' ? '�' : c);   // a key with nothing in this layout spoils the word
-        }
-        return sb.ToString();
-    }
+    static string Build(List<KeyStroke> keys, LayoutTable t) { return t.Type(keys); }
 
     // пРИВЕТ → Привет (accidental CapsLock), ПРивет → Привет (Shift held too long)
     static string FixCase(string w, out bool capsMistake)

@@ -11,16 +11,10 @@ static class ChooseCheck
 {
     static string Retype(string word, LayoutTable from, LayoutTable to)
     {
-        var sb = new StringBuilder();
-        foreach (char c in word)
-        {
-            int scan; bool shift, altGr;
-            if (!from.Find(c, out scan, out shift, out altGr)) return null;
-            char r = to.CharFor(scan, shift, false, altGr);
-            if (r == '\0') return null;
-            sb.Append(r);
-        }
-        return sb.ToString();
+        var keys = from.Keys(word);
+        if (keys == null) return null;
+        string r = to.Type(keys);
+        return r.IndexOf('\uFFFD') >= 0 ? null : r;
     }
 
     static void Main(string[] args)
