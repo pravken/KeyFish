@@ -205,6 +205,9 @@ class Aquarium : Control
 
     static float Ease(double x) { x = Math.Max(0, Math.Min(1, x)); return (float)(x * x * (3 - 2 * x)); }
 
+    // 0…1 with a small overshoot at the end, like a bubble popping into shape
+    static float Spring(float x) { const float s = 1.9f; x -= 1; return x * x * ((s + 1) * x + s) + 1; }
+
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics;
@@ -252,34 +255,52 @@ class Aquarium : Control
         double eat = 3.0;
         using (var font = new Font("Segoe UI Semibold", 15f))
         {
-            if (t < eat)
+            // The wrong word melts as the fish reaches it
+            float melt = Ease((t - (eat - 0.3)) / 0.45);
+            if (melt < 1)
             {
                 var size = g.MeasureString(wrong, font);
                 float bob = 4 * (float)Math.Sin(t * 2.4);
-                using (var b = new SolidBrush(Color.FromArgb(235, 255, 255, 255)))
-                    g.DrawString(wrong, font, b, wordX - size.Width / 2, wordY - size.Height / 2 + bob);
+                var st = g.Save();
+                g.TranslateTransform(wordX, wordY + bob);
+                g.ScaleTransform(1 - 0.6f * melt, 1 - 0.6f * melt);
+                using (var b = new SolidBrush(Color.FromArgb((int)(235 * (1 - melt)), 255, 255, 255)))
+                    g.DrawString(wrong, font, b, -size.Width / 2, -size.Height / 2);
+                g.Restore(st);
             }
-            else
+            if (t > eat)
             {
-                // The right word rises in a bubble
-                float k = Ease((t - eat) / 2.2);
+                // The right word appears in a bubble: it grows from a small one with a little spring,
+                // the text shows up a moment later, then the bubble rises
+                float grow = (float)Math.Max(0, Math.Min(1, (t - eat) / 0.7));
+                float scale = 0.15f + 0.85f * Spring(grow);
+                float fade = Ease((t - eat) / 0.5);
+                float textFade = Ease((t - eat - 0.25) / 0.45);
+                float k = Ease((t - eat - 0.5) / 2.2);
                 float y = wordY - k * h * 0.42f;
                 var size = g.MeasureString(right, font);
                 float d = Math.Max(size.Width, size.Height) + 22;
-                using (var b = new SolidBrush(Color.FromArgb(60, 255, 255, 255))) g.FillEllipse(b, wordX - d / 2, y - d / 2, d, d);
-                using (var p = new Pen(Color.FromArgb(220, 255, 255, 255), 2f)) g.DrawEllipse(p, wordX - d / 2, y - d / 2, d, d);
-                using (var b = new SolidBrush(Color.White)) g.DrawString(right, font, b, wordX - size.Width / 2, y - size.Height / 2);
+                var st = g.Save();
+                g.TranslateTransform(wordX, y);
+                g.ScaleTransform(scale, scale);
+                using (var b = new SolidBrush(Color.FromArgb((int)(60 * fade), 255, 255, 255))) g.FillEllipse(b, -d / 2, -d / 2, d, d);
+                using (var p = new Pen(Color.FromArgb((int)(220 * fade), 255, 255, 255), 2f)) g.DrawEllipse(p, -d / 2, -d / 2, d, d);
+                // A glint on the bubble
+                using (var p = new Pen(Color.FromArgb((int)(150 * fade), 255, 255, 255), 2.5f) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round })
+                    g.DrawArc(p, -d / 2 + 7, -d / 2 + 7, d - 14, d - 14, 200, 50);
+                using (var b = new SolidBrush(Color.FromArgb((int)(255 * textFade), 255, 255, 255))) g.DrawString(right, font, b, -size.Width / 2, -size.Height / 2);
+                g.Restore(st);
                 // Crumbs of the eaten word turn into little bubbles
-                using (var p = new Pen(Color.FromArgb((int)(200 * (1 - k)), 255, 255, 255), 1.5f))
+                float c = Ease((t - eat) / 2.2);
+                using (var p = new Pen(Color.FromArgb((int)(200 * (1 - c) * fade), 255, 255, 255), 1.5f))
                     for (int i = 0; i < 7; i++)
                     {
                         float a = i * 0.9f;
-                        float r = 6 + 40 * k;
-                        g.DrawEllipse(p, wordX + r * (float)Math.Cos(a) - 3, wordY + r * (float)Math.Sin(a) - 3 - 30 * k, 6, 6);
+                        float r = 6 + 40 * c;
+                        g.DrawEllipse(p, wordX + r * (float)Math.Cos(a) - 3, wordY + r * (float)Math.Sin(a) - 3 - 30 * c, 6, 6);
                     }
             }
         }
-
         // The fish swims from the left edge to the word, then on and out to the right
         float fishSize = Math.Min(w, h) * 0.42f;
         float mouth = fishSize * 54f / 64f;   // the mirrored fish's mouth, from its left edge

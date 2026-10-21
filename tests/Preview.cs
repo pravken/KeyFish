@@ -50,7 +50,8 @@ static class Preview
         }
         else form = new AboutForm("Рыбка поймала 1 234 ошибки", "2.0.0\n• Новое\n\n1.8.3\n• Старое\n", LayoutTable.Installed());
         string outPath = args[args[0] == "settings" ? 2 : 1];
-        var timer = new Timer { Interval = args[0] == "aquarium" ? 3200 : 700 };
+        int at = 3200; foreach (string a in args) if (a.StartsWith("at=")) at = int.Parse(a.Substring(3));   // aquarium: when to take the shot, ms
+        var timer = new Timer { Interval = args[0] == "aquarium" ? at : 700 };
         form.Shown += (s, e) =>
         {
             // "menu": open the first drop-down of the page, to see the popup (captured from the screen)
