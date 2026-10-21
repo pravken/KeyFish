@@ -12,12 +12,12 @@ New-Item -ItemType Directory -Force $bin | Out-Null
 Copy-Item "$PSScriptRoot\pw.html", "$PSScriptRoot\tx.html" $bin -Force
 
 # Back up the user's files and settings, then use a known setup
-$files = 'replacements.txt', 'ignored-words.txt', 'learned-words.txt'
+$files = 'replacements.txt', 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt'
 $backup = @{}; foreach ($f in $files) { $p = Join-Path $root $f; $backup[$f] = if (Test-Path $p) { [IO.File]::ReadAllBytes($p) } else { $null } }
 $regNames = 'Typos', 'StatsTotal', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect'
 $regBackup = @{}; foreach ($n in $regNames) { $regBackup[$n] = (Get-ItemProperty $key -Name $n -ErrorAction SilentlyContinue).$n }
 [IO.File]::WriteAllText((Join-Path $root 'replacements.txt'), "спс = спасибо`r`nсув = С уважением,\nТест`r`n", (New-Object Text.UTF8Encoding $false))
-foreach ($f in 'ignored-words.txt', 'learned-words.txt') { $p = Join-Path $root $f; if (Test-Path $p) { Remove-Item $p } }
+foreach ($f in 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt') { $p = Join-Path $root $f; if (Test-Path $p) { Remove-Item $p } }
 if (-not (Test-Path $key)) { New-Item $key | Out-Null }
 foreach ($n in 'Typos', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect') { Set-ItemProperty $key -Name $n -Value 1 -Type DWord }
 Get-Process KeyFish -ErrorAction SilentlyContinue | Stop-Process; Start-Sleep -Milliseconds 800
