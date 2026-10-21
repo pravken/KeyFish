@@ -120,15 +120,48 @@ static class Theme
 
     public static Label Label(string text, Font font = null, Color? color = null)
     {
-        return new Label { Text = text, Font = font ?? Body, ForeColor = color ?? Text, AutoSize = true, BackColor = Color.Transparent };
+        return new SmoothLabel { Text = text, Font = font ?? Body, ForeColor = color ?? Text, AutoSize = true, BackColor = Color.Transparent };
+    }
+
+    // One line of text with soft grayscale smoothing, like SmoothLabel: centered vertically, cut with "…" if too long
+    public static void SmoothText(Graphics g, string text, Font font, RectangleF r, Color color, bool center)
+    {
+        var hint = g.TextRenderingHint;
+        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+        using (var b = new SolidBrush(color))
+        using (var sf = new StringFormat(StringFormatFlags.NoWrap)
+        {
+            Alignment = center ? StringAlignment.Center : StringAlignment.Near, LineAlignment = StringAlignment.Center,
+            Trimming = StringTrimming.EllipsisCharacter
+        })
+            g.DrawString(text, font, b, r, sf);
+        g.TextRenderingHint = hint;
+    }
+
+    // Labels are made transparent to sit on cards, but Windows smooths text (ClearType) only over a solid color it knows:
+    // on a transparent background the letters come out rough. Once the window is built, each label gets the solid color
+    // of what it sits on, which looks the same and gives smooth text
+    public static void SolidLabels(Control root)
+    {
+        foreach (Control c in root.Controls)
+        {
+            if (c is Label && c.BackColor.A < 255)
+            {
+                Color under = Color.Empty;
+                for (Control p = c.Parent; p != null && under.IsEmpty; p = p.Parent)
+                    if (p is Card) under = Card;
+                    else if (p.BackColor.A == 255) under = p.BackColor;
+                if (!under.IsEmpty) c.BackColor = under;
+            }
+            SolidLabels(c);
+        }
     }
 
     // A label that wraps within the given width
     public static Label Wrapped(string text, int width, Font font = null, Color? color = null)
     {
-        var l = new Label { Text = text, Font = font ?? Body, ForeColor = color ?? Text, AutoSize = false, BackColor = Color.Transparent };
-        var size = TextRenderer.MeasureText(text, l.Font, new Size(width, 0), TextFormatFlags.WordBreak);
-        l.Size = new Size(width, size.Height + 2);
+        var l = new SmoothLabel { Text = text, Font = font ?? Body, ForeColor = color ?? Text, AutoSize = false, BackColor = Color.Transparent };
+        l.Size = new Size(width, l.GetPreferredSize(new Size(width, 0)).Height + 2);
         return l;
     }
 
@@ -197,7 +230,13 @@ static class Theme
         {
             var cell = new Rectangle(e.CellBounds.X, e.CellBounds.Y, e.CellBounds.Width, e.CellBounds.Height - 1);
             g.SetClip(cell);
-            e.Paint(cell, e.PaintParts & ~DataGridViewPaintParts.Border);
+            // The background from the grid, the text smoothed like everywhere else in the window
+            e.Paint(cell, e.PaintParts & ~DataGridViewPaintParts.Border & ~DataGridViewPaintParts.ContentForeground);
+            bool selected = (e.State & DataGridViewElementStates.Selected) != 0;
+            var style = e.CellStyle;
+            SmoothText(g, Convert.ToString(e.FormattedValue), style.Font ?? grid.Font,
+                new RectangleF(cell.X + style.Padding.Left + 2, cell.Y, cell.Width - style.Padding.Horizontal - 4, cell.Height),
+                selected ? style.SelectionForeColor : style.ForeColor, false);
             g.ResetClip();
             e.Handled = true;
             return;
@@ -207,8 +246,7 @@ static class Theme
         {
             PaintCellBack(e);
             var box = new Rectangle(e.CellBounds.X + 8, e.CellBounds.Y, e.CellBounds.Width - 36, e.CellBounds.Height);
-            TextRenderer.DrawText(g, Convert.ToString(e.FormattedValue), e.CellStyle.Font, box, Text,
-                TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
+            SmoothText(g, Convert.ToString(e.FormattedValue), e.CellStyle.Font, box, Text, false);
             using (var icons = new Font(IconFontName, 8f))
                 TextRenderer.DrawText(g, "\uE70D", icons, new Rectangle(e.CellBounds.Right - 30, e.CellBounds.Y, 22, e.CellBounds.Height), SubText,
                     TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter);
@@ -393,21 +431,19 @@ class RoundButton : Control
         }
         Color fore = AccentStyle ? Theme.OnAccent : Theme.Text;
         if (!Enabled) fore = Theme.SubText;
-        // The text is drawn with the button's own fill as its background: on a transparent one Windows can't smooth
-        // the letters (ClearType) and they come out jagged
-        var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.NoPadding;
         if (string.IsNullOrEmpty(Glyph))
         {
-            TextRenderer.DrawText(g, Text, Font, ClientRectangle, fore, fill, flags | TextFormatFlags.HorizontalCenter);
+            Theme.SmoothText(g, Text, Font, ClientRectangle, fore, true);
             return;
         }
         using (var icon = new Font(Theme.IconFontName, Font.SizeInPoints))
         {
+            var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.NoPadding;
             Size iconSize = TextRenderer.MeasureText(g, Glyph, icon, Size.Empty, flags);
-            Size textSize = TextRenderer.MeasureText(g, Text, Font, Size.Empty, flags);
-            int gap = 8, x = (Width - iconSize.Width - gap - textSize.Width) / 2;
+            SizeF textSize = g.MeasureString(Text, Font);
+            int gap = 6, x = (int)((Width - iconSize.Width - gap - textSize.Width) / 2);
             TextRenderer.DrawText(g, Glyph, icon, new Rectangle(x, 0, iconSize.Width, Height), GlyphColor ?? fore, fill, flags);
-            TextRenderer.DrawText(g, Text, Font, new Rectangle(x + iconSize.Width + gap, 0, textSize.Width + 2, Height), fore, fill, flags);
+            Theme.SmoothText(g, Text, Font, new RectangleF(x + iconSize.Width + gap, 0, textSize.Width + 4, Height), fore, false);
         }
     }
 }
@@ -466,8 +502,7 @@ class NavList : Control
             Color under = i == selected ? Theme.Selected : i == hover ? Theme.Hover : BackColor;
             TextRenderer.DrawText(g, Items[i].Item1, icons, new Rectangle(r.X + 12, r.Y, 24, r.Height), Theme.Text, under,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPadding);
-            TextRenderer.DrawText(g, Items[i].Item2, Font, new Rectangle(r.X + 46, r.Y + 6, r.Width - 50, r.Height - 12), Theme.Text, under,
-                TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
+            Theme.SmoothText(g, Items[i].Item2, Font, new Rectangle(r.X + 44, r.Y, r.Width - 48, r.Height), Theme.Text, false);
             if (Focused && ShowFocusCues && i == selected)
                 using (var p = new Pen(Theme.Text) { DashStyle = DashStyle.Dot }) g.DrawRectangle(p, r);
         }
@@ -648,8 +683,7 @@ class DropDown : Control
         if (focused || open)
             using (var p = new Pen(Theme.AccentFill, 2f)) g.DrawLine(p, 4, Height - 1.5f, Width - 4, Height - 1.5f);
         if (edit == null)
-            TextRenderer.DrawText(g, Text, Font, new Rectangle(10, 4, Width - 10 - Height, Height - 8), Theme.Text, fill,
-                TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
+            Theme.SmoothText(g, Text, Font, new Rectangle(8, 0, Width - 8 - Height, Height), Theme.Text, false);
         TextRenderer.DrawText(g, "\uE70D", chevron, new Rectangle(Width - Height, 4, Height - 4, Height - 8), Theme.SubText, fill,
             TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter);
     }
@@ -809,5 +843,18 @@ class LayoutBadge : Form
     {
         if (disposing) { timer.Dispose(); if (picture != null) picture.Dispose(); }
         base.Dispose(disposing);
+    }
+}
+
+// A label drawn with soft grayscale smoothing, the way Windows 11's own apps draw text. The classic way (GDI ClearType)
+// makes thin, jagged letters on a dark background. Measured and drawn by the same engine, so wrapping stays right
+class SmoothLabel : Label
+{
+    public SmoothLabel() { UseCompatibleTextRendering = true; }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+        base.OnPaint(e);
     }
 }

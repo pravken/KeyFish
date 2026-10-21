@@ -92,6 +92,7 @@ class SettingsForm : Form
         cancel.Click += (s, ev) => { DialogResult = DialogResult.Cancel; Close(); };
         Controls.Add(save);
         Controls.Add(cancel);
+        Theme.SolidLabels(this);
         ResumeLayout();
         base.OnLoad(e);
     }

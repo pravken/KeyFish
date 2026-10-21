@@ -71,6 +71,7 @@ class AboutForm : Form
         Controls.Add(ok);
         KeyPreview = true;
         KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape || e.KeyCode == Keys.Enter) Close(); };
+        Theme.SolidLabels(this);
     }
     // "Hello" in each language KeyFish knows
     static readonly Dictionary<string, string> Hello = new Dictionary<string, string>
