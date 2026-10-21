@@ -65,7 +65,7 @@ Layout	Распоред
 Correct	Исправљај
 Pick or type	Изаберите или унесите
 App	Програм
-KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself with Pause and it goes to "Always correct".	KeyFish учи од вас: ако поништите или обришете исправку, реч иде у „Не исправљај“; ако сами исправите реч тастером Pause — у „Увек исправљај“.
+KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself (with Pause, or by erasing it and typing it again in the other layout) and it goes to "Always correct".	KeyFish учи од вас: ако поништите или обришете исправку, реч иде у „Не исправљај“; ако сами исправите реч (тастером Pause или тако што је обришете и поново откуцате у другом распореду) — у „Увек исправљај“.
 Never correct	Не исправљај
 Always correct	Увек исправљај
 New word	Нова реч
@@ -102,3 +102,12 @@ Added: {0}. Already in the list: {1}. Click Save to keep the changes.	Додат
 Replacements (txt, csv, AutoHotkey, Espanso)	Замене (txt, csv, AutoHotkey, Espanso)
 All files	Све датотеке
 Word lists (txt, csv)	Листе речи (txt, csv)
+Switch layout of the whole line before the cursor	Распоред целог реда пре курсора
+A soft sound on each correction	Тих звук при свакој исправци
+A short "bloop" so you hear when KeyFish changes something.	Кратко „буљ“, да чујете кад KeyFish нешто промени.
+Export…	Извоз…
+Export	Извоз
+All settings in one file	Сва подешавања у једној датотеци
+To move to another computer. Before every save KeyFish puts a copy of the previous settings in the backups folder (the last 10), and those can be imported too.	За пренос на други рачунар. Пре сваког чувања KeyFish сам ставља копију претходних подешавања у фасциклу backups (последњих 10) — и њих можете увести.
+This isn't a KeyFish settings file.	Ово није датотека подешавања за KeyFish.
+Replace all settings with the file's contents? The current ones are kept in the backups folder.	Заменити сва подешавања садржајем датотеке? Тренутна остају у фасцикли backups.

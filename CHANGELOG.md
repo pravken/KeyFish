@@ -14,6 +14,12 @@
 • The layout can show next to the text cursor for a moment when it changes (off by default)
 • The fish menu: pause corrections for an hour, and recent corrections — click one and KeyFish won't correct it that way again. While KeyFish isn't correcting, the fish is grey
 • Import replacements and word lists from other programs: plain text, CSV/TSV, AutoHotkey hotstrings, Espanso
+• All settings in one file: Export and Import in Settings. Before every save KeyFish keeps a copy of the previous settings in the backups folder (the last 10)
+• Learns from a manual fix too: erase a word, switch the layout and type the same keys again, and next time KeyFish fixes that word by itself
+• A word where the layout was switched in the middle (ghиветик) is fixed whole
+• Links, paths and code are left alone: "://", "www.", slashes and other symbols inside a word; file.txt and camelCase change only into a dictionary word
+• Alt+Pause switches the layout of the whole line before the cursor
+• An optional soft sound on each correction
 • More reliable: if Windows quietly turns off KeyFish's keyboard watching (it does that to a program that answered too slowly once), KeyFish notices and turns it back on; files are read and written in the background so typing is never held up
 • Terminals, SSH clients, virtual machines, remote desktops and more password managers are excluded by default (added to your list once)
 • Text KeyFish puts on the clipboard stays out of clipboard history (Win+V) and cloud sync

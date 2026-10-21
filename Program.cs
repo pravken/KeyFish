@@ -195,6 +195,7 @@ class App : ApplicationContext
             {
                 SetSetting("StatsTotal", statsBase + corrections);
                 savedCorrections = corrections;
+                if (playSound) Bubble.Play();
             }
         }
 
@@ -210,6 +211,7 @@ class App : ApplicationContext
     }
 
     IntPtr lastHkl;
+    bool playSound;
     LayoutBadge badge;
     bool showBadge;
     Icon iconOff;                        // grey fish: auto-correction is off or paused
@@ -296,15 +298,16 @@ class App : ApplicationContext
                     "Switch layout of selected text; right after an auto-fix — undo it (as does Ctrl+Z)"),
                 L.T("Раскладка выделенного текста — запасное сочетание", "Switch layout of selected text — alternative keys"),
                 L.T("Регистр выделенного текста (aa → Aa → AA)", "Change case of selected text (aa → Aa → AA)"),
-                L.T("Транслитерация (привет ⇄ privet)", "Transliterate (привет ⇄ privet)")
+                L.T("Транслитерация (привет ⇄ privet)", "Transliterate (привет ⇄ privet)"),
+                L.T("Раскладка всей строки до курсора", "Switch layout of the whole line before the cursor")
             };
         }
     }
     public static readonly Keys[] HotkeyDefaults =
     {
-        Keys.Pause, Keys.Control | Keys.Shift | Keys.Space, Keys.Shift | Keys.F3, Keys.Shift | Keys.Pause
+        Keys.Pause, Keys.Control | Keys.Shift | Keys.Space, Keys.Shift | Keys.F3, Keys.Shift | Keys.Pause, Keys.Alt | Keys.Pause
     };
-    const int HkLayout = 1, HkLayoutAlt = 2, HkCase = 3, HkTranslit = 4;
+    const int HkLayout = 1, HkLayoutAlt = 2, HkCase = 3, HkTranslit = 4, HkLine = 5;
 
     static Keys GetHotkey(int i) { return (Keys)GetSetting("Hotkey" + (i + 1), (int)HotkeyDefaults[i]); }
 
@@ -331,7 +334,7 @@ class App : ApplicationContext
                 "These hotkeys are taken by another app: {0}. You can change them in Settings.", string.Join(", ", failed)), ToolTipIcon.Warning);
     }
 
-    readonly string exclusionsPath, ignoredPath, replacementsPath, learnedPath, appLayoutsPath;
+    readonly string exclusionsPath, ignoredPath, replacementsPath, learnedPath, appLayoutsPath, backupDir;
     ToolStripMenuItem autoItem;
     SettingsForm settingsForm;
 
@@ -456,6 +459,7 @@ class App : ApplicationContext
         learnedPath = Path.Combine(dir, "learned-words.txt");
         replacementsPath = Path.Combine(dir, "replacements.txt");
         appLayoutsPath = Path.Combine(dir, "app-layouts.txt");
+        backupDir = Path.Combine(dir, "backups");
         try
         {
             if (!File.Exists(exclusionsPath))
@@ -480,6 +484,7 @@ class App : ApplicationContext
         ApplyEnabled();
         showLayout = GetSetting("LayoutColor", 1) != 0;
         showBadge = GetSetting("LayoutBadge", 0) != 0;
+        playSound = GetSetting("Sound", 0) != 0;
         // Double Shift or Caps Lock comes from the keyboard hook's thread: hand it to this one
         var ui = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
         watcher.QuickFix += () => ui.Post(_ =>
@@ -615,7 +620,7 @@ class App : ApplicationContext
         for (int i = 0; i < keys.Length; i++) keys[i] = GetHotkey(i);
         settingsForm = new SettingsForm
         {
-            AutoCorrect = autoCorrect, LayoutBadge = showBadge, RecentMenu = watcher.KeepRecent, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
+            BackupDir = backupDir, AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, RecentMenu = watcher.KeepRecent, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
             CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting,
             Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ignoredBefore, Learned = learnedBefore,
             AppLayouts = ReadText(appLayoutsPath), InstalledLayouts = new List<LayoutTable>(watcher.Layouts.All), Logo = FishLogo.Render(72)
@@ -629,8 +634,11 @@ class App : ApplicationContext
             if (settingsForm.ShowDialog() == DialogResult.OK)
             {
                 var f = settingsForm;
+                // What was there before this save goes to backups\, the newest ten are kept
+                Backup(ignoredBefore, learnedBefore);
                 autoCorrect = f.AutoCorrect; ApplyEnabled(); SetSetting("AutoCorrect", f.AutoCorrect ? 1 : 0);
                 showBadge = f.LayoutBadge; SetSetting("LayoutBadge", f.LayoutBadge ? 1 : 0);
+                playSound = f.Sound; SetSetting("Sound", f.Sound ? 1 : 0);
                 watcher.KeepRecent = f.RecentMenu; SetSetting("RecentMenu", f.RecentMenu ? 1 : 0);
                 if (!f.RecentMenu) watcher.ClearRecent();
                 watcher.QuickKey = f.QuickKey; SetSetting("QuickKey", f.QuickKey);
@@ -668,6 +676,31 @@ class App : ApplicationContext
         }
     }
 
+    void Backup(string ignoredBefore, string learnedBefore)
+    {
+        try
+        {
+            Directory.CreateDirectory(backupDir);
+            var files = new Dictionary<string, string>
+            {
+                { "replacements.txt", ReadText(replacementsPath) }, { "exclusions.txt", ReadText(exclusionsPath) },
+                { "ignored-words.txt", ignoredBefore }, { "learned-words.txt", learnedBefore }, { "app-layouts.txt", ReadText(appLayoutsPath) }
+            };
+            var values = new Dictionary<string, int>();
+            using (var k = Registry.CurrentUser.OpenSubKey(SettingsKey))
+                if (k != null)
+                    foreach (string name in SettingsArchive.Values)
+                    {
+                        object v = k.GetValue(name);
+                        if (v is int) values[name] = (int)v;
+                    }
+            SettingsArchive.Save(Path.Combine(backupDir, "settings-" + DateTime.Now.ToString("yyyy-MM-dd_HHmmss") + ".zip"), files, values);
+            var old = new DirectoryInfo(backupDir).GetFiles("settings-*.zip").OrderByDescending(x => x.Name).Skip(10);
+            foreach (var x in old) x.Delete();
+        }
+        catch { }
+    }
+
     // A word list as the user edited it in Settings, plus the words KeyFish added to the file meanwhile,
     // minus the ones it removed meanwhile (a word moved between "Never correct" and "Always correct")
     static string MergeWords(string edited, string before, string now)
@@ -703,6 +736,7 @@ class App : ApplicationContext
             if (id == HkLayout && watcher.Undo()) return;
             if (id == HkCase) ChangeCase();
             else if (id == HkTranslit) TransformSelection(Transliterator.Convert);
+            else if (id == HkLine) ConvertLine();
             else ConvertSelection();
         }
         catch { }
@@ -773,6 +807,24 @@ class App : ApplicationContext
             text = CopySelection();
         }
         return text;
+    }
+
+    // A whole phrase typed in the wrong layout: select from the cursor to the start of the line and switch it
+    void ConvertLine()
+    {
+        Native.WaitModifiersReleased();
+        IntPtr target = Native.GetForegroundWindow();
+        IDataObject saved = SaveClipboard();
+        Native.Chord(Native.VK_SHIFT, Native.VK_HOME);
+        Pump(30);
+        string text = CopySelection();
+        if (!string.IsNullOrEmpty(text))
+        {
+            LayoutTable layout;
+            string result = watcher.ConvertText(text, target, out layout);
+            if (result != null && Paste(result)) W.SwitchLayout(target, layout.Hkl);
+        }
+        RestoreClipboard(saved);
     }
 
     void ConvertSelection()
@@ -978,6 +1030,44 @@ class App : ApplicationContext
     }
 }
 
+// A short "bloop" for a correction: a rising tone that fades out, made here instead of shipping a sound file
+static class Bubble
+{
+    static System.Media.SoundPlayer player;
+
+    public static void Play()
+    {
+        try
+        {
+            if (player == null) { player = new System.Media.SoundPlayer(new MemoryStream(Wave())); player.Load(); }
+            player.Play();
+        }
+        catch { }
+    }
+
+    static byte[] Wave()
+    {
+        const int rate = 44100;
+        int n = rate * 110 / 1000;
+        var ms = new MemoryStream();
+        var w = new BinaryWriter(ms);
+        w.Write(Encoding.ASCII.GetBytes("RIFF")); w.Write(36 + n * 2); w.Write(Encoding.ASCII.GetBytes("WAVEfmt "));
+        w.Write(16); w.Write((short)1); w.Write((short)1); w.Write(rate); w.Write(rate * 2); w.Write((short)2); w.Write((short)16);
+        w.Write(Encoding.ASCII.GetBytes("data")); w.Write(n * 2);
+        double phase = 0;
+        for (int i = 0; i < n; i++)
+        {
+            double t = (double)i / n;
+            double freq = 320 * Math.Pow(3.2, t);                       // 320 → about 1000 Hz
+            phase += 2 * Math.PI * freq / rate;
+            double envelope = Math.Min(1, i / (rate * 0.004)) * Math.Exp(-4.5 * t);
+            w.Write((short)(Math.Sin(phase) * envelope * 0.28 * short.MaxValue));
+        }
+        w.Flush();
+        return ms.ToArray();
+    }
+}
+
 class HotkeyWindow : NativeWindow
 {
     public event Action<int> Pressed;
@@ -1025,7 +1115,7 @@ static class Native
     [DllImport("user32.dll")] public static extern bool UpdateLayeredWindow(IntPtr hwnd, IntPtr dst, ref POINT pos, ref SIZE size, IntPtr src, ref POINT srcPos, int key, ref BLENDFUNCTION blend, int flags);
 
     public const uint MOD_ALT = 0x1, MOD_CONTROL = 0x2, MOD_SHIFT = 0x4, MOD_WIN = 0x8, MOD_NOREPEAT = 0x4000;
-    public const byte VK_SHIFT = 0x10, VK_CONTROL = 0x11, VK_MENU = 0x12, VK_LEFT = 0x25, VK_LWIN = 0x5B, VK_RWIN = 0x5C;
+    public const byte VK_SHIFT = 0x10, VK_CONTROL = 0x11, VK_MENU = 0x12, VK_HOME = 0x24, VK_LEFT = 0x25, VK_LWIN = 0x5B, VK_RWIN = 0x5C;
     const uint KEYEVENTF_EXTENDEDKEY = 0x1, KEYEVENTF_KEYUP = 0x2;
 
     [DllImport("user32.dll")] public static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
@@ -1068,5 +1158,5 @@ static class Native
         keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
     }
 
-    static uint Flags(byte vk) { return vk == VK_LEFT ? KEYEVENTF_EXTENDEDKEY : 0; }
+    static uint Flags(byte vk) { return vk == VK_LEFT || vk == VK_HOME ? KEYEVENTF_EXTENDEDKEY : 0; }
 }

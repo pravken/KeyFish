@@ -106,6 +106,7 @@ class KeyboardWatcher
         public List<KeyStroke> Keys;
         public string Shown;                 // how the word looks on screen now
         public LayoutTable Layout;           // the layout it was typed in
+        public List<LayoutTable> Layouts;    // per key, when the layout was switched mid-word
         public bool Changed;                 // KeyFish has already changed it
         public int TerminatorVk;
     }
@@ -193,6 +194,14 @@ class KeyboardWatcher
 
     readonly object sync = new object();
     readonly List<KeyStroke> word = new List<KeyStroke>();
+    readonly List<LayoutTable> wordLayouts = new List<LayoutTable>();   // the layout each key of the word was typed in
+
+    // A word the user erased whole, kept for a while: typed again with the same keys in a layout of another alphabet,
+    // it is a manual layout fix, and KeyFish learns it like a fix made with Pause
+    List<KeyStroke> erasedKeys, eraseSnapshot;
+    List<LayoutTable> erasedLayouts, eraseSnapshotLayouts;
+    int erasedAt, eraseCount;
+    WordRec eraseRec;
     bool partial;                        // the word didn't start at a word start (Backspace went into earlier text)
     readonly List<WordRec> history = new List<WordRec>();
     IntPtr wordHwnd;
@@ -275,7 +284,7 @@ class KeyboardWatcher
         if (code >= 0 && (msg == 0x0201 || msg == 0x0204 || msg == 0x0207)) // L/R/M button down
         {
             lastShiftTap = 0;
-            lock (sync) { ResetAll(); last = null; }
+            lock (sync) { ResetAll(); last = null; erasedKeys = null; }
         }
         return W.CallNextHookEx(IntPtr.Zero, code, wParam, lParam);
     }
@@ -383,24 +392,42 @@ class KeyboardWatcher
                              (layout.CharFor(scan, shift, caps, altGr) != '\0' || layout.DeadFor(scan, shift, caps, altGr) != '\0');
             if (!(altGr && typesChar) && (ctrl || Down(0x12) || Down(0x5B) || Down(0x5C))) { ResetAll(); return false; }
 
-            if (hwnd != wordHwnd) { ResetAll(); wordHwnd = hwnd; context = null; }
+            if (hwnd != wordHwnd) { ResetAll(); wordHwnd = hwnd; context = null; erasedKeys = null; }
 
             if (vk == 0x08)
             {
                 if (word.Count > 0)
                 {
-                    word.RemoveAt(word.Count - 1);
-                    // An accented letter typed with a dead key is one character on screen: Backspace erases both keys
-                    if (word.Count > 0 && layout != null && layout.IsDead(word[word.Count - 1])) word.RemoveAt(word.Count - 1);
+                    // The whole word may be on its way out: remember it as it was
+                    if (eraseSnapshot == null) { eraseSnapshot = new List<KeyStroke>(word); eraseSnapshotLayouts = new List<LayoutTable>(wordLayouts); }
+                    RemoveLastKey();
+                    if (word.Count == 0) Erased(eraseSnapshot, eraseSnapshotLayouts);
                 }
-                else { history.Clear(); partial = true; }
+                else
+                {
+                    // A finished word and the space after it, erased letter by letter
+                    var rec = history.Count > 0 ? history[history.Count - 1] : null;
+                    if (eraseRec == null && rec != null && !rec.Changed) { eraseRec = rec; eraseCount = 0; }
+                    history.Clear();
+                    if (eraseRec != null && ++eraseCount == eraseRec.Shown.Length + 1)
+                    {
+                        Erased(eraseRec.Keys, eraseRec.Layouts);
+                        eraseRec = null;
+                        partial = false;   // the caret is back where that word began
+                        return false;
+                    }
+                    if (eraseRec == null || eraseCount > eraseRec.Shown.Length + 1) erasedKeys = null;
+                    partial = true;
+                }
                 return false;
             }
 
             if (typesChar)
             {
                 if (word.Count == 0) wordStartedAt = Environment.TickCount;
-                if (word.Count < 40) word.Add(new KeyStroke(scan, shift, caps, altGr));
+                else eraseSnapshot = null;   // a letter in the middle of erasing: the word is being edited, not erased
+                eraseRec = null;
+                if (word.Count < 40) { word.Add(new KeyStroke(scan, shift, caps, altGr)); wordLayouts.Add(layout); }
                 RequestFocusCheck();
                 return false;
             }
@@ -408,7 +435,8 @@ class KeyboardWatcher
             if (vk == 0x20 || vk == 0x0D || vk == 0x09) // Space, Enter, Tab
             {
                 bool swallow = OnWordEnd(vk, hwnd);
-                word.Clear();
+                ClearWord();
+                erasedKeys = null;
                 return swallow;
             }
 
@@ -419,9 +447,77 @@ class KeyboardWatcher
 
     void ResetAll()
     {
-        word.Clear();
+        ClearWord();
         history.Clear();
         partial = false;
+        eraseRec = null;
+        // erasedKeys stays: switching the layout with Win+Space passes through here
+    }
+
+    void ClearWord()
+    {
+        word.Clear();
+        wordLayouts.Clear();
+        eraseSnapshot = null;
+    }
+
+    void RemoveLastKey()
+    {
+        word.RemoveAt(word.Count - 1);
+        wordLayouts.RemoveAt(wordLayouts.Count - 1);
+        // An accented letter typed with a dead key is one character on screen: Backspace erases both keys
+        if (word.Count > 0 && wordLayouts[word.Count - 1] != null && wordLayouts[word.Count - 1].IsDead(word[word.Count - 1])) RemoveLastKey();
+    }
+
+    void Erased(List<KeyStroke> keys, List<LayoutTable> layouts)
+    {
+        erasedKeys = new List<KeyStroke>(keys);
+        erasedLayouts = layouts == null ? null : new List<LayoutTable>(layouts);
+        erasedAt = Environment.TickCount;
+        eraseSnapshot = null;
+    }
+
+    // The word as it is on screen: each key in the layout it was typed in
+    static string Shown(List<KeyStroke> keys, List<LayoutTable> layouts, LayoutTable fallback)
+    {
+        var sb = new StringBuilder();
+        int i = 0;
+        while (i < keys.Count)
+        {
+            var t = (layouts != null && i < layouts.Count ? layouts[i] : null) ?? fallback;
+            int j = i;
+            while (j < keys.Count && ((layouts != null && j < layouts.Count ? layouts[j] : null) ?? fallback) == t) j++;
+            sb.Append(t.Type(keys.GetRange(i, j - i)));
+            i = j;
+        }
+        return sb.ToString();
+    }
+
+    static bool SameKeys(List<KeyStroke> a, List<KeyStroke> b)
+    {
+        if (a.Count != b.Count) return false;
+        for (int i = 0; i < a.Count; i++) if (a[i].Scan != b[i].Scan) return false;
+        return true;
+    }
+
+    // Links, paths and code are never changed: "://", "www." or a symbol inside the word that no layout makes a letter.
+    // Symbols at the end don't count: "ghbdtn/" is "привет." typed in the wrong layout
+    static bool LooksLikeCode(string typed)
+    {
+        if (typed.IndexOf("://", StringComparison.Ordinal) >= 0 || typed.StartsWith("www.", StringComparison.OrdinalIgnoreCase)) return true;
+        string inner = typed.Length > 2 ? typed.Substring(1, typed.Length - 2) : "";
+        return inner.IndexOfAny(new[] { '/', '\\', '=', '|', '$', '%', '&', '*', '+' }) >= 0;
+    }
+
+    // A dot between letters (file.txt, obj.method) or a capital after a small letter (camelCase) may be code;
+    // such a word is changed only into a dictionary word, never on letter statistics alone
+    static bool NeedsDictionary(string typed)
+    {
+        for (int i = 1; i + 1 < typed.Length; i++)
+            if (typed[i] == '.' && char.IsLetter(typed[i - 1]) && char.IsLetter(typed[i + 1])) return true;
+        for (int i = 1; i < typed.Length; i++)
+            if (char.IsLower(typed[i - 1]) && char.IsUpper(typed[i])) return true;
+        return false;
     }
 
     bool IsIgnored(string s) { return ignored.Contains(s.ToLowerInvariant()); }
@@ -602,6 +698,52 @@ class KeyboardWatcher
 
         string typed = Build(word, current);
 
+        // The layout was switched in the middle of the word ("ghиветик"): the keys were meant for the layout now on
+        bool mixed = false;
+        foreach (var t in wordLayouts) if (t != null && t.Script != current.Script) mixed = true;
+        if (mixed)
+        {
+            string shown = Shown(word, wordLayouts, current);
+            string fixedCore = Detector.Core(typed);
+            if (IsIgnored(shown) || string.IsNullOrEmpty(fixedCore) || T.Count(fixedCore) == 0)
+            {
+                Diagnose(hwnd, "layout switched mid-word, the result isn't a known word");
+                history.Clear();
+                return false;
+            }
+            Diagnose(hwnd, "corrected: layout switched mid-word");
+            PushHistory(new WordRec { Keys = new List<KeyStroke>(word), Layouts = new List<LayoutTable>(wordLayouts), Shown = typed, Layout = current, Changed = true, TerminatorVk = terminatorVk });
+            var shownWords = new List<string> { shown };
+            last = new Correction
+            {
+                Original = shown, Replaced = typed, OriginalWords = shownWords, LastWordLength = typed.Length, TerminatorVk = terminatorVk,
+                OriginalLayout = current.Hkl, Hwnd = hwnd, Recent = Remember(shown, typed, shownWords)
+            };
+            pending = true;
+            Interlocked.Increment(ref correctionCount);
+            jobs.Add(new Job { Backspaces = shown.Length, Text = typed, TerminatorVk = terminatorVk, Hwnd = hwnd });
+            return true;
+        }
+
+        // The user erased a word KeyFish had left alone, switched to a layout of another alphabet and typed the same keys:
+        // a fix by hand. Next time KeyFish makes it by itself, as after a fix with Pause
+        if (erasedKeys != null && Environment.TickCount - erasedAt < 30000 && word.Count >= 2 && SameKeys(erasedKeys, word) &&
+            erasedLayouts != null && erasedLayouts.Count > 0 && erasedLayouts[0] != null && erasedLayouts[0].Script != current.Script &&
+            erasedLayouts.TrueForAll(t => t == erasedLayouts[0]))
+        {
+            var before = erasedLayouts[0];
+            string wrong = Build(erasedKeys, before), right = Detector.Core(typed), wrongCore = Detector.Core(wrong);
+            var beforeModel = Detector.Loaded(before.Lang);
+            bool wrongIsWord = !string.IsNullOrEmpty(wrongCore) && beforeModel != null && beforeModel.Count(wrongCore) > 0;
+            if (!wrongIsWord && !string.IsNullOrEmpty(right) && T.Count(right) > 0 && wrong.Length <= 40)
+            {
+                learned.Add(wrong);
+                ignored.Remove(wrong);
+                Diagnose(hwnd, "learned from a word typed again in another layout");
+            }
+        }
+        erasedKeys = null;
+
         // The same keys in every installed layout of another alphabet
         var others = new List<LayoutTable>();
         var alts = new List<string>();
@@ -617,7 +759,7 @@ class KeyboardWatcher
         }
         int preferred = MostRecent(others);
 
-        var rec = new WordRec { Keys = new List<KeyStroke>(word), Shown = typed, Layout = current, TerminatorVk = terminatorVk };
+        var rec = new WordRec { Keys = new List<KeyStroke>(word), Layouts = new List<LayoutTable>(wordLayouts), Shown = typed, Layout = current, TerminatorVk = terminatorVk };
 
         // Replacement: an abbreviation from replacements.txt, typed in any layout
         LayoutTable via = null;
@@ -651,12 +793,18 @@ class KeyboardWatcher
         // Numbers, e-mails, identifiers aren't words to fix (an abbreviation like "addr1" was expanded above)
         foreach (char c in typed)
             if (char.IsDigit(c) || c == '@' || c == '_') { Diagnose(hwnd, "digits or symbols"); history.Clear(); return false; }
+        if (LooksLikeCode(typed)) { Diagnose(hwnd, "link, path or code"); history.Clear(); return false; }
 
         // Which layout did the user mean? A word they taught KeyFish goes to their usual other layout
         int chosen = -1;
         if (!IsIgnored(typed) && others.Count > 0)
             chosen = learned.Contains(typed) ? (preferred >= 0 ? preferred : 0)
                                              : Detector.Choose(typed, T, alts, altModels, context, preferred);
+        if (chosen >= 0 && NeedsDictionary(typed))
+        {
+            string altCore = Detector.Core(alts[chosen]);
+            if (string.IsNullOrEmpty(altCore) || altModels[chosen].Count(altCore) == 0) { Diagnose(hwnd, "may be code, and the other layout gives no known word"); chosen = -1; }
+        }
         bool convert = chosen >= 0;
         var target = convert ? others[chosen] : current;
         var targetModel = convert ? altModels[chosen] : T;

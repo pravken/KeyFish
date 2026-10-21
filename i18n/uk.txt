@@ -65,7 +65,7 @@ Layout	Розкладка
 Correct	Виправляти
 Pick or type	Оберіть або введіть
 App	Програма
-KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself with Pause and it goes to "Always correct".	KeyFish вчиться на ваших діях: якщо скасувати або стерти виправлення, слово потрапить до «Не виправляти»; якщо виправити слово самому через Pause — до «Завжди виправляти».
+KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself (with Pause, or by erasing it and typing it again in the other layout) and it goes to "Always correct".	KeyFish вчиться на ваших діях: якщо скасувати або стерти виправлення, слово потрапить до «Не виправляти»; якщо виправити слово самому (через Pause або стерши й набравши заново в іншій розкладці) — до «Завжди виправляти».
 Never correct	Не виправляти
 Always correct	Завжди виправляти
 New word	Нове слово
@@ -102,3 +102,12 @@ Added: {0}. Already in the list: {1}. Click Save to keep the changes.	Додан
 Replacements (txt, csv, AutoHotkey, Espanso)	Автозаміни (txt, csv, AutoHotkey, Espanso)
 All files	Усі файли
 Word lists (txt, csv)	Списки слів (txt, csv)
+Switch layout of the whole line before the cursor	Розкладка всього рядка до курсора
+A soft sound on each correction	Тихий звук під час виправлення
+A short "bloop" so you hear when KeyFish changes something.	Коротке «буль», щоб чути, що KeyFish щось змінив.
+Export…	Експорт…
+Export	Експорт
+All settings in one file	Усі налаштування одним файлом
+To move to another computer. Before every save KeyFish puts a copy of the previous settings in the backups folder (the last 10), and those can be imported too.	Для перенесення на інший комп'ютер. Перед кожним збереженням KeyFish сам кладе копію попередніх налаштувань у папку backups (останні 10) — їх теж можна імпортувати.
+This isn't a KeyFish settings file.	Це не файл налаштувань KeyFish.
+Replace all settings with the file's contents? The current ones are kept in the backups folder.	Замінити всі налаштування вмістом файлу? Поточні збережуться в папці backups.

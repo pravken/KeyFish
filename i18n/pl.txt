@@ -65,7 +65,7 @@ Layout	Układ
 Correct	Poprawiaj
 Pick or type	Wybierz lub wpisz
 App	Program
-KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself with Pause and it goes to "Always correct".	KeyFish uczy się od ciebie: jeśli cofniesz lub usuniesz poprawkę, słowo trafi do „Nie poprawiaj”; jeśli sam poprawisz słowo klawiszem Pause — do „Zawsze poprawiaj”.
+KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself (with Pause, or by erasing it and typing it again in the other layout) and it goes to "Always correct".	KeyFish uczy się od ciebie: jeśli cofniesz lub usuniesz poprawkę, słowo trafi do „Nie poprawiaj”; jeśli sam poprawisz słowo (klawiszem Pause albo usuwając je i wpisując ponownie w innym układzie) — do „Zawsze poprawiaj”.
 Never correct	Nie poprawiaj
 Always correct	Zawsze poprawiaj
 New word	Nowe słowo
@@ -102,3 +102,12 @@ Added: {0}. Already in the list: {1}. Click Save to keep the changes.	Dodano: {0
 Replacements (txt, csv, AutoHotkey, Espanso)	Zamienniki (txt, csv, AutoHotkey, Espanso)
 All files	Wszystkie pliki
 Word lists (txt, csv)	Listy słów (txt, csv)
+Switch layout of the whole line before the cursor	Zmień układ całego wiersza przed kursorem
+A soft sound on each correction	Cichy dźwięk przy każdej poprawce
+A short "bloop" so you hear when KeyFish changes something.	Krótkie „bul”, żeby słyszeć, że KeyFish coś zmienił.
+Export…	Eksportuj…
+Export	Eksport
+All settings in one file	Wszystkie ustawienia w jednym pliku
+To move to another computer. Before every save KeyFish puts a copy of the previous settings in the backups folder (the last 10), and those can be imported too.	Do przeniesienia na inny komputer. Przed każdym zapisem KeyFish sam odkłada kopię poprzednich ustawień do folderu backups (ostatnie 10) — je też można zaimportować.
+This isn't a KeyFish settings file.	To nie jest plik ustawień KeyFish.
+Replace all settings with the file's contents? The current ones are kept in the backups folder.	Zastąpić wszystkie ustawienia zawartością pliku? Obecne zostaną w folderze backups.

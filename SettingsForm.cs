@@ -11,7 +11,8 @@ using System.Windows.Forms;
 // that used to be plain text files (replacements, apps, words)
 class SettingsForm : Form
 {
-    public bool AutoCorrect, Typos, QuietFullscreen, UndoCtrlZ, LayoutColor, Autostart, CheckUpdates, LayoutBadge, RecentMenu;
+    public bool AutoCorrect, Typos, QuietFullscreen, UndoCtrlZ, LayoutColor, Autostart, CheckUpdates, LayoutBadge, RecentMenu, Sound;
+    public string BackupDir;             // where KeyFish keeps copies of the settings made before each save
     public int QuickKey;                 // 0 — off, 1 — double Shift, 2 — Caps Lock
     public int Language;                 // see L.Choices
     public Keys[] Hotkeys;
@@ -20,7 +21,7 @@ class SettingsForm : Form
     public Image Logo;
     public int StartPage;                // the section to open with
 
-    ToggleSwitch tAuto, tTypos, tQuiet, tCtrlZ, tColor, tAutostart, tUpdates, tBadge, tRecent;
+    ToggleSwitch tAuto, tTypos, tQuiet, tCtrlZ, tColor, tAutostart, tUpdates, tBadge, tRecent, tSound;
     DropDown cbLanguage, cbQuickKey;
     HotkeyBox[] hotkeyBoxes;
     DataGridView gridReplacements, gridApps, gridIgnored, gridLearned;
@@ -212,6 +213,8 @@ class SettingsForm : Form
         Row(page, ref y, L.T("Последние исправления в меню рыбки", "Recent corrections in the fish menu"),
             L.T("Нажмите на исправление в меню, и KeyFish больше не будет так исправлять. Список хранится только в памяти.",
                 "Click a correction in the menu and KeyFish won't correct it again. The list is kept only in memory."), tRecent = Toggle(RecentMenu));
+        Row(page, ref y, L.T("Тихий звук при исправлении", "A soft sound on each correction"),
+            L.T("Короткий «бульк», чтобы слышать, что KeyFish что-то поменял.", "A short \"bloop\" so you hear when KeyFish changes something."), tSound = Toggle(Sound));
         Row(page, ref y, L.T("Запускать вместе с Windows", "Start with Windows"), null, tAutostart = Toggle(Autostart));
         Row(page, ref y, L.T("Проверять обновления", "Check for updates"),
             L.T("Раз в день KeyFish спрашивает у GitHub, вышла ли новая версия. Больше ничего не отправляется.",
@@ -221,6 +224,18 @@ class SettingsForm : Form
         cbLanguage.Items.AddRange(L.Choices);
         cbLanguage.SelectedIndex = Math.Max(0, Math.Min(Language, cbLanguage.Items.Count - 1));
         Row(page, ref y, L.T("Язык интерфейса", "Interface language"), null, cbLanguage);
+
+        // All settings in one file: to move to another computer or to go back to an earlier state
+        var export = new RoundButton { Text = L.T("Экспорт…", "Export…"), Location = new Point(0, 0), Size = new Size(110, 32) };
+        var import = new RoundButton { Text = L.T("Импорт…", "Import…"), Location = new Point(118, 0), Size = new Size(110, 32) };
+        export.Click += (s, e) => ExportSettings();
+        import.Click += (s, e) => ImportSettings();
+        var archive = new Panel { Size = new Size(228, 32), BackColor = Color.Transparent };
+        archive.Controls.Add(export);
+        archive.Controls.Add(import);
+        Row(page, ref y, L.T("Все настройки одним файлом", "All settings in one file"),
+            L.T("Для переноса на другой компьютер. Перед каждым сохранением KeyFish сам кладёт копию прежних настроек в папку backups (последние 10) — их тоже можно импортировать.",
+                "To move to another computer. Before every save KeyFish puts a copy of the previous settings in the backups folder (the last 10), and those can be imported too."), archive);
 
         var support = new RoundButton { Text = L.T("Поддержать ☕", "Support ☕"), Size = new Size(150, 32) };
         support.Click += (s, e) => { try { Process.Start("https://ko-fi.com/pravken"); } catch { } };
@@ -540,8 +555,8 @@ class SettingsForm : Form
     {
         int y;
         var page = Page(L.T("Слова", "Words"), out y);
-        Intro(page, ref y, L.T("KeyFish учится на ваших действиях: если отменить или стереть исправление, слово попадёт в «Не исправлять»; если исправить слово самому через Pause — в «Всегда исправлять».",
-                              "KeyFish learns from you: undo or erase a correction and the word goes to \"Never correct\"; fix a word yourself with Pause and it goes to \"Always correct\"."));
+        Intro(page, ref y, L.T("KeyFish учится на ваших действиях: если отменить или стереть исправление, слово попадёт в «Не исправлять»; если исправить слово самому (через Pause или стерев и набрав заново в другой раскладке) — в «Всегда исправлять».",
+                              "KeyFish learns from you: undo or erase a correction and the word goes to \"Never correct\"; fix a word yourself (with Pause, or by erasing it and typing it again in the other layout) and it goes to \"Always correct\"."));
         int half = (ContentWidth - 12) / 2;
         gridIgnored = WordList(page, new Point(16, y), half, L.T("Не исправлять", "Never correct"), Ignored);
         gridLearned = WordList(page, new Point(16 + half + 12, y), half, L.T("Всегда исправлять", "Always correct"), Learned);
@@ -617,6 +632,85 @@ class SettingsForm : Form
         MessageBox.Show(this, text, L.T("Импорт", "Import"), MessageBoxButtons.OK, added + had == 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
     }
 
+    // ---------- One file with everything ----------
+
+    Dictionary<string, int> Values()
+    {
+        var v = new Dictionary<string, int>
+        {
+            { "AutoCorrect", AutoCorrect ? 1 : 0 }, { "Typos", Typos ? 1 : 0 }, { "QuietFullscreen", QuietFullscreen ? 1 : 0 },
+            { "UndoCtrlZ", UndoCtrlZ ? 1 : 0 }, { "LayoutColor", LayoutColor ? 1 : 0 }, { "CheckUpdates", CheckUpdates ? 1 : 0 },
+            { "LayoutBadge", LayoutBadge ? 1 : 0 }, { "RecentMenu", RecentMenu ? 1 : 0 }, { "QuickKey", QuickKey }, { "Sound", Sound ? 1 : 0 },
+            { "Language", Language }
+        };
+        for (int i = 0; i < Hotkeys.Length; i++) v["Hotkey" + (i + 1)] = (int)Hotkeys[i];
+        return v;
+    }
+
+    Dictionary<string, string> Files()
+    {
+        return new Dictionary<string, string>
+        {
+            { "replacements.txt", Replacements }, { "exclusions.txt", Exclusions }, { "ignored-words.txt", Ignored },
+            { "learned-words.txt", Learned }, { "app-layouts.txt", AppLayouts }
+        };
+    }
+
+    void ExportSettings()
+    {
+        Collect();
+        using (var dialog = new SaveFileDialog
+        {
+            Filter = L.T("Настройки KeyFish", "KeyFish settings") + " (*.zip)|*.zip", FileName = "KeyFish-settings-" + DateTime.Now.ToString("yyyy-MM-dd") + ".zip",
+            Title = L.T("Экспорт", "Export")
+        })
+        {
+            if (dialog.ShowDialog(this) != DialogResult.OK) return;
+            try { SettingsArchive.Save(dialog.FileName, Files(), Values()); }
+            catch (Exception ex) { MessageBox.Show(this, ex.Message, L.T("Экспорт", "Export"), MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        }
+    }
+
+    // Replaces everything with the file's contents and saves, as the Save button does (the current state goes to backups first)
+    void ImportSettings()
+    {
+        string path;
+        using (var dialog = new OpenFileDialog { Filter = L.T("Настройки KeyFish", "KeyFish settings") + " (*.zip)|*.zip", Title = L.T("Импорт", "Import") })
+        {
+            if (BackupDir != null && System.IO.Directory.Exists(BackupDir)) dialog.InitialDirectory = BackupDir;
+            if (dialog.ShowDialog(this) != DialogResult.OK) return;
+            path = dialog.FileName;
+        }
+        Dictionary<string, string> files;
+        Dictionary<string, int> values;
+        if (!SettingsArchive.Load(path, out files, out values))
+        {
+            MessageBox.Show(this, L.T("Это не файл настроек KeyFish.", "This isn't a KeyFish settings file."), L.T("Импорт", "Import"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (MessageBox.Show(this, L.T("Заменить все настройки содержимым файла? Нынешние сохранятся в папке backups.",
+                                      "Replace all settings with the file's contents? The current ones are kept in the backups folder."),
+                            L.T("Импорт", "Import"), MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+
+        Collect();   // anything the file doesn't have stays as it is in this window
+        string text;
+        if (files.TryGetValue("replacements.txt", out text)) Replacements = text;
+        if (files.TryGetValue("exclusions.txt", out text)) Exclusions = text;
+        if (files.TryGetValue("ignored-words.txt", out text)) Ignored = text;
+        if (files.TryGetValue("learned-words.txt", out text)) Learned = text;
+        if (files.TryGetValue("app-layouts.txt", out text)) AppLayouts = text;
+        Func<string, bool, bool> flag = (name, current) => { int v; return values.TryGetValue(name, out v) ? v != 0 : current; };
+        AutoCorrect = flag("AutoCorrect", AutoCorrect); Typos = flag("Typos", Typos); QuietFullscreen = flag("QuietFullscreen", QuietFullscreen);
+        UndoCtrlZ = flag("UndoCtrlZ", UndoCtrlZ); LayoutColor = flag("LayoutColor", LayoutColor); CheckUpdates = flag("CheckUpdates", CheckUpdates);
+        LayoutBadge = flag("LayoutBadge", LayoutBadge); RecentMenu = flag("RecentMenu", RecentMenu); Sound = flag("Sound", Sound);
+        int n;
+        if (values.TryGetValue("QuickKey", out n)) QuickKey = Math.Max(0, Math.Min(n, 2));
+        if (values.TryGetValue("Language", out n)) Language = Math.Max(0, n);
+        for (int i = 0; i < Hotkeys.Length; i++) if (values.TryGetValue("Hotkey" + (i + 1), out n)) Hotkeys[i] = (Keys)n;
+        DialogResult = DialogResult.OK;
+        Close();
+    }
+
     // ---------- Saving ----------
 
     void Collect()
@@ -629,6 +723,7 @@ class SettingsForm : Form
         Autostart = tAutostart.Checked;
         CheckUpdates = tUpdates.Checked;
         LayoutBadge = tBadge.Checked;
+        Sound = tSound.Checked;
         RecentMenu = tRecent.Checked;
         QuickKey = cbQuickKey.SelectedIndex;
         Language = cbLanguage.SelectedIndex;
@@ -974,5 +1069,68 @@ static class Importer
             catch (DecoderFallbackException) { text = Encoding.GetEncoding(1251).GetString(bytes); }
         }
         return text.Replace("\r\n", "\n").Split('\n');
+    }
+}
+
+// KeyFish settings in one zip file: the text files as they are, and the switches and hotkeys in settings.txt (name=number)
+static class SettingsArchive
+{
+    public static readonly string[] Values =
+    {
+        "AutoCorrect", "Typos", "QuietFullscreen", "UndoCtrlZ", "LayoutColor", "CheckUpdates", "LayoutBadge", "RecentMenu", "QuickKey", "Sound",
+        "Language", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5"
+    };
+    static readonly string[] FileNames = { "replacements.txt", "exclusions.txt", "ignored-words.txt", "learned-words.txt", "app-layouts.txt" };
+
+    public static void Save(string path, Dictionary<string, string> files, Dictionary<string, int> values)
+    {
+        using (var zip = new System.IO.Compression.ZipArchive(System.IO.File.Create(path), System.IO.Compression.ZipArchiveMode.Create))
+        {
+            Write(zip, "keyfish.txt", "KeyFish settings, version " + Application.ProductVersion + "\r\n");
+            foreach (var kv in files) if (kv.Value != null && Array.IndexOf(FileNames, kv.Key) >= 0) Write(zip, kv.Key, kv.Value);
+            var sb = new StringBuilder();
+            foreach (var kv in values) sb.Append(kv.Key).Append('=').Append(kv.Value).Append("\r\n");
+            Write(zip, "settings.txt", sb.ToString());
+        }
+    }
+
+    // Only the known names are read; anything else in the file is ignored
+    public static bool Load(string path, out Dictionary<string, string> files, out Dictionary<string, int> values)
+    {
+        files = new Dictionary<string, string>();
+        values = new Dictionary<string, int>();
+        try
+        {
+            using (var zip = System.IO.Compression.ZipFile.OpenRead(path))
+            {
+                if (zip.GetEntry("keyfish.txt") == null) return false;
+                foreach (string name in FileNames)
+                {
+                    var entry = zip.GetEntry(name);
+                    if (entry != null && entry.Length < 5 * 1024 * 1024) files[name] = Read(entry);
+                }
+                var settings = zip.GetEntry("settings.txt");
+                if (settings != null)
+                    foreach (string line in Read(settings).Split('\n'))
+                    {
+                        int eq = line.IndexOf('=');
+                        int v;
+                        if (eq > 0 && Array.IndexOf(Values, line.Substring(0, eq).Trim()) >= 0 && int.TryParse(line.Substring(eq + 1).Trim(), out v))
+                            values[line.Substring(0, eq).Trim()] = v;
+                    }
+            }
+            return true;
+        }
+        catch { return false; }
+    }
+
+    static void Write(System.IO.Compression.ZipArchive zip, string name, string text)
+    {
+        using (var w = new System.IO.StreamWriter(zip.CreateEntry(name).Open(), new UTF8Encoding(false))) w.Write(text);
+    }
+
+    static string Read(System.IO.Compression.ZipArchiveEntry entry)
+    {
+        using (var r = new System.IO.StreamReader(entry.Open(), Encoding.UTF8)) return r.ReadToEnd();
     }
 }

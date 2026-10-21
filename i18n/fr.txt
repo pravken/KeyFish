@@ -65,7 +65,7 @@ Layout	Disposition
 Correct	Corriger
 Pick or type	Choisir ou saisir
 App	Application
-KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself with Pause and it goes to "Always correct".	KeyFish apprend de vous : annulez ou effacez une correction et le mot va dans « Ne jamais corriger » ; corrigez un mot vous-même avec Pause et il va dans « Toujours corriger ».
+KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself (with Pause, or by erasing it and typing it again in the other layout) and it goes to "Always correct".	KeyFish apprend de vous : annulez ou effacez une correction et le mot va dans « Ne jamais corriger » ; corrigez un mot vous-même (avec Pause, ou en l'effaçant et en le retapant dans l'autre disposition) et il va dans « Toujours corriger ».
 Never correct	Ne jamais corriger
 Always correct	Toujours corriger
 New word	Nouveau mot
@@ -102,3 +102,12 @@ Added: {0}. Already in the list: {1}. Click Save to keep the changes.	Ajoutés :
 Replacements (txt, csv, AutoHotkey, Espanso)	Remplacements (txt, csv, AutoHotkey, Espanso)
 All files	Tous les fichiers
 Word lists (txt, csv)	Listes de mots (txt, csv)
+Switch layout of the whole line before the cursor	Changer la disposition de toute la ligne avant le curseur
+A soft sound on each correction	Un son discret à chaque correction
+A short "bloop" so you hear when KeyFish changes something.	Un petit « bloup » pour entendre quand KeyFish change quelque chose.
+Export…	Exporter…
+Export	Exporter
+All settings in one file	Tous les paramètres dans un fichier
+To move to another computer. Before every save KeyFish puts a copy of the previous settings in the backups folder (the last 10), and those can be imported too.	Pour passer à un autre ordinateur. Avant chaque enregistrement, KeyFish met une copie des paramètres précédents dans le dossier backups (les 10 derniers) ; on peut aussi les importer.
+This isn't a KeyFish settings file.	Ce n'est pas un fichier de paramètres KeyFish.
+Replace all settings with the file's contents? The current ones are kept in the backups folder.	Remplacer tous les paramètres par le contenu du fichier ? Les actuels restent dans le dossier backups.

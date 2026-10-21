@@ -64,7 +64,7 @@ Layout	Раскладка
 Correct	Выпраўляць
 Pick or type	Выберыце або ўвядзіце
 App	Праграма
-KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself with Pause and it goes to "Always correct".	KeyFish вучыцца на вашых дзеяннях: калі адмяніць або сцерці выпраўленне, слова трапіць у «Не выпраўляць»; калі выправіць слова самому праз Pause — у «Заўсёды выпраўляць».
+KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself (with Pause, or by erasing it and typing it again in the other layout) and it goes to "Always correct".	KeyFish вучыцца на вашых дзеяннях: калі адмяніць або сцерці выпраўленне, слова трапіць у «Не выпраўляць»; калі выправіць слова самому (праз Pause або сцёршы і набраўшы нанова ў іншай раскладцы) — у «Заўсёды выпраўляць».
 Never correct	Не выпраўляць
 Always correct	Заўсёды выпраўляць
 New word	Новае слова
@@ -101,3 +101,12 @@ Added: {0}. Already in the list: {1}. Click Save to keep the changes.	Дадад
 Replacements (txt, csv, AutoHotkey, Espanso)	Аўтазамены (txt, csv, AutoHotkey, Espanso)
 All files	Усе файлы
 Word lists (txt, csv)	Спісы слоў (txt, csv)
+Switch layout of the whole line before the cursor	Раскладка ўсяго радка да курсора
+A soft sound on each correction	Ціхі гук пры выпраўленні
+A short "bloop" so you hear when KeyFish changes something.	Кароткае «буль», каб чуць, што KeyFish нешта змяніў.
+Export…	Экспарт…
+Export	Экспарт
+All settings in one file	Усе налады адным файлам
+To move to another computer. Before every save KeyFish puts a copy of the previous settings in the backups folder (the last 10), and those can be imported too.	Для пераносу на іншы камп'ютар. Перад кожным захаваннем KeyFish сам кладзе копію ранейшых налад у папку backups (апошнія 10) — іх таксама можна імпартаваць.
+This isn't a KeyFish settings file.	Гэта не файл налад KeyFish.
+Replace all settings with the file's contents? The current ones are kept in the backups folder.	Замяніць усе налады змесцівам файла? Цяперашнія захаваюцца ў папцы backups.

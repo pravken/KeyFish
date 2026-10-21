@@ -65,7 +65,7 @@ Layout	Distribución
 Correct	Corregir
 Pick or type	Elige o escribe
 App	Aplicación
-KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself with Pause and it goes to "Always correct".	KeyFish aprende de ti: si deshaces o borras una corrección, la palabra pasa a «No corregir nunca»; si corriges una palabra tú mismo con Pausa, pasa a «Corregir siempre».
+KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself (with Pause, or by erasing it and typing it again in the other layout) and it goes to "Always correct".	KeyFish aprende de ti: si deshaces o borras una corrección, la palabra pasa a «No corregir nunca»; si corriges una palabra tú mismo (con Pausa, o borrándola y escribiéndola de nuevo en la otra distribución), pasa a «Corregir siempre».
 Never correct	No corregir nunca
 Always correct	Corregir siempre
 New word	Palabra nueva
@@ -102,3 +102,12 @@ Added: {0}. Already in the list: {1}. Click Save to keep the changes.	Añadidas:
 Replacements (txt, csv, AutoHotkey, Espanso)	Reemplazos (txt, csv, AutoHotkey, Espanso)
 All files	Todos los archivos
 Word lists (txt, csv)	Listas de palabras (txt, csv)
+Switch layout of the whole line before the cursor	Cambiar la distribución de toda la línea antes del cursor
+A soft sound on each correction	Un sonido suave en cada corrección
+A short "bloop" so you hear when KeyFish changes something.	Un breve «blup» para oír cuándo KeyFish cambia algo.
+Export…	Exportar…
+Export	Exportar
+All settings in one file	Toda la configuración en un archivo
+To move to another computer. Before every save KeyFish puts a copy of the previous settings in the backups folder (the last 10), and those can be imported too.	Para pasar a otro ordenador. Antes de cada guardado, KeyFish deja una copia de la configuración anterior en la carpeta backups (las 10 últimas); también se pueden importar.
+This isn't a KeyFish settings file.	Este no es un archivo de configuración de KeyFish.
+Replace all settings with the file's contents? The current ones are kept in the backups folder.	¿Sustituir toda la configuración por el contenido del archivo? La actual se guarda en la carpeta backups.

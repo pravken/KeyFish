@@ -65,7 +65,7 @@ Layout	Layout
 Correct	Korrigieren
 Pick or type	Wählen oder eingeben
 App	App
-KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself with Pause and it goes to "Always correct".	KeyFish lernt von Ihnen: Machen Sie eine Korrektur rückgängig oder löschen sie, landet das Wort unter „Nie korrigieren“; korrigieren Sie ein Wort selbst mit Pause, landet es unter „Immer korrigieren“.
+KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself (with Pause, or by erasing it and typing it again in the other layout) and it goes to "Always correct".	KeyFish lernt von Ihnen: Machen Sie eine Korrektur rückgängig oder löschen Sie sie, kommt das Wort unter „Nie korrigieren“; korrigieren Sie ein Wort selbst (mit Pause oder indem Sie es löschen und im anderen Layout neu tippen), kommt es unter „Immer korrigieren“.
 Never correct	Nie korrigieren
 Always correct	Immer korrigieren
 New word	Neues Wort
@@ -102,3 +102,12 @@ Added: {0}. Already in the list: {1}. Click Save to keep the changes.	Hinzugefü
 Replacements (txt, csv, AutoHotkey, Espanso)	Ersetzungen (txt, csv, AutoHotkey, Espanso)
 All files	Alle Dateien
 Word lists (txt, csv)	Wortlisten (txt, csv)
+Switch layout of the whole line before the cursor	Layout der ganzen Zeile vor dem Cursor wechseln
+A soft sound on each correction	Leiser Ton bei jeder Korrektur
+A short "bloop" so you hear when KeyFish changes something.	Ein kurzes „Blubb“, damit Sie hören, wenn KeyFish etwas ändert.
+Export…	Exportieren…
+Export	Exportieren
+All settings in one file	Alle Einstellungen in einer Datei
+To move to another computer. Before every save KeyFish puts a copy of the previous settings in the backups folder (the last 10), and those can be imported too.	Zum Umzug auf einen anderen Computer. Vor jedem Speichern legt KeyFish eine Kopie der bisherigen Einstellungen im Ordner backups ab (die letzten 10); auch diese lassen sich importieren.
+This isn't a KeyFish settings file.	Das ist keine KeyFish-Einstellungsdatei.
+Replace all settings with the file's contents? The current ones are kept in the backups folder.	Alle Einstellungen durch den Inhalt der Datei ersetzen? Die aktuellen bleiben im Ordner backups erhalten.
