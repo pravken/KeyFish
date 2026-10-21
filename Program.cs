@@ -1061,7 +1061,7 @@ static class Bubble
         const int rate = 44100;
         // Silence before: an idle sound device (many cards, Bluetooth headphones) wakes up on the first samples and drops them.
         // Silence after: some drivers cut the end of a buffer, which sounds like a chopped-off tail
-        int lead = rate * 250 / 1000, n = rate * 200 / 1000, tail = rate * 150 / 1000;
+        int lead = rate * 250 / 1000, n = rate * 110 / 1000, tail = rate * 150 / 1000;
         var ms = new MemoryStream();
         var w = new BinaryWriter(ms);
         int total = lead + n + tail;
@@ -1070,16 +1070,15 @@ static class Bubble
         w.Write(Encoding.ASCII.GetBytes("data")); w.Write(total * 2);
         for (int i = 0; i < lead; i++) w.Write((short)0);
         double phase = 0;
+        int fadeOut = rate * 5 / 1000;
         for (int i = 0; i < n; i++)
         {
             double t = (double)i / n;
-            // The pitch rises fast and settles, like an air bubble: 280 Hz → about 850 Hz in the first third
-            double freq = 280 + 570 * (1 - Math.Exp(-t * 6));
+            double freq = 320 * Math.Pow(3.2, t);                       // 320 → about 1000 Hz
             phase += 2 * Math.PI * freq / rate;
-            double attack = 0.5 - 0.5 * Math.Cos(Math.PI * Math.Min(1, i / (rate * 0.012)));   // a soft 12 ms start, no click
-            double decay = Math.Exp(-3.2 * t);
-            double fade = t > 0.75 ? 0.5 + 0.5 * Math.Cos(Math.PI * (t - 0.75) / 0.25) : 1;    // down to true silence
-            w.Write((short)(Math.Sin(phase) * attack * decay * fade * 0.3 * short.MaxValue));
+            double envelope = Math.Min(1, i / (rate * 0.004)) * Math.Exp(-4.5 * t);
+            if (i > n - fadeOut) envelope *= (double)(n - i) / fadeOut;   // the last 5 ms down to zero: no click at the end
+            w.Write((short)(Math.Sin(phase) * envelope * 0.28 * short.MaxValue));
         }
         for (int i = 0; i < tail; i++) w.Write((short)0);
         w.Flush();
