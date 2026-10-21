@@ -157,12 +157,18 @@ class App : ApplicationContext
         int since = GetSetting("StatsSince", 0);
         string sinceText = since > 0 ? new DateTime(since / 10000, since / 100 % 100, since % 100).ToString("d", L.Ru ? new System.Globalization.CultureInfo("ru-RU") : System.Globalization.CultureInfo.CurrentCulture) : "";
         string stats = L.Ru
-            ? "🐟 Рыбка поймала " + total.ToString("N0", new System.Globalization.CultureInfo("ru-RU")) + " " + Plural(total, "ошибку", "ошибки", "ошибок") + (since > 0 ? " с " + sinceText : "")
-            : "🐟 The fish has caught " + total.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) + (total == 1 ? " mistake" : " mistakes") + (since > 0 ? " since " + sinceText : "");
+            ? "Рыбка поймала " + total.ToString("N0", new System.Globalization.CultureInfo("ru-RU")) + " " + Plural(total, "ошибку", "ошибки", "ошибок") + (since > 0 ? " с " + sinceText : "")
+            : "The fish has caught " + total.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) + (total == 1 ? " mistake" : " mistakes") + (since > 0 ? " since " + sinceText : "");
 
-        MessageBox.Show("KeyFish " + Application.ProductVersion + "\n" + stats + "\n\n" + L.T("Что нового:", "What's new:") + "\n\n" + changes.Trim(),
-            L.T("О программе", "About KeyFish"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+        if (aboutForm != null) { aboutForm.Activate(); return; }
+        Image fish;
+        using (var s = typeof(App).Assembly.GetManifestResourceStream("fish.ico")) fish = new Icon(s, 64, 64).ToBitmap();
+        using (aboutForm = new AboutForm(fish, stats, changes) { Icon = iconEn })
+            aboutForm.ShowDialog();
+        aboutForm = null;
     }
+
+    AboutForm aboutForm;
 
     static int GetSetting(string name, int def)
     {
@@ -245,7 +251,7 @@ class App : ApplicationContext
         menu.Items.Add(autoItem);
         menu.Items.Add(L.T("Настройки…", "Settings…"), null, (s, e) => OpenSettings());
         menu.Items.Add(L.T("Проверить обновления", "Check for updates"), null, (s, e) => CheckForUpdates(true));
-        menu.Items.Add(L.T("О программе и что нового…", "About and what's new…"), null, (s, e) => ShowAbout());
+        menu.Items.Add(L.T("О программе…", "About…"), null, (s, e) => ShowAbout());
         menu.Items.Add(L.T("Выход", "Exit"), null, (s, e) => ExitThread());
         return menu;
     }
