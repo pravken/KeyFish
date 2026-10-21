@@ -1,3 +1,6 @@
+1.8.3
+• New About window: version, statistics and a link to the project; the list of changes now opens from a separate What's new button
+
 1.8.2
 • Fixed a crash on some login pages and windows: the password-field check (Windows UI Automation) now runs in a small separate process, so a failure there can no longer close KeyFish — the check simply restarts
 • tools/crash-dumps-on.reg helps report a crash (see the README)
