@@ -1,4 +1,4 @@
-# The built app is published in GitHub releases, not in the source
+﻿# The built app is published in GitHub releases, not in the source
 *.exe
 
 # Personal user settings; the app creates them itself
@@ -6,6 +6,7 @@ exclusions.txt
 ignored-words.txt
 replacements.txt
 learned-words.txt
+app-layouts.txt
 
 # Test outputs
 tests/bin/

@@ -11,6 +11,8 @@ using Microsoft.Win32;
 
 static class Program
 {
+    [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
+
     [STAThread]
     static void Main(string[] args)
     {
@@ -34,6 +36,8 @@ static class Program
                 catch (AbandonedMutexException) { }
             }
             Updater.CleanUp();
+            // Sharp text and controls on scaled screens instead of a stretched bitmap
+            try { SetProcessDPIAware(); } catch { }
             Application.EnableVisualStyles();
             Application.Run(new App(updated));
         }
@@ -87,6 +91,26 @@ class App : ApplicationContext
     readonly System.Windows.Forms.Timer trayTimer = new System.Windows.Forms.Timer();
     readonly int ownPid = Process.GetCurrentProcess().Id;
 
+    IntPtr lastForeground;
+    Dictionary<string, long> appLayouts = new Dictionary<string, long>();
+
+    // A window of an app with its own layout (Settings → Apps) came to the front: switch to that layout.
+    // Only on switching to the window, so the user can still change the layout by hand while in it
+    void ApplyAppLayout(IntPtr hwnd, uint pid)
+    {
+        if (appLayouts.Count == 0) return;
+        string name;
+        try { using (var p = Process.GetProcessById((int)pid)) name = p.ProcessName; }
+        catch { return; }
+        long hkl;
+        if (!appLayouts.TryGetValue(name, out hkl)) return;
+        var target = new IntPtr(hkl);
+        if (W.LayoutHkl(hwnd) == target || watcher.Layouts.Get(target) == null) return;
+        W.SwitchLayout(hwnd, target);
+    }
+
+    void LoadAppLayouts() { appLayouts = SettingsForm.ParseAppLayouts(ReadText(appLayoutsPath)); }
+
     void UpdateTrayIcon()
     {
         IntPtr fg = W.GetForegroundWindow();
@@ -98,6 +122,7 @@ class App : ApplicationContext
             && cls != "TopLevelWindowForOverflowXamlIsland")
         {
             // The tray icon shows the alphabet of the layout: Latin or another one
+            if (fg != lastForeground) { lastForeground = fg; ApplyAppLayout(fg, pid); }
             var layout = watcher.Layouts.Get(W.LayoutHkl(fg));
             if (layout != null) { currentRu = layout.Script != null && layout.Script != "Latin"; currentLayoutName = (layout.Name ?? "").Split('-')[0].ToUpperInvariant(); }
         }
@@ -162,9 +187,7 @@ class App : ApplicationContext
             : "The fish has caught " + total.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) + (total == 1 ? " mistake" : " mistakes") + (since > 0 ? " since " + sinceText : "");
 
         if (aboutForm != null) { aboutForm.Activate(); return; }
-        Image fish;
-        using (var s = typeof(App).Assembly.GetManifestResourceStream("fish.ico")) fish = new Icon(s, 64, 64).ToBitmap();
-        using (aboutForm = new AboutForm(fish, stats, changes) { Icon = iconEn })
+        using (aboutForm = new AboutForm(stats, changes) { Icon = iconEn })
             aboutForm.ShowDialog();
         aboutForm = null;
     }
@@ -228,7 +251,7 @@ class App : ApplicationContext
                 string.Join(", ", failed) + L.T(". Их можно поменять в настройках.", ". You can change them in Settings."), ToolTipIcon.Warning);
     }
 
-    readonly string exclusionsPath, ignoredPath, replacementsPath, learnedPath;
+    readonly string exclusionsPath, ignoredPath, replacementsPath, learnedPath, appLayoutsPath;
     ToolStripMenuItem autoItem;
     SettingsForm settingsForm;
 
@@ -244,6 +267,7 @@ class App : ApplicationContext
         };
 
         var menu = new ContextMenuStrip();
+        ThemedMenuRenderer.Apply(menu);
         var title = new ToolStripMenuItem("KeyFish " + Application.ProductVersion);
         title.Font = new Font(title.Font, FontStyle.Bold);
         title.Click += (s, e) => ShowAbout();
@@ -293,6 +317,7 @@ class App : ApplicationContext
         ignoredPath = Path.Combine(dir, "ignored-words.txt");
         learnedPath = Path.Combine(dir, "learned-words.txt");
         replacementsPath = Path.Combine(dir, "replacements.txt");
+        appLayoutsPath = Path.Combine(dir, "app-layouts.txt");
         if (!File.Exists(exclusionsPath)) File.WriteAllText(exclusionsPath, DefaultExclusions, Encoding.UTF8);
         if (!File.Exists(replacementsPath)) File.WriteAllText(replacementsPath, DefaultReplacements, Encoding.UTF8);
 
@@ -304,6 +329,7 @@ class App : ApplicationContext
             UndoWithCtrlZ = GetSetting("UndoCtrlZ", 1) != 0
         };
         showLayout = GetSetting("LayoutColor", 1) != 0;
+        LoadAppLayouts();
 
         var menu = BuildMenu();
 
@@ -431,7 +457,8 @@ class App : ApplicationContext
         {
             AutoCorrect = watcher.Enabled, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
             CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting,
-            Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ReadText(ignoredPath), Learned = ReadText(learnedPath)
+            Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ReadText(ignoredPath), Learned = ReadText(learnedPath),
+            AppLayouts = ReadText(appLayoutsPath), InstalledLayouts = new List<LayoutTable>(watcher.Layouts.All), Logo = FishLogo.Render(72)
         };
         settingsForm.Icon = iconEn;
 
@@ -454,6 +481,8 @@ class App : ApplicationContext
                 File.WriteAllText(exclusionsPath, f.Exclusions, Encoding.UTF8);
                 File.WriteAllText(ignoredPath, f.Ignored, Encoding.UTF8);
                 File.WriteAllText(learnedPath, f.Learned, Encoding.UTF8);
+                File.WriteAllText(appLayoutsPath, f.AppLayouts, Encoding.UTF8);
+                LoadAppLayouts();
                 if (f.Language != L.Setting)
                 {
                     L.Setting = f.Language;

@@ -10,45 +10,59 @@ class AboutForm : Form
     const string ProjectUrl = "https://github.com/pravken/KeyFish";
     const string SupportUrl = "https://ko-fi.com/pravken";
 
-    public AboutForm(Image fish, string stats, string changelog)
+    public AboutForm(string stats, string changelog)
     {
         Text = L.T("О программе", "About KeyFish");
         StartPosition = FormStartPosition.CenterScreen;
-        FormBorderStyle = FormBorderStyle.FixedDialog;
+        FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = MinimizeBox = false;
-        Font = new Font("Segoe UI", 9f);
-        AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(420, 210);
+        AutoScaleMode = AutoScaleMode.Dpi;
+        AutoScaleDimensions = new SizeF(96f, 96f);
+        Theme.Apply(this);
+        ClientSize = new Size(500, 250);
 
-        Controls.Add(new PictureBox { Image = fish, SizeMode = PictureBoxSizeMode.Zoom, Location = new Point(20, 20), Size = new Size(64, 64) });
-        Controls.Add(new Label
+        var fish = new FishView { Location = new Point(24, 24), Size = new Size(96, 96) };
+        // Five clicks on the fish: the window turns into an aquarium for a few seconds
+        fish.EasterEgg += (s, e) =>
         {
-            Text = "KeyFish " + Application.ProductVersion, Font = new Font("Segoe UI", 14f, FontStyle.Bold),
-            Location = new Point(100, 18), AutoSize = true
-        });
-        Controls.Add(new Label
-        {
-            Text = L.T("Исправляет текст, набранный не в той раскладке", "Fixes text typed in the wrong keyboard layout"),
-            Location = new Point(102, 52), AutoSize = true
-        });
-        Controls.Add(new Label { Text = stats, Location = new Point(102, 76), AutoSize = true });
+            var tank = L.Ru ? new Aquarium("ghbdtn", "привет!") : new Aquarium("руддщ", "hello!");
+            tank.Bounds = ClientRectangle;
+            Controls.Add(tank);
+            tank.BringToFront();
+        };
+        Controls.Add(fish);
 
-        var link = new LinkLabel { Text = "github.com/pravken/KeyFish", Location = new Point(102, 104), AutoSize = true };
-        link.LinkClicked += (s, e) => Process.Start(ProjectUrl);
+        var name = Theme.Label("KeyFish " + Application.ProductVersion, Theme.Title);
+        name.Location = new Point(136, 24);
+        Controls.Add(name);
+        var what = Theme.Label(L.T("Исправляет текст, набранный не в той раскладке", "Fixes text typed in the wrong keyboard layout"), Theme.Body, Theme.SubText);
+        what.Location = new Point(139, 68);
+        Controls.Add(what);
+        var count = Theme.Label(stats, Theme.Body);
+        count.Location = new Point(139, 94);
+        Controls.Add(count);
+
+        var link = new LinkLabel
+        {
+            Text = "github.com/pravken/KeyFish", Location = new Point(139, 120), AutoSize = true, Font = Theme.Body, BackColor = Color.Transparent,
+            LinkColor = Theme.AccentFill, ActiveLinkColor = Theme.AccentFill, VisitedLinkColor = Theme.AccentFill, LinkBehavior = LinkBehavior.HoverUnderline
+        };
+        link.LinkClicked += (s, e) => { try { Process.Start(ProjectUrl); } catch { } };
         Controls.Add(link);
 
-        // A quiet way to support the project: only here, never as a reminder
-        var support = new Button { Text = L.T("Поддержать ☕", "Support ☕"), Location = new Point(20, 162), Size = new Size(120, 30) };
-        support.Click += (s, e) => Process.Start(SupportUrl);
+        // A quiet way to support the project: only here and in Settings, never as a reminder
+        var support = new RoundButton { Text = L.T("Поддержать ☕", "Support ☕"), Location = new Point(24, 192), Size = new Size(140, 34) };
+        support.Click += (s, e) => { try { Process.Start(SupportUrl); } catch { } };
         Controls.Add(support);
 
-        var changes = new Button { Text = L.T("Что нового", "What's new"), Location = new Point(196, 162), Size = new Size(110, 30) };
+        var changes = new RoundButton { Text = L.T("Что нового", "What's new"), Location = new Point(246, 192), Size = new Size(124, 34) };
         changes.Click += (s, e) => { using (var f = new ChangelogForm(changelog)) f.ShowDialog(this); };
-        var ok = new Button { Text = "OK", DialogResult = DialogResult.OK, Location = new Point(316, 162), Size = new Size(84, 30) };
+        var ok = new RoundButton { Text = "OK", AccentStyle = true, Location = new Point(378, 192), Size = new Size(98, 34) };
+        ok.Click += (s, e) => Close();
         Controls.Add(changes);
         Controls.Add(ok);
-        AcceptButton = ok;
-        CancelButton = ok;
+        KeyPreview = true;
+        KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape || e.KeyCode == Keys.Enter) Close(); };
     }
 }
 
@@ -60,35 +74,44 @@ class ChangelogForm : Form
         Text = L.T("Что нового в KeyFish", "What's new in KeyFish");
         StartPosition = FormStartPosition.CenterParent;
         MinimizeBox = false;
-        Font = new Font("Segoe UI", 9f);
-        AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(560, 460);
-        MinimumSize = new Size(360, 260);
+        AutoScaleMode = AutoScaleMode.Dpi;
+        AutoScaleDimensions = new SizeF(96f, 96f);
+        Theme.Apply(this);
+        ClientSize = new Size(600, 500);
+        MinimumSize = new Size(380, 280);
 
-        var box = new RichTextBox
+        var card = new Card
         {
-            ReadOnly = true, ScrollBars = RichTextBoxScrollBars.Vertical, BackColor = SystemColors.Window, BorderStyle = BorderStyle.FixedSingle,
-            Font = new Font("Segoe UI", 10f), DetectUrls = false,
-            Location = new Point(12, 12), Size = new Size(536, 390),
+            Location = new Point(16, 16), Size = new Size(568, 418),
             Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
         };
-        // A line that is just "1.8.2" becomes a bold "Version 1.8.2" heading; versions are already separated by blank lines
-        var bold = new Font(box.Font, FontStyle.Bold);
+        var box = new RichTextBox
+        {
+            ReadOnly = true, ScrollBars = RichTextBoxScrollBars.Vertical, BackColor = Theme.Card, ForeColor = Theme.Text, BorderStyle = BorderStyle.None,
+            Font = Theme.Body, DetectUrls = false, Location = new Point(16, 12), Size = new Size(540, 396),
+            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
+        };
+        Theme.DarkScrollbars(box);
+        // A line that is just "1.8.2" becomes a "Version 1.8.2" heading; versions are already separated by blank lines
+        var heading = new Font("Segoe UI Semibold", 12f);
         foreach (string line in changelog.Replace("\r\n", "\n").Trim().Split('\n'))
         {
-            bool heading = Regex.IsMatch(line, @"^\d+\.\d+\.\d+$");
-            box.SelectionFont = heading ? bold : box.Font;
-            box.AppendText((heading ? L.T("Версия ", "Version ") + line : line) + "\n");
+            bool isHeading = Regex.IsMatch(line, @"^\d+\.\d+\.\d+$");
+            box.SelectionFont = isHeading ? heading : box.Font;
+            box.AppendText((isHeading ? L.T("Версия ", "Version ") + line : line) + "\n");
         }
-        Controls.Add(box);
-        var close = new Button
+        card.Controls.Add(box);
+        box.BackColor = Theme.Card;
+        Controls.Add(card);
+        var close = new RoundButton
         {
-            Text = L.T("Закрыть", "Close"), DialogResult = DialogResult.OK, Location = new Point(448, 414), Size = new Size(100, 30),
+            Text = L.T("Закрыть", "Close"), AccentStyle = true, Location = new Point(468, 448), Size = new Size(116, 34),
             Anchor = AnchorStyles.Bottom | AnchorStyles.Right
         };
+        close.Click += (s, e) => Close();
         Controls.Add(close);
-        AcceptButton = close;
-        CancelButton = close;
+        KeyPreview = true;
+        KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) Close(); };
         Shown += (s, e) => { box.SelectionStart = 0; box.SelectionLength = 0; close.Focus(); };
     }
 }
