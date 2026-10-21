@@ -446,19 +446,23 @@ class RoundButton : Control
         }
         Color fore = AccentStyle ? Theme.OnAccent : Theme.Text;
         if (!Enabled) fore = Theme.SubText;
+        // Dark text on the accent color: semibold and drawn once is cleaner than the regular weight drawn twice,
+        // which smears the edges of dark letters on a bright fill
+        Font font = AccentStyle ? Theme.Strong : Font;
+        bool heavier = !AccentStyle;
         if (string.IsNullOrEmpty(Glyph))
         {
-            Theme.SmoothText(g, Text, Font, ClientRectangle, fore, true);
+            Theme.SmoothText(g, Text, font, ClientRectangle, fore, true, heavier);
             return;
         }
         using (var icon = new Font(Theme.IconFontName, Font.SizeInPoints))
         {
             // The icon is smoothed the same way as the text, not with ClearType's colored edges
             SizeF iconSize = g.MeasureString(Glyph, icon);
-            SizeF textSize = g.MeasureString(Text, Font);
+            SizeF textSize = g.MeasureString(Text, font);
             float gap = 2, x = (Width - iconSize.Width - gap - textSize.Width) / 2;
             Theme.SmoothText(g, Glyph, icon, new RectangleF(x, 1, iconSize.Width, Height), GlyphColor ?? fore, true, false);
-            Theme.SmoothText(g, Text, Font, new RectangleF(x + iconSize.Width + gap, 0, textSize.Width + 4, Height), fore, false);
+            Theme.SmoothText(g, Text, font, new RectangleF(x + iconSize.Width + gap, 0, textSize.Width + 4, Height), fore, false, heavier);
         }
     }
 }
