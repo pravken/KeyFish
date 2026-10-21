@@ -1,0 +1,80 @@
+# KeyFish interface in Serbian (Cyrillic). Format: English text<TAB>translation; \n is a line break
+About KeyFish	О програму
+Fixes text typed in the wrong keyboard layout	Исправља текст откуцан у погрешном распореду тастатуре
+Support ☕	Подржи ☕
+What's new	Шта је ново
+What's new in KeyFish	Шта је ново у KeyFish-у
+Version 	Верзија
+Close	Затвори
+Mistakes caught: {0}	Уловљених грешака: {0}
+ (since {0})	 (од {0})
+Switch layout of selected text; right after an auto-fix — undo it (as does Ctrl+Z)	Распоред означеног текста; одмах после аутоисправке — поништи је (као и Ctrl+Z)
+Switch layout of selected text — alternative keys	Распоред означеног текста — резервна пречица
+Change case of selected text (aa → Aa → AA)	Велика/мала слова означеног текста (аа → Аа → АА)
+Transliterate (привет ⇄ privet)	Пресловљавање (здраво ⇄ zdravo)
+These hotkeys are taken by another app: {0}. You can change them in Settings.	Ове пречице заузима други програм: {0}. Можете их променити у подешавањима.
+Auto-correct while typing	Аутоисправка током куцања
+Settings…	Подешавања…
+Check for updates	Провери ажурирања
+About…	О програму…
+Exit	Излаз
+Update installed 🐟	Ажурирање инсталирано 🐟
+Version {0} is out (you have {1}).\n\nOpen the download page?	Изашла је верзија {0} (ви имате {1}).\n\nОтворити страницу за преузимање?
+KeyFish update	Ажурирање KeyFish-а
+Version {0} is out (you have {1}).\n\nUpdate now? KeyFish will download it from GitHub, verify the checksum and restart.\n\n"No" opens the download page to update manually.	Изашла је верзија {0} (ви имате {1}).\n\nАжурирати сада? KeyFish ће је преузети са GitHub-а, проверити контролни збир и поново се покренути.\n\n„Не“ отвара страницу за ручно ажурирање.
+Downloading the update…	Преузимам ажурирање…
+Open the download page?	Отворити страницу за преузимање?
+KeyFish {0} is out	Изашао је KeyFish {0}
+Click to update.	Кликните да ажурирате.
+Couldn't reach GitHub. Check your connection and try again later.	Није успело повезивање са GitHub-ом. Проверите везу и покушајте касније.
+You have the latest version: {0}.	Имате најновију верзију: {0}.
+KeyFish settings	Подешавања KeyFish-а
+General	Опште
+Hotkeys	Пречице
+Replacements	Замене
+Apps	Програми
+Words	Речи
+Save	Сачувај
+Cancel	Откажи
+Fix the keyboard layout as you type	Исправљај распоред током куцања
+ghbdtn → привет, руддщ → hello. Replacements also work only while this is on.	ghbdtn → привет, руддщ → hello. И замене раде само док је ово укључено.
+Fix typos	Исправљај словне грешке
+Experimental: recieve → receive, using Windows spell check.	Експериментално: преко провере правописа у Windows-у.
+Stay quiet in games and full-screen apps	Ћути у играма и програмима преко целог екрана
+Ctrl+Z undoes an auto-fix	Ctrl+Z поништава аутоисправку
+Right after the fix, like Pause. The next Ctrl+Z works in the app as usual.	Одмах после исправке, као и Pause. Следећи Ctrl+Z ради у програму као и обично.
+Fish color shows the layout	Боја рибице показује распоред
+Blue — Latin, orange — another alphabet.	Плава — латиница, наранџаста — друго писмо.
+Start with Windows	Покрећи са Windows-ом
+Once a day KeyFish asks GitHub whether a new version is out. Nothing else is sent.	Једном дневно KeyFish пита GitHub да ли је изашла нова верзија. Ништа друго се не шаље.
+Interface language	Језик интерфејса
+KeyFish is free	KeyFish је бесплатан
+If it saves you time, you can buy the author a coffee.	Ако вам штеди време, можете аутора частити кафом.
+Click a field and press the keys. Backspace turns a hotkey off.	Кликните поље и притисните тастере. Backspace искључује пречицу.
+Reset	Врати
+Type an abbreviation and a space, and KeyFish replaces it with the text. It works in the other layout too: "thx" expands even when typed as «ерч».	Откуцајте скраћеницу и размак — KeyFish ће је заменити текстом. Ради и у другом распореду: „хвл“ ће се заменити чак и ако је откуцано „hvl“.
+Abbreviation	Скраћеница
+thx	хвл
+Text (Enter — new line)	Текст (Enter — нови ред)
+Add	Додај
+Delete	Обриши
+Text	Текст
+Don't change	Не мењај
+Pick a layout for an app, and KeyFish switches to it when you switch to that app's window. You can also turn auto-correction off here, for example in code editors and terminals.	Изаберите распоред за програм — KeyFish ће га укључити кад пређете у прозор тог програма. Овде можете и искључити аутоисправку, на пример у уређивачима кода и терминалима.
+App (process name)	Програм (име процеса)
+Layout	Распоред
+Correct	Исправљај
+Pick or type	Изаберите или унесите
+App	Програм
+KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself with Pause and it goes to "Always correct".	KeyFish учи од вас: ако поништите или обришете исправку, реч иде у „Не исправљај“; ако сами исправите реч тастером Pause — у „Увек исправљај“.
+Never correct	Не исправљај
+Always correct	Увек исправљај
+New word	Нова реч
+off	искључено
+add Ctrl or Alt	додајте Ctrl или Alt
+This release has no file for automatic update.	Ово издање нема датотеку за аутоматско ажурирање.
+The downloaded file doesn't match the release checksum — update cancelled.	Преузета датотека се не поклапа са контролним збиром издања — ажурирање је отказано.
+The downloaded file has the wrong version — update cancelled.	Преузета датотека има погрешну верзију — ажурирање је отказано.
+No permission to write to the app folder. Please download the new version manually.	Нема дозволе за упис у фасциклу програма. Преузмите нову верзију ручно.
+Update failed: 	Ажурирање није успело:
+Same as Windows	Као у Windows-у

@@ -161,8 +161,7 @@ class App : ApplicationContext
 
     static string StatsLine(int total)
     {
-        return L.Ru ? "Поймано ошибок: " + total.ToString("N0", new System.Globalization.CultureInfo("ru-RU"))
-                    : "Mistakes caught: " + total.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+        return L.F("Поймано ошибок: {0}", "Mistakes caught: {0}", total.ToString("N0", L.Culture));
     }
 
     static string Plural(int n, string one, string few, string many)
@@ -181,10 +180,12 @@ class App : ApplicationContext
 
         int total = statsBase + watcher.CorrectionCount;
         int since = GetSetting("StatsSince", 0);
-        string sinceText = since > 0 ? new DateTime(since / 10000, since / 100 % 100, since % 100).ToString("d", L.Ru ? new System.Globalization.CultureInfo("ru-RU") : System.Globalization.CultureInfo.CurrentCulture) : "";
-        string stats = L.Ru
-            ? "Рыбка поймала " + total.ToString("N0", new System.Globalization.CultureInfo("ru-RU")) + " " + Plural(total, "ошибку", "ошибки", "ошибок") + (since > 0 ? " с " + sinceText : "")
-            : "The fish has caught " + total.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) + (total == 1 ? " mistake" : " mistakes") + (since > 0 ? " since " + sinceText : "");
+        string sinceText = since > 0 ? new DateTime(since / 10000, since / 100 % 100, since % 100).ToString("d", L.Culture) : "";
+        string count = total.ToString("N0", L.Culture);
+        string stats;
+        if (L.Ru) stats = "Рыбка поймала " + count + " " + Plural(total, "ошибку", "ошибки", "ошибок") + (since > 0 ? " с " + sinceText : "");
+        else if (L.Code == "en") stats = "The fish has caught " + count + (total == 1 ? " mistake" : " mistakes") + (since > 0 ? " since " + sinceText : "");
+        else stats = StatsLine(total) + (since > 0 ? L.F("", " (since {0})", sinceText) : "");   // no plural forms needed this way
 
         if (aboutForm != null) { aboutForm.Activate(); return; }
         using (aboutForm = new AboutForm(stats, changes) { Icon = iconEn })
@@ -247,8 +248,8 @@ class App : ApplicationContext
     void WarnHotkeys(List<string> failed)
     {
         if (failed.Count > 0)
-            tray.ShowBalloonTip(4000, "KeyFish", L.T("Эти сочетания заняты другой программой: ", "These hotkeys are taken by another app: ") +
-                string.Join(", ", failed) + L.T(". Их можно поменять в настройках.", ". You can change them in Settings."), ToolTipIcon.Warning);
+            tray.ShowBalloonTip(4000, "KeyFish", L.F("Эти сочетания заняты другой программой: {0}. Их можно поменять в настройках.",
+                "These hotkeys are taken by another app: {0}. You can change them in Settings.", string.Join(", ", failed)), ToolTipIcon.Warning);
     }
 
     readonly string exclusionsPath, ignoredPath, replacementsPath, learnedPath, appLayoutsPath;
@@ -375,18 +376,18 @@ class App : ApplicationContext
         if (installing) return;
         if (!r.CanInstall)
         {
-            if (MessageBox.Show(L.T("Вышла версия " + r.Tag + " (у вас " + Application.ProductVersion + ").\n\nОткрыть страницу загрузки?",
-                                    "Version " + r.Tag + " is out (you have " + Application.ProductVersion + ").\n\nOpen the download page?"),
+            if (MessageBox.Show(L.F("Вышла версия {0} (у вас {1}).\n\nОткрыть страницу загрузки?",
+                                    "Version {0} is out (you have {1}).\n\nOpen the download page?", r.Tag, Application.ProductVersion),
                     L.T("Обновление KeyFish", "KeyFish update"), MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
                 Process.Start(r.Url);
             return;
         }
 
         var answer = MessageBox.Show(
-            L.T("Вышла версия " + r.Tag + " (у вас " + Application.ProductVersion + ").\n\nОбновить сейчас? KeyFish скачает новую версию с GitHub, " +
+            L.F("Вышла версия {0} (у вас {1}).\n\nОбновить сейчас? KeyFish скачает новую версию с GitHub, " +
                 "проверит контрольную сумму и перезапустится.\n\n«Нет» — открыть страницу загрузки и обновиться вручную.",
-                "Version " + r.Tag + " is out (you have " + Application.ProductVersion + ").\n\nUpdate now? KeyFish will download it from GitHub, " +
-                "verify the checksum and restart.\n\n\"No\" opens the download page to update manually."),
+                "Version {0} is out (you have {1}).\n\nUpdate now? KeyFish will download it from GitHub, " +
+                "verify the checksum and restart.\n\n\"No\" opens the download page to update manually.", r.Tag, Application.ProductVersion),
             L.T("Обновление KeyFish", "KeyFish update"), MessageBoxButtons.YesNoCancel, MessageBoxIcon.Information);
         if (answer == DialogResult.No) { Process.Start(r.Url); return; }
         if (answer != DialogResult.Yes) return;
@@ -431,14 +432,14 @@ class App : ApplicationContext
                     pendingRelease = latest;
                     if (manual) OfferUpdate(latest);
                     else
-                        tray.ShowBalloonTip(10000, L.T("Вышла версия ", "KeyFish ") + latest.Tag + L.T("", " is out"),
+                        tray.ShowBalloonTip(10000, L.F("Вышла версия {0}", "KeyFish {0} is out", latest.Tag),
                             L.T("Нажмите, чтобы обновить.", "Click to update."), ToolTipIcon.Info);
                 }
                 else if (manual)
                 {
                     MessageBox.Show(latest == null ? L.T("Не удалось связаться с GitHub. Проверьте интернет и попробуйте позже.",
                                                          "Couldn't reach GitHub. Check your connection and try again later.")
-                                                   : L.T("У вас последняя версия: ", "You have the latest version: ") + Application.ProductVersion + ".",
+                                                   : L.F("У вас последняя версия: {0}.", "You have the latest version: {0}.", Application.ProductVersion),
                         L.T("Обновление KeyFish", "KeyFish update"), MessageBoxButtons.OK, latest == null ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
                 }
             }, null);

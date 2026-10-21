@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 // Screenshots of KeyFish windows for checking the design, without starting KeyFish itself.
-// Usage: Preview.exe settings <page 0-4>|about|aquarium <out.png> [dark|light] [ru|en]
+// Usage: Preview.exe settings <page 0-4>|about|aquarium <out.png> [dark|light] [language code] [menu]
 static class Preview
 {
     [DllImport("user32.dll")] static extern bool PrintWindow(IntPtr hwnd, IntPtr hdc, uint flags);
@@ -29,7 +29,7 @@ static class Preview
     {
         SetProcessDPIAware();
         if (args.Length > 3) typeof(Theme).GetField("Dark").SetValue(null, args[3] == "dark");
-        L.Setting = args.Length > 4 && args[4] == "en" ? 2 : 1;
+        L.Setting = args.Length > 4 ? Array.IndexOf(L.Codes, args[4]) + 1 : 1;
         Application.EnableVisualStyles();
         Form form;
         int page = 0;

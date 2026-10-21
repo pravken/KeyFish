@@ -1,0 +1,80 @@
+# KeyFish interface in French. Format: English text<TAB>translation; \n is a line break
+About KeyFish	À propos de KeyFish
+Fixes text typed in the wrong keyboard layout	Corrige le texte tapé dans la mauvaise disposition de clavier
+Support ☕	Soutenir ☕
+What's new	Nouveautés
+What's new in KeyFish	Nouveautés de KeyFish
+Version 	Version
+Close	Fermer
+Mistakes caught: {0}	Erreurs attrapées : {0}
+ (since {0})	 (depuis le {0})
+Switch layout of selected text; right after an auto-fix — undo it (as does Ctrl+Z)	Changer la disposition du texte sélectionné ; juste après une correction — l'annuler (comme Ctrl+Z)
+Switch layout of selected text — alternative keys	Changer la disposition du texte sélectionné — raccourci de secours
+Change case of selected text (aa → Aa → AA)	Casse du texte sélectionné (aa → Aa → AA)
+Transliterate (привет ⇄ privet)	Translittération (привет ⇄ privet)
+These hotkeys are taken by another app: {0}. You can change them in Settings.	Ces raccourcis sont pris par une autre application : {0}. Vous pouvez les changer dans les paramètres.
+Auto-correct while typing	Correction pendant la saisie
+Settings…	Paramètres…
+Check for updates	Rechercher des mises à jour
+About…	À propos…
+Exit	Quitter
+Update installed 🐟	Mise à jour installée 🐟
+Version {0} is out (you have {1}).\n\nOpen the download page?	La version {0} est sortie (vous avez la {1}).\n\nOuvrir la page de téléchargement ?
+KeyFish update	Mise à jour de KeyFish
+Version {0} is out (you have {1}).\n\nUpdate now? KeyFish will download it from GitHub, verify the checksum and restart.\n\n"No" opens the download page to update manually.	La version {0} est sortie (vous avez la {1}).\n\nMettre à jour maintenant ? KeyFish va la télécharger depuis GitHub, vérifier la somme de contrôle et redémarrer.\n\n« Non » ouvre la page de téléchargement pour une mise à jour manuelle.
+Downloading the update…	Téléchargement de la mise à jour…
+Open the download page?	Ouvrir la page de téléchargement ?
+KeyFish {0} is out	KeyFish {0} est sorti
+Click to update.	Cliquez pour mettre à jour.
+Couldn't reach GitHub. Check your connection and try again later.	Impossible de joindre GitHub. Vérifiez votre connexion et réessayez plus tard.
+You have the latest version: {0}.	Vous avez la dernière version : {0}.
+KeyFish settings	Paramètres de KeyFish
+General	Général
+Hotkeys	Raccourcis
+Replacements	Remplacements
+Apps	Applications
+Words	Mots
+Save	Enregistrer
+Cancel	Annuler
+Fix the keyboard layout as you type	Corriger la disposition pendant la saisie
+ghbdtn → привет, руддщ → hello. Replacements also work only while this is on.	ghbdtn → привет, руддщ → hello. Les remplacements ne fonctionnent aussi que si ceci est activé.
+Fix typos	Corriger les fautes de frappe
+Experimental: recieve → receive, using Windows spell check.	Expérimental : avec le correcteur orthographique de Windows.
+Stay quiet in games and full-screen apps	Ne rien faire dans les jeux et les applications plein écran
+Ctrl+Z undoes an auto-fix	Ctrl+Z annule une correction
+Right after the fix, like Pause. The next Ctrl+Z works in the app as usual.	Juste après la correction, comme Pause. Le Ctrl+Z suivant agit normalement dans l'application.
+Fish color shows the layout	La couleur du poisson indique la disposition
+Blue — Latin, orange — another alphabet.	Bleu — alphabet latin, orange — un autre alphabet.
+Start with Windows	Lancer avec Windows
+Once a day KeyFish asks GitHub whether a new version is out. Nothing else is sent.	Une fois par jour, KeyFish demande à GitHub si une nouvelle version est sortie. Rien d'autre n'est envoyé.
+Interface language	Langue de l'interface
+KeyFish is free	KeyFish est gratuit
+If it saves you time, you can buy the author a coffee.	S'il vous fait gagner du temps, vous pouvez offrir un café à l'auteur.
+Click a field and press the keys. Backspace turns a hotkey off.	Cliquez sur un champ et appuyez sur les touches. Retour arrière désactive le raccourci.
+Reset	Réinitialiser
+Type an abbreviation and a space, and KeyFish replaces it with the text. It works in the other layout too: "thx" expands even when typed as «ерч».	Tapez une abréviation et une espace, KeyFish la remplace par le texte. Cela marche aussi dans l'autre disposition : « stp » est remplacé même tapé « ыез ».
+Abbreviation	Abréviation
+Text (Enter — new line)	Texte (Entrée — nouvelle ligne)
+thx	stp
+Add	Ajouter
+Delete	Supprimer
+Text	Texte
+Don't change	Ne pas changer
+Pick a layout for an app, and KeyFish switches to it when you switch to that app's window. You can also turn auto-correction off here, for example in code editors and terminals.	Choisissez une disposition pour une application : KeyFish l'active quand vous passez à sa fenêtre. Vous pouvez aussi désactiver la correction ici, par exemple dans les éditeurs de code et les terminaux.
+App (process name)	Application (nom du processus)
+Layout	Disposition
+Correct	Corriger
+Pick or type	Choisir ou saisir
+App	Application
+KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself with Pause and it goes to "Always correct".	KeyFish apprend de vous : annulez ou effacez une correction et le mot va dans « Ne jamais corriger » ; corrigez un mot vous-même avec Pause et il va dans « Toujours corriger ».
+Never correct	Ne jamais corriger
+Always correct	Toujours corriger
+New word	Nouveau mot
+off	désactivé
+add Ctrl or Alt	ajoutez Ctrl ou Alt
+This release has no file for automatic update.	Cette version n'a pas de fichier pour la mise à jour automatique.
+The downloaded file doesn't match the release checksum — update cancelled.	Le fichier téléchargé ne correspond pas à la somme de contrôle — mise à jour annulée.
+The downloaded file has the wrong version — update cancelled.	Le fichier téléchargé n'a pas la bonne version — mise à jour annulée.
+No permission to write to the app folder. Please download the new version manually.	Pas le droit d'écrire dans le dossier de l'application. Téléchargez la nouvelle version manuellement.
+Update failed: 	Échec de la mise à jour :
+Same as Windows	Comme Windows

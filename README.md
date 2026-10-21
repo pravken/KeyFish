@@ -4,9 +4,9 @@
 
 [Русская версия](README.ru.md)
 
-A tiny Windows tray app that fixes text typed in the wrong keyboard layout — for everyone who switches between a Latin and a Cyrillic layout.
+A tiny Windows tray app that fixes text typed in the wrong keyboard layout — for everyone who types in two alphabets.
 
-**Languages:** English, German, Polish, Serbian Latin ⇄ Russian, Ukrainian, Belarusian, Serbian Cyrillic. KeyFish uses the layouts installed in Windows; with several layouts of one alphabet it picks the language from the word and the words before it.
+**Languages:** English, German, Polish, French, Spanish, Italian, Portuguese, Czech, Turkish, Serbian Latin ⇄ Russian, Ukrainian, Belarusian, Bulgarian, Macedonian, Serbian Cyrillic, Greek, Hebrew, Georgian. KeyFish uses the layouts installed in Windows; with several layouts it picks the language from the word and the words before it.
 
 - **Auto-correction as you type:** `ghbdtn vbh` → «привет мир», `руддщ` → "hello", `f vj;yj` → «а можно»
 - **Case fixing:** "hELLO" (accidental CapsLock) → "Hello", "HEllo" → "Hello"
@@ -15,19 +15,20 @@ A tiny Windows tray app that fixes text typed in the wrong keyboard layout — f
 - **Shift+F3** — cycle the case of selected text, like in Word
 - **Shift+Pause** — transliteration: «Привет» ⇄ "Privet"
 - Typo fixing via Windows spell check (experimental, turn it on in Settings)
-- The tray fish shows the current layout: blue — Latin, orange — Cyrillic
+- **Layout per app:** Telegram always in Russian, VS Code in English — KeyFish switches when you go to the app
+- The tray fish shows the current layout: blue — Latin, orange — another alphabet
 
-If you erase a correction with Backspace, KeyFish remembers the word and never touches it again; if you fix a word yourself with Pause, it learns to fix it next time. It stays quiet in games and full-screen apps. All hotkeys can be changed in Settings (double-click the fish). KeyFish updates itself in one click. The interface is in English or Russian.
+If you erase a correction with Backspace, KeyFish remembers the word and never touches it again; if you fix a word yourself with Pause, it learns to fix it next time. It stays quiet in games and full-screen apps. All hotkeys can be changed in Settings (double-click the fish). KeyFish updates itself in one click. The interface is in English, Russian, Ukrainian, Belarusian, German, Polish, Serbian, French and Spanish; the light or dark theme follows Windows.
 
 KeyFish is free. If it saves you time, you can [buy me a coffee on Ko-fi](https://ko-fi.com/pravken) ☕
 
 ## Languages: how it decides
 
-KeyFish fixes a word only when it is typed in the layout of the *other alphabet*: Latin ⇄ Cyrillic. It doesn't switch between, say, English and German — both are Latin, and the same keys type nearly the same letters there.
+KeyFish fixes a word only when it is typed in a layout of *another alphabet*: say, Latin ⇄ Cyrillic or Latin ⇄ Greek. It doesn't switch between, say, English and German — both are Latin, and the same keys type nearly the same letters there.
 
 For every word KeyFish compares what you typed with what the same keys give in your other installed layouts, using word lists and letter statistics of each language. Words it isn't sure about are left alone.
 
-Serbian is written in both alphabets, so KeyFish treats a correct Serbian Latin word as your choice and never converts it to Cyrillic. Serbian Cyrillic is checked more strictly, by dictionary only: its layout is phonetic, so an English word typed in it (hello → хелло) can look plausible.
+Serbian is written in both alphabets, so KeyFish treats a correct Serbian Latin word as your choice and never converts it to Cyrillic. Serbian Cyrillic, Macedonian and Greek are checked more strictly, by dictionary only: their layouts are phonetic, so an English word typed in them (hello → хелло, ηελλο) can look plausible.
 
 ## Install
 

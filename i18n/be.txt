@@ -1,0 +1,79 @@
+# KeyFish interface in Belarusian. Format: English text<TAB>translation; \n is a line break
+About KeyFish	Пра праграму
+Fixes text typed in the wrong keyboard layout	Выпраўляе тэкст, набраны не ў той раскладцы
+Support ☕	Падтрымаць ☕
+What's new	Што новага
+What's new in KeyFish	Што новага ў KeyFish
+Version 	Версія
+Close	Закрыць
+Mistakes caught: {0}	Злоўлена памылак: {0}
+ (since {0})	 (з {0})
+Switch layout of selected text; right after an auto-fix — undo it (as does Ctrl+Z)	Раскладка вылучанага тэксту; адразу пасля аўтавыпраўлення — адмена (як і Ctrl+Z)
+Switch layout of selected text — alternative keys	Раскладка вылучанага тэксту — запасное спалучэнне
+Change case of selected text (aa → Aa → AA)	Рэгістр вылучанага тэксту (аа → Аа → АА)
+Transliterate (привет ⇄ privet)	Транслітарацыя (прывітанне ⇄ pryvitannie)
+These hotkeys are taken by another app: {0}. You can change them in Settings.	Гэтыя спалучэнні занятыя іншай праграмай: {0}. Іх можна змяніць у наладах.
+Auto-correct while typing	Аўтавыпраўленне пры наборы
+Settings…	Налады…
+Check for updates	Праверыць абнаўленні
+About…	Пра праграму…
+Exit	Выхад
+Update installed 🐟	Абнаўленне ўсталявана 🐟
+Version {0} is out (you have {1}).\n\nOpen the download page?	Выйшла версія {0} (у вас {1}).\n\nАдкрыць старонку спампоўкі?
+KeyFish update	Абнаўленне KeyFish
+Version {0} is out (you have {1}).\n\nUpdate now? KeyFish will download it from GitHub, verify the checksum and restart.\n\n"No" opens the download page to update manually.	Выйшла версія {0} (у вас {1}).\n\nАбнавіць зараз? KeyFish спампуе новую версію з GitHub, праверыць кантрольную суму і перазапусціцца.\n\n«Не» — адкрыць старонку спампоўкі і абнавіцца ўручную.
+Downloading the update…	Спампоўваю абнаўленне…
+Open the download page?	Адкрыць старонку спампоўкі?
+KeyFish {0} is out	Выйшла версія KeyFish {0}
+Click to update.	Націсніце, каб абнавіць.
+Couldn't reach GitHub. Check your connection and try again later.	Не ўдалося звязацца з GitHub. Праверце інтэрнэт і паспрабуйце пазней.
+You have the latest version: {0}.	У вас апошняя версія: {0}.
+KeyFish settings	Налады KeyFish
+General	Асноўнае
+Hotkeys	Спалучэнні клавіш
+Replacements	Аўтазамены
+Apps	Праграмы
+Words	Словы
+Save	Захаваць
+Cancel	Адмена
+Fix the keyboard layout as you type	Выпраўляць раскладку пры наборы
+ghbdtn → привет, руддщ → hello. Replacements also work only while this is on.	ghsdsnfyyt → прывітанне, руддщ → hello. Аўтазамены таксама працуюць, толькі калі гэта ўключана.
+Fix typos	Выпраўляць памылкі друку
+Experimental: recieve → receive, using Windows spell check.	Эксперымент: праз праверку арфаграфіі Windows.
+Stay quiet in games and full-screen apps	Маўчаць у гульнях і поўнаэкранных праграмах
+Ctrl+Z undoes an auto-fix	Ctrl+Z адмяняе аўтавыпраўленне
+Right after the fix, like Pause. The next Ctrl+Z works in the app as usual.	Адразу пасля выпраўлення, як і Pause. Наступны Ctrl+Z працуе ў праграме як звычайна.
+Fish color shows the layout	Колер рыбкі паказвае раскладку
+Blue — Latin, orange — another alphabet.	Сіняя — лацініца, аранжавая — іншы алфавіт.
+Start with Windows	Запускаць разам з Windows
+Once a day KeyFish asks GitHub whether a new version is out. Nothing else is sent.	Раз на дзень KeyFish пытае ў GitHub, ці выйшла новая версія. Больш нічога не адпраўляецца.
+Interface language	Мова інтэрфейсу
+KeyFish is free	KeyFish бясплатны
+If it saves you time, you can buy the author a coffee.	Калі ён эканоміць вам час, можна пачаставаць аўтара кавай.
+Click a field and press the keys. Backspace turns a hotkey off.	Пстрыкніце поле і націсніце спалучэнне. Backspace — выключыць спалучэнне.
+Reset	Скінуць
+Type an abbreviation and a space, and KeyFish replaces it with the text. It works in the other layout too: "thx" expands even when typed as «ерч».	Набярыце скарачэнне і прабел — KeyFish заменіць яго на тэкст. Скарачэнне спрацоўвае і ў іншай раскладцы: «thx» заменіцца, нават калі набрана «ерч».
+Abbreviation	Скарачэнне
+Text (Enter — new line)	Замена (Enter — новы радок)
+Add	Дадаць
+Delete	Выдаліць
+Text	Замена
+Don't change	Не мяняць
+Pick a layout for an app, and KeyFish switches to it when you switch to that app's window. You can also turn auto-correction off here, for example in code editors and terminals.	Выберыце раскладку для праграмы — KeyFish уключыць яе, калі вы пяройдзеце ў акно гэтай праграмы. Тут жа можна выключыць аўтавыпраўленне, напрыклад у рэдактарах кода і тэрміналах.
+App (process name)	Праграма (імя працэсу)
+Layout	Раскладка
+Correct	Выпраўляць
+Pick or type	Выберыце або ўвядзіце
+App	Праграма
+KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself with Pause and it goes to "Always correct".	KeyFish вучыцца на вашых дзеяннях: калі адмяніць або сцерці выпраўленне, слова трапіць у «Не выпраўляць»; калі выправіць слова самому праз Pause — у «Заўсёды выпраўляць».
+Never correct	Не выпраўляць
+Always correct	Заўсёды выпраўляць
+New word	Новае слова
+off	выключана
+add Ctrl or Alt	патрэбны Ctrl або Alt
+This release has no file for automatic update.	У гэтым выпуску няма файла для аўтаматычнага абнаўлення.
+The downloaded file doesn't match the release checksum — update cancelled.	Спампаваны файл не супадае з кантрольнай сумай выпуску — абнаўленне адменена.
+The downloaded file has the wrong version — update cancelled.	Спампаваны файл мае не тую версію — абнаўленне адменена.
+No permission to write to the app folder. Please download the new version manually.	Няма правоў на запіс у папку праграмы. Спампуйце новую версію ўручную.
+Update failed: 	Не ўдалося абнавіць:
+Same as Windows	Як у Windows

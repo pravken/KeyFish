@@ -1,11 +1,15 @@
 2.0.0
-• More languages: Ukrainian, Belarusian, Serbian (Cyrillic and Latin), German and Polish, besides English and Russian. KeyFish uses the keyboard layouts you have installed in Windows and fixes words typed in the layout of the other alphabet: Latin ⇄ Cyrillic
-• Works with any layout arrangement (QWERTZ, AltGr letters such as ą or ł): keys are tracked by their position on the keyboard
-• With several Cyrillic or Latin layouts installed, KeyFish picks the language of the word and of the words before it, so a Ukrainian word goes to the Ukrainian layout
-• Serbian is written in both alphabets, so a correct Serbian Latin word is never "fixed" into Cyrillic
-• The tray fish shows the alphabet: blue — Latin, orange — Cyrillic
+• 19 languages: English, German, Polish, French, Spanish, Italian, Portuguese, Czech, Turkish, Serbian Latin ⇄ Russian, Ukrainian, Belarusian, Bulgarian, Macedonian, Serbian Cyrillic, Greek, Hebrew, Georgian. KeyFish uses the layouts installed in Windows and fixes words typed in a layout of another alphabet
+• Works with any layout arrangement (QWERTZ, AZERTY, letters typed with AltGr or with accent keys like Greek ΄ or French ^): keys are tracked by their position on the keyboard
+• With several layouts installed, KeyFish picks the language from the word and the words before it, so a Ukrainian word goes to the Ukrainian layout
+• Serbian is written in both alphabets, so a correct Serbian Latin word is never "fixed" into Cyrillic; Serbian Cyrillic, Macedonian and Greek layouts are phonetic, so words typed in them are fixed only when they are in the dictionary
+• Layout per app: pick a layout for Telegram, VS Code and so on, and KeyFish switches to it when you go to that app
+• New Settings in the Windows 11 style, with a dark theme that follows Windows; replacements, apps and words are now tables you add to and delete from, instead of plain text
+• The interface is also in Ukrainian, Belarusian, German, Polish, Serbian, French and Spanish
+• Sharp on high-DPI screens; the tray menu follows the Windows theme
+• The fish is now drawn in detail, and the About window hides a little surprise 🐟
 • Pause on selected text converts it to your other installed layout, not just English ⇄ Russian
-• New Support ☕ button in the About window
+• New Support ☕ button in the About window and in Settings
 
 1.8.3
 • New About window: version, statistics and a link to the project; the list of changes now opens from a separate What's new button

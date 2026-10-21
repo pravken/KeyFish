@@ -25,7 +25,7 @@ class AboutForm : Form
         // Five clicks on the fish: the window turns into an aquarium for a few seconds
         fish.EasterEgg += (s, e) =>
         {
-            var tank = L.Ru ? new Aquarium("ghbdtn", "привет!") : new Aquarium("руддщ", "hello!");
+            var tank = L.Ru ? new Aquarium("ghbdtn", "привет!") : L.Code == "uk" ? new Aquarium("ghbdsn", "привіт!") : new Aquarium("руддщ", "hello!");
             tank.Bounds = ClientRectangle;
             Controls.Add(tank);
             tank.BringToFront();

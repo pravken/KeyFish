@@ -1,0 +1,80 @@
+# KeyFish interface in Ukrainian. Format: English text<TAB>translation; \n is a line break
+About KeyFish	Про програму
+Fixes text typed in the wrong keyboard layout	Виправляє текст, набраний не в тій розкладці
+Support ☕	Підтримати ☕
+What's new	Що нового
+What's new in KeyFish	Що нового в KeyFish
+Version 	Версія
+Close	Закрити
+Mistakes caught: {0}	Спіймано помилок: {0}
+ (since {0})	 (з {0})
+Switch layout of selected text; right after an auto-fix — undo it (as does Ctrl+Z)	Розкладка виділеного тексту; одразу після автовиправлення — скасування (як і Ctrl+Z)
+Switch layout of selected text — alternative keys	Розкладка виділеного тексту — запасне поєднання
+Change case of selected text (aa → Aa → AA)	Регістр виділеного тексту (аа → Аа → АА)
+Transliterate (привет ⇄ privet)	Транслітерація (привіт ⇄ pryvit)
+These hotkeys are taken by another app: {0}. You can change them in Settings.	Ці поєднання клавіш зайняті іншою програмою: {0}. Їх можна змінити в налаштуваннях.
+Auto-correct while typing	Автовиправлення під час набору
+Settings…	Налаштування…
+Check for updates	Перевірити оновлення
+About…	Про програму…
+Exit	Вихід
+Update installed 🐟	Оновлення встановлено 🐟
+Version {0} is out (you have {1}).\n\nOpen the download page?	Вийшла версія {0} (у вас {1}).\n\nВідкрити сторінку завантаження?
+KeyFish update	Оновлення KeyFish
+Version {0} is out (you have {1}).\n\nUpdate now? KeyFish will download it from GitHub, verify the checksum and restart.\n\n"No" opens the download page to update manually.	Вийшла версія {0} (у вас {1}).\n\nОновити зараз? KeyFish завантажить нову версію з GitHub, перевірить контрольну суму й перезапуститься.\n\n«Ні» — відкрити сторінку завантаження й оновитися вручну.
+Downloading the update…	Завантажую оновлення…
+Open the download page?	Відкрити сторінку завантаження?
+KeyFish {0} is out	Вийшла версія KeyFish {0}
+Click to update.	Натисніть, щоб оновити.
+Couldn't reach GitHub. Check your connection and try again later.	Не вдалося зв'язатися з GitHub. Перевірте інтернет і спробуйте пізніше.
+You have the latest version: {0}.	У вас остання версія: {0}.
+KeyFish settings	Налаштування KeyFish
+General	Основне
+Hotkeys	Поєднання клавіш
+Replacements	Автозаміни
+Apps	Програми
+Words	Слова
+Save	Зберегти
+Cancel	Скасувати
+Fix the keyboard layout as you type	Виправляти розкладку під час набору
+ghbdtn → привет, руддщ → hello. Replacements also work only while this is on.	ghbdsn → привіт, руддщ → hello. Автозаміни теж працюють, лише коли це ввімкнено.
+Fix typos	Виправляти друкарські помилки
+Experimental: recieve → receive, using Windows spell check.	Експеримент: через перевірку орфографії Windows.
+Stay quiet in games and full-screen apps	Мовчати в іграх і повноекранних програмах
+Ctrl+Z undoes an auto-fix	Ctrl+Z скасовує автовиправлення
+Right after the fix, like Pause. The next Ctrl+Z works in the app as usual.	Одразу після виправлення, як і Pause. Наступний Ctrl+Z працює в програмі як зазвичай.
+Fish color shows the layout	Колір рибки показує розкладку
+Blue — Latin, orange — another alphabet.	Синя — латиниця, помаранчева — інша абетка.
+Start with Windows	Запускати разом з Windows
+Once a day KeyFish asks GitHub whether a new version is out. Nothing else is sent.	Раз на день KeyFish питає GitHub, чи вийшла нова версія. Більше нічого не надсилається.
+Interface language	Мова інтерфейсу
+KeyFish is free	KeyFish безкоштовний
+If it saves you time, you can buy the author a coffee.	Якщо він заощаджує вам час, можна пригостити автора кавою.
+Click a field and press the keys. Backspace turns a hotkey off.	Клацніть поле й натисніть поєднання. Backspace — вимкнути поєднання.
+Reset	Скинути
+Type an abbreviation and a space, and KeyFish replaces it with the text. It works in the other layout too: "thx" expands even when typed as «ерч».	Наберіть скорочення й пробіл — KeyFish замінить його на текст. Скорочення спрацьовує і в іншій розкладці: «дяк» заміниться, навіть якщо набрано «lzr».
+Abbreviation	Скорочення
+Text (Enter — new line)	Заміна (Enter — новий рядок)
+thx	дяк
+Add	Додати
+Delete	Видалити
+Text	Заміна
+Don't change	Не змінювати
+Pick a layout for an app, and KeyFish switches to it when you switch to that app's window. You can also turn auto-correction off here, for example in code editors and terminals.	Оберіть розкладку для програми — KeyFish увімкне її, коли ви перейдете у вікно цієї програми. Тут же можна вимкнути автовиправлення, наприклад у редакторах коду й терміналах.
+App (process name)	Програма (ім'я процесу)
+Layout	Розкладка
+Correct	Виправляти
+Pick or type	Оберіть або введіть
+App	Програма
+KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself with Pause and it goes to "Always correct".	KeyFish вчиться на ваших діях: якщо скасувати або стерти виправлення, слово потрапить до «Не виправляти»; якщо виправити слово самому через Pause — до «Завжди виправляти».
+Never correct	Не виправляти
+Always correct	Завжди виправляти
+New word	Нове слово
+off	вимкнено
+add Ctrl or Alt	потрібен Ctrl або Alt
+This release has no file for automatic update.	У цьому випуску немає файлу для автоматичного оновлення.
+The downloaded file doesn't match the release checksum — update cancelled.	Завантажений файл не збігається з контрольною сумою випуску — оновлення скасовано.
+The downloaded file has the wrong version — update cancelled.	Завантажений файл має не ту версію — оновлення скасовано.
+No permission to write to the app folder. Please download the new version manually.	Немає прав на запис у теку програми. Завантажте нову версію вручну.
+Update failed: 	Не вдалося оновити:
+Same as Windows	Як у Windows
