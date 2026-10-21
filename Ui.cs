@@ -729,8 +729,33 @@ class LayoutBadge : Form
             var p = new Native.POINT { x = info.rcCaret.left, y = info.rcCaret.bottom };
             if (Native.ClientToScreen(info.hwndCaret, ref p) && (p.x != 0 || p.y != 0)) return Fit(new Point(p.x, p.y + 3), size);
         }
+        // Browsers and Electron apps (Chrome, Edge, Telegram, VS Code…) draw their own caret and don't show the one above,
+        // but they report it to accessibility tools. Not asked of a hung window: the question would wait for its answer
+        Rectangle caret;
+        IntPtr target = info.hwndFocus != IntPtr.Zero ? info.hwndFocus : fg;
+        if (fg != IntPtr.Zero && !Native.IsHungAppWindow(fg) && AccessibleCaret(target, out caret))
+            return Fit(new Point(caret.Left, caret.Bottom + 3), size);
         var c = Cursor.Position;
         return Fit(new Point(c.X + 14, c.Y + 20), size);
+    }
+
+    // The caret's place on screen from the window's accessibility object (MSAA, OBJID_CARET)
+    static bool AccessibleCaret(IntPtr hwnd, out Rectangle caret)
+    {
+        caret = Rectangle.Empty;
+        try
+        {
+            Guid iid = new Guid("618736E0-3C3D-11CF-810C-00AA00389B71");   // IAccessible
+            object obj;
+            if (Native.AccessibleObjectFromWindow(hwnd, 0xFFFFFFF8, ref iid, out obj) != 0 || obj == null) return false;
+            int x, y, w, h;
+            ((Accessibility.IAccessible)obj).accLocation(out x, out y, out w, out h, 0);
+            Marshal.ReleaseComObject(obj);
+            if ((x == 0 && y == 0) || h <= 0) return false;   // no caret right now
+            caret = new Rectangle(x, y, Math.Max(w, 1), h);
+            return true;
+        }
+        catch { return false; }
     }
 
     static Point Fit(Point p, Size size)
