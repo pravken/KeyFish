@@ -196,6 +196,7 @@ class SettingsForm : Form
     {
         int y;
         var page = Page(L.T("Основное", "General"), out y);
+        page.Controls.Add(SupportCard(ref y));
         Row(page, ref y, L.T("Исправлять раскладку при наборе", "Fix the keyboard layout as you type"),
             L.T("ghbdtn → привет, руддщ → hello. Автозамены тоже работают, только когда это включено.",
                 "ghbdtn → привет, руддщ → hello. Replacements also work only while this is on."), tAuto = Toggle(AutoCorrect));
@@ -237,12 +238,25 @@ class SettingsForm : Form
             L.T("Для переноса на другой компьютер. Перед каждым сохранением KeyFish сам кладёт копию прежних настроек в папку backups (последние 10) — их тоже можно импортировать.",
                 "To move to another computer. Before every save KeyFish puts a copy of the previous settings in the backups folder (the last 10), and those can be imported too."), archive);
 
-        var support = new RoundButton { Text = L.T("Поддержать ☕", "Support ☕"), Size = new Size(150, 32) };
-        support.Click += (s, e) => { try { Process.Start("https://ko-fi.com/pravken"); } catch { } };
-        Row(page, ref y, L.T("KeyFish бесплатный", "KeyFish is free"),
-            L.T("Если он экономит вам время, можно угостить автора кофе.", "If it saves you time, you can buy the author a coffee."), support);
         page.Controls.Add(new Panel { Location = new Point(0, y), Size = new Size(1, 16) });   // bottom margin when scrolled
         return page;
+    }
+
+    // KeyFish is free: the way to support it sits at the top of the first page, quiet but easy to find
+    static Card SupportCard(ref int y)
+    {
+        var support = new RoundButton
+        {
+            Text = L.T("Поддержать ☕", "Support ☕").Replace("☕", "").Trim(), AccentStyle = true, Glyph = "\uEB52", Size = new Size(170, 34)
+        };
+        support.Click += (s, e) => { try { Process.Start("https://ko-fi.com/pravken"); } catch { } };
+        var holder = new Panel();
+        Row(holder, ref y, L.T("KeyFish бесплатный", "KeyFish is free"),
+            L.T("Если он экономит вам время, можно угостить автора кофе.", "If it saves you time, you can buy the author a coffee."), support);
+        var card = (Card)holder.Controls[0];
+        holder.Controls.Remove(card);
+        y += 8;
+        return card;
     }
 
     // ---------- Hotkeys ----------

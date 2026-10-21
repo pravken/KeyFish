@@ -348,6 +348,8 @@ class RoundButton : Control
 {
     bool hover, down;
     public bool AccentStyle;
+    public string Glyph;                 // an icon from the system icon font before the text, e.g. a heart
+    public Color? GlyphColor;
 
     public RoundButton()
     {
@@ -391,8 +393,22 @@ class RoundButton : Control
         }
         Color fore = AccentStyle ? Theme.OnAccent : Theme.Text;
         if (!Enabled) fore = Theme.SubText;
-        TextRenderer.DrawText(g, Text, Font, ClientRectangle, fore,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
+        // The text is drawn with the button's own fill as its background: on a transparent one Windows can't smooth
+        // the letters (ClearType) and they come out jagged
+        var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.NoPadding;
+        if (string.IsNullOrEmpty(Glyph))
+        {
+            TextRenderer.DrawText(g, Text, Font, ClientRectangle, fore, fill, flags | TextFormatFlags.HorizontalCenter);
+            return;
+        }
+        using (var icon = new Font(Theme.IconFontName, Font.SizeInPoints))
+        {
+            Size iconSize = TextRenderer.MeasureText(g, Glyph, icon, Size.Empty, flags);
+            Size textSize = TextRenderer.MeasureText(g, Text, Font, Size.Empty, flags);
+            int gap = 8, x = (Width - iconSize.Width - gap - textSize.Width) / 2;
+            TextRenderer.DrawText(g, Glyph, icon, new Rectangle(x, 0, iconSize.Width, Height), GlyphColor ?? fore, fill, flags);
+            TextRenderer.DrawText(g, Text, Font, new Rectangle(x + iconSize.Width + gap, 0, textSize.Width + 2, Height), fore, fill, flags);
+        }
     }
 }
 
@@ -447,9 +463,10 @@ class NavList : Control
             if (i == selected)
                 using (var path = Theme.Rounded(new RectangleF(r.X, r.Y + r.Height / 2 - 8, 3, 16), 1.5f))
                 using (var b = new SolidBrush(Theme.AccentFill)) g.FillPath(b, path);
-            TextRenderer.DrawText(g, Items[i].Item1, icons, new Rectangle(r.X + 12, r.Y, 24, r.Height), Theme.Text,
+            Color under = i == selected ? Theme.Selected : i == hover ? Theme.Hover : BackColor;
+            TextRenderer.DrawText(g, Items[i].Item1, icons, new Rectangle(r.X + 12, r.Y, 24, r.Height), Theme.Text, under,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPadding);
-            TextRenderer.DrawText(g, Items[i].Item2, Font, new Rectangle(r.X + 46, r.Y, r.Width - 50, r.Height), Theme.Text,
+            TextRenderer.DrawText(g, Items[i].Item2, Font, new Rectangle(r.X + 46, r.Y + 6, r.Width - 50, r.Height - 12), Theme.Text, under,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
             if (Focused && ShowFocusCues && i == selected)
                 using (var p = new Pen(Theme.Text) { DashStyle = DashStyle.Dot }) g.DrawRectangle(p, r);
@@ -621,18 +638,19 @@ class DropDown : Control
         var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
         bool focused = Focused || (edit != null && edit.Focused);
+        Color fill = hover && edit == null ? Theme.Hover : Theme.Input;
         using (var path = Theme.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), 4))
         {
-            using (var b = new SolidBrush(hover && edit == null ? Theme.Hover : Theme.Input)) g.FillPath(b, path);
+            using (var b = new SolidBrush(fill)) g.FillPath(b, path);
             using (var p = new Pen(Theme.InputBorder)) g.DrawPath(p, path);
         }
         // An accent line at the bottom while active, like Windows 11 fields
         if (focused || open)
             using (var p = new Pen(Theme.AccentFill, 2f)) g.DrawLine(p, 4, Height - 1.5f, Width - 4, Height - 1.5f);
         if (edit == null)
-            TextRenderer.DrawText(g, Text, Font, new Rectangle(10, 0, Width - 10 - Height, Height), Theme.Text,
+            TextRenderer.DrawText(g, Text, Font, new Rectangle(10, 4, Width - 10 - Height, Height - 8), Theme.Text, fill,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
-        TextRenderer.DrawText(g, "\uE70D", chevron, new Rectangle(Width - Height, 0, Height - 4, Height), Theme.SubText,
+        TextRenderer.DrawText(g, "\uE70D", chevron, new Rectangle(Width - Height, 4, Height - 4, Height - 8), Theme.SubText, fill,
             TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter);
     }
 

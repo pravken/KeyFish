@@ -191,11 +191,11 @@ class App : ApplicationContext
         {
             seenCorrections = events;
             blinkTicks = 4;
+            if (playSound) Bubble.Play();   // a fix or a replacement, like the blink
             if (corrections != savedCorrections)
             {
                 SetSetting("StatsTotal", statsBase + corrections);
                 savedCorrections = corrections;
-                if (playSound) Bubble.Play();
             }
         }
 
@@ -1060,11 +1060,15 @@ static class Bubble
     {
         const int rate = 44100;
         int n = rate * 110 / 1000;
+        // Silence first: an idle sound device (many cards, Bluetooth headphones) wakes up on the first samples and drops
+        // them, and a sound this short would be lost whole
+        int lead = rate * 250 / 1000;
         var ms = new MemoryStream();
         var w = new BinaryWriter(ms);
-        w.Write(Encoding.ASCII.GetBytes("RIFF")); w.Write(36 + n * 2); w.Write(Encoding.ASCII.GetBytes("WAVEfmt "));
+        w.Write(Encoding.ASCII.GetBytes("RIFF")); w.Write(36 + (lead + n) * 2); w.Write(Encoding.ASCII.GetBytes("WAVEfmt "));
         w.Write(16); w.Write((short)1); w.Write((short)1); w.Write(rate); w.Write(rate * 2); w.Write((short)2); w.Write((short)16);
-        w.Write(Encoding.ASCII.GetBytes("data")); w.Write(n * 2);
+        w.Write(Encoding.ASCII.GetBytes("data")); w.Write((lead + n) * 2);
+        for (int i = 0; i < lead; i++) w.Write((short)0);
         double phase = 0;
         for (int i = 0; i < n; i++)
         {

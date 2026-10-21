@@ -55,7 +55,11 @@ class AboutForm : Form
         Controls.Add(link);
 
         // A quiet way to support the project: only here and in Settings, never as a reminder
-        var support = new RoundButton { Text = L.T("Поддержать ☕", "Support ☕"), Location = new Point(24, 192), Size = new Size(140, 34) };
+        var support = new RoundButton
+        {
+            Text = L.T("Поддержать ☕", "Support ☕").Replace("☕", "").Trim(), Glyph = "", GlyphColor = Color.FromArgb(232, 72, 85),
+            Location = new Point(24, 192), Size = new Size(150, 34)
+        };
         support.Click += (s, e) => { try { Process.Start(SupportUrl); } catch { } };
         Controls.Add(support);
 
