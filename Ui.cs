@@ -131,12 +131,16 @@ static class Theme
     // weight, closer to how Windows 11 apps look on a dark background
     public const float Heavier = 0.4f;
 
+    // Light text on a dark background needs fuller strokes (contrast 0) to look like Windows 11 apps;
+    // dark text on a light one looks right with the usual setting and gets blotchy with the full one
+    public static int TextContrastFor(Color text) { return text.GetBrightness() > 0.5f ? 0 : 4; }
+
     // One line of text with soft grayscale smoothing, like SmoothLabel: centered vertically, cut with "…" if too long
-    public static void SmoothText(Graphics g, string text, Font font, RectangleF r, Color color, bool center)
+    public static void SmoothText(Graphics g, string text, Font font, RectangleF r, Color color, bool center, bool heavier = true)
     {
         var hint = g.TextRenderingHint;
         g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
-        g.TextContrast = 0;   // fuller strokes, closer to how Windows 11 apps draw text
+        g.TextContrast = TextContrastFor(color);
         using (var b = new SolidBrush(color))
         using (var sf = new StringFormat(StringFormatFlags.NoWrap)
         {
@@ -145,7 +149,7 @@ static class Theme
         })
         {
             g.DrawString(text, font, b, r, sf);
-            g.DrawString(text, font, b, new RectangleF(r.X + Heavier, r.Y, r.Width, r.Height), sf);
+            if (heavier) g.DrawString(text, font, b, new RectangleF(r.X + Heavier, r.Y, r.Width, r.Height), sf);
         }
         g.TextRenderingHint = hint;
     }
@@ -260,8 +264,7 @@ static class Theme
             var box = new Rectangle(e.CellBounds.X + 8, e.CellBounds.Y, e.CellBounds.Width - 36, e.CellBounds.Height);
             SmoothText(g, Convert.ToString(e.FormattedValue), e.CellStyle.Font, box, Text, false);
             using (var icons = new Font(IconFontName, 8f))
-                TextRenderer.DrawText(g, "\uE70D", icons, new Rectangle(e.CellBounds.Right - 30, e.CellBounds.Y, 22, e.CellBounds.Height), SubText,
-                    TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter);
+                SmoothText(g, "\uE70D", icons, new Rectangle(e.CellBounds.Right - 30, e.CellBounds.Y + 1, 22, e.CellBounds.Height), SubText, true, false);
             e.Handled = true;
             return;
         }
@@ -450,11 +453,11 @@ class RoundButton : Control
         }
         using (var icon = new Font(Theme.IconFontName, Font.SizeInPoints))
         {
-            var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.NoPadding;
-            Size iconSize = TextRenderer.MeasureText(g, Glyph, icon, Size.Empty, flags);
+            // The icon is smoothed the same way as the text, not with ClearType's colored edges
+            SizeF iconSize = g.MeasureString(Glyph, icon);
             SizeF textSize = g.MeasureString(Text, Font);
-            int gap = 6, x = (int)((Width - iconSize.Width - gap - textSize.Width) / 2);
-            TextRenderer.DrawText(g, Glyph, icon, new Rectangle(x, 0, iconSize.Width, Height), GlyphColor ?? fore, fill, flags);
+            float gap = 2, x = (Width - iconSize.Width - gap - textSize.Width) / 2;
+            Theme.SmoothText(g, Glyph, icon, new RectangleF(x, 1, iconSize.Width, Height), GlyphColor ?? fore, true, false);
             Theme.SmoothText(g, Text, Font, new RectangleF(x + iconSize.Width + gap, 0, textSize.Width + 4, Height), fore, false);
         }
     }
@@ -512,8 +515,7 @@ class NavList : Control
                 using (var path = Theme.Rounded(new RectangleF(r.X, r.Y + r.Height / 2 - 8, 3, 16), 1.5f))
                 using (var b = new SolidBrush(Theme.AccentFill)) g.FillPath(b, path);
             Color under = i == selected ? Theme.Selected : i == hover ? Theme.Hover : BackColor;
-            TextRenderer.DrawText(g, Items[i].Item1, icons, new Rectangle(r.X + 12, r.Y, 24, r.Height), Theme.Text, under,
-                TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPadding);
+            Theme.SmoothText(g, Items[i].Item1, icons, new Rectangle(r.X + 10, r.Y + 1, 28, r.Height), Theme.Text, true, false);
             Theme.SmoothText(g, Items[i].Item2, Font, new Rectangle(r.X + 44, r.Y, r.Width - 48, r.Height), Theme.Text, false);
             if (Focused && ShowFocusCues && i == selected)
                 using (var p = new Pen(Theme.Text) { DashStyle = DashStyle.Dot }) g.DrawRectangle(p, r);
@@ -696,8 +698,7 @@ class DropDown : Control
             using (var p = new Pen(Theme.AccentFill, 2f)) g.DrawLine(p, 4, Height - 1.5f, Width - 4, Height - 1.5f);
         if (edit == null)
             Theme.SmoothText(g, Text, Font, new Rectangle(8, 0, Width - 8 - Height, Height), Theme.Text, false);
-        TextRenderer.DrawText(g, "\uE70D", chevron, new Rectangle(Width - Height, 4, Height - 4, Height - 8), Theme.SubText, fill,
-            TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter);
+        Theme.SmoothText(g, "\uE70D", chevron, new Rectangle(Width - Height, 1, Height - 4, Height), Theme.SubText, true, false);
     }
 
     protected override void Dispose(bool disposing)
@@ -867,7 +868,7 @@ class SmoothLabel : Label
     protected override void OnPaint(PaintEventArgs e)
     {
         e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
-        e.Graphics.TextContrast = 0;
+        e.Graphics.TextContrast = Theme.TextContrastFor(ForeColor);
         base.OnPaint(e);
         e.Graphics.TranslateTransform(Theme.Heavier, 0);   // a touch heavier, see Theme.Heavier
         base.OnPaint(e);

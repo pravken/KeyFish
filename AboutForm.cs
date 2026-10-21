@@ -46,12 +46,14 @@ class AboutForm : Form
         count.Location = new Point(139, 94);
         Controls.Add(count);
 
-        var link = new LinkLabel
-        {
-            Text = "github.com/pravken/KeyFish", Location = new Point(139, 120), AutoSize = true, Font = Theme.Body, BackColor = Color.Transparent,
-            LinkColor = Theme.AccentFill, ActiveLinkColor = Theme.AccentFill, VisitedLinkColor = Theme.AccentFill, LinkBehavior = LinkBehavior.HoverUnderline
-        };
-        link.LinkClicked += (s, e) => { try { Process.Start(ProjectUrl); } catch { } };
+        var link = Theme.Label("github.com/pravken/KeyFish", Theme.Body, Theme.AccentFill);
+        link.Location = new Point(139, 120);
+        link.Cursor = Cursors.Hand;
+        var underlined = new Font(Theme.Body, FontStyle.Underline);
+        FormClosed += (s, e) => underlined.Dispose();
+        link.MouseEnter += (s, e) => link.Font = underlined;
+        link.MouseLeave += (s, e) => link.Font = Theme.Body;
+        link.Click += (s, e) => { try { Process.Start(ProjectUrl); } catch { } };
         Controls.Add(link);
 
         // A quiet way to support the project: only here and in Settings, never as a reminder
