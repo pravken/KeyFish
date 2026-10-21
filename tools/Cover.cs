@@ -82,7 +82,7 @@ static class Cover
             var state = g.Save();
             g.TranslateTransform(fishRect.X + fishRect.Width / 2, fishRect.Y + fishRect.Height / 2);
             g.RotateTransform(-6);
-            drawFish.Invoke(null, new object[] { g, new RectangleF(-fishRect.Width / 2, -fishRect.Height / 2, fishRect.Width, fishRect.Height), true, 0.35f, 1f, 0.6f });
+            drawFish.Invoke(null, new object[] { g, new RectangleF(-fishRect.Width / 2, -fishRect.Height / 2, fishRect.Width, fishRect.Height), true, 0.35f, 1f, -1f });
             g.Restore(state);
 
             // Text

@@ -17,13 +17,14 @@ static class FishLogo
         {
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-            Draw(g, new RectangleF(0, 0, size, size), true, 0, 1, 0);
+            Draw(g, new RectangleF(0, 0, size, size), true, 0, 1, -1);
         }
         return bmp;
     }
 
     // r: where to draw (the logo is designed on a 64×64 grid). circle: the blue disc behind the fish.
-    // tail: −1…1, how far the tail is bent. eyeOpen: 0…1 (blinking). bubbles: 0…1, how far the bubbles have risen
+    // tail: −1…1, how far the tail is bent. eyeOpen: 0…1 (blinking).
+    // bubbles: below 0 — the two still bubbles of the icon; 0…1 — the phase of a looping stream of bubbles
     public static void Draw(Graphics g, RectangleF r, bool circle, float tail, float eyeOpen, float bubbles)
     {
         var saved = g.Save();
@@ -105,13 +106,56 @@ static class FishLogo
         if (eyeOpen > 0.5f) using (var b = new SolidBrush(white)) g.FillEllipse(b, 17.6f, 27.6f, 1.6f, 1.6f);
 
         // Bubbles rise from the mouth
-        using (var p = new Pen(Color.FromArgb(230, white), 1.6f))
-        {
-            float rise = bubbles * 6;
-            g.DrawEllipse(p, 11, 13 - rise, 6, 6);
-            g.DrawEllipse(p, 17, 7 - rise * 1.4f, 4, 4);
-        }
+        if (bubbles < 0)
+            using (var p = new Pen(Color.FromArgb(230, white), 1.6f))
+            {
+                g.DrawEllipse(p, 11, 13, 6, 6);
+                g.DrawEllipse(p, 17, 7, 4, 4);
+            }
+        else
+            for (int i = 0; i < BubbleSizes.Length; i++)
+                Bubble(g, (bubbles + (float)i / BubbleSizes.Length) % 1, BubbleSizes[i], i);
         g.Restore(saved);
+    }
+
+    static readonly float[] BubbleSizes = { 3f, 2.2f, 2.6f };
+
+    // One bubble of the stream at its own moment t (0…1): it appears at the mouth growing from a point, rises with a
+    // gentle sway, and at the top pops — the ring widens, thins and fades while a few droplets fly off
+    static void Bubble(Graphics g, float t, float radius, int seed)
+    {
+        const float pop = 0.82f;
+        float rise = Math.Min(t, pop) / pop;
+        float ease = 1 - (1 - rise) * (1 - rise);                       // fast at the mouth, slowing near the top
+        float x = 12.5f + 5 * ease + 0.9f * (float)Math.Sin((rise * 3 + seed * 0.7f) * Math.PI);
+        float y = 24 - 17 * ease;
+        float grow = Math.Min(1, t / 0.12f);
+        float r = radius * (0.25f + 0.75f * (1 - (1 - grow) * (1 - grow)));
+        float alpha = grow;
+        float width = 1.4f;
+        if (t > pop)
+        {
+            float k = (t - pop) / (1 - pop);                            // 0…1 through the pop
+            r *= 1 + 0.7f * k;
+            alpha = (1 - k) * (1 - k);
+            width = 1.4f * (1 - 0.7f * k);
+            // Droplets fly off the bursting ring
+            using (var b = new SolidBrush(Color.FromArgb((int)(220 * (1 - k)), Color.White)))
+                for (int d = 0; d < 4; d++)
+                {
+                    double a = (d * 90 + 45 + seed * 20) * Math.PI / 180;
+                    float dist = r + 1.6f * k;
+                    float dot = 0.7f * (1 - k);
+                    g.FillEllipse(b, x + (float)Math.Cos(a) * dist - dot, y + (float)Math.Sin(a) * dist - dot, dot * 2, dot * 2);
+                }
+        }
+        if (alpha <= 0.01f) return;
+        using (var p = new Pen(Color.FromArgb((int)(230 * alpha), Color.White), width))
+            g.DrawEllipse(p, x - r, y - r, r * 2, r * 2);
+        // A small glint, like on a real bubble
+        if (t < pop)
+            using (var b = new SolidBrush(Color.FromArgb((int)(150 * alpha), Color.White)))
+                g.FillEllipse(b, x - r * 0.45f, y - r * 0.55f, r * 0.45f, r * 0.35f);
     }
 }
 
