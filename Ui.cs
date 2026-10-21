@@ -27,11 +27,15 @@ static class Theme
     public static Color OnAccent { get { return Dark ? Color.Black : Color.White; } }
     public static Color SelectionBack { get { return Blend(AccentFill, Card, Dark ? 0.7 : 0.82); } }
 
-    public static readonly Font Body = new Font("Segoe UI", 10f);
-    public static readonly Font Small = new Font("Segoe UI", 9f);
-    public static readonly Font Strong = new Font("Segoe UI Semibold", 10f);
-    public static readonly Font Title = new Font("Segoe UI Semibold", 20f);
-    public static readonly Font Section = new Font("Segoe UI Semibold", 11f);
+    // Windows 11's own font, Segoe UI Variable, at the sizes of Windows Settings; Segoe UI where it isn't installed (Windows 10)
+    static readonly bool Variable = HasFont("Segoe UI Variable Text") && HasFont("Segoe UI Variable Text Semibold");
+    static readonly string Regular = Variable ? "Segoe UI Variable Text" : "Segoe UI";
+    static readonly string Semibold = Variable ? "Segoe UI Variable Text Semibold" : "Segoe UI Semibold";
+    public static readonly Font Body = new Font(Regular, 10.5f);
+    public static readonly Font Small = new Font(Regular, 9f);
+    public static readonly Font Strong = new Font(Semibold, 10.5f);
+    public static readonly Font Title = new Font(Semibold, 20f);
+    public static readonly Font Section = new Font(Semibold, 11f);
     public static readonly string IconFontName = HasFont("Segoe Fluent Icons") ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
 
     static bool ReadDark()
@@ -128,6 +132,7 @@ static class Theme
     {
         var hint = g.TextRenderingHint;
         g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+        g.TextContrast = 0;   // fuller strokes, closer to how Windows 11 apps draw text
         using (var b = new SolidBrush(color))
         using (var sf = new StringFormat(StringFormatFlags.NoWrap)
         {
@@ -855,6 +860,7 @@ class SmoothLabel : Label
     protected override void OnPaint(PaintEventArgs e)
     {
         e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+        e.Graphics.TextContrast = 0;
         base.OnPaint(e);
     }
 }
