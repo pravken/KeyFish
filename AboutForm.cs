@@ -8,6 +8,7 @@ using System.Windows.Forms;
 class AboutForm : Form
 {
     const string ProjectUrl = "https://github.com/pravken/KeyFish";
+    const string SupportUrl = "https://ko-fi.com/pravken";
 
     public AboutForm(Image fish, string stats, string changelog)
     {
@@ -35,6 +36,11 @@ class AboutForm : Form
         var link = new LinkLabel { Text = "github.com/pravken/KeyFish", Location = new Point(102, 104), AutoSize = true };
         link.LinkClicked += (s, e) => Process.Start(ProjectUrl);
         Controls.Add(link);
+
+        // A quiet way to support the project: only here, never as a reminder
+        var support = new Button { Text = L.T("Поддержать ☕", "Support ☕"), Location = new Point(20, 162), Size = new Size(120, 30) };
+        support.Click += (s, e) => Process.Start(SupportUrl);
+        Controls.Add(support);
 
         var changes = new Button { Text = L.T("Что нового", "What's new"), Location = new Point(196, 162), Size = new Size(110, 30) };
         changes.Click += (s, e) => { using (var f = new ChangelogForm(changelog)) f.ShowDialog(this); };

@@ -17,6 +17,8 @@ A tiny Windows tray app that fixes text typed in the wrong keyboard layout — f
 
 If you erase a correction with Backspace, KeyFish remembers the word and never touches it again; if you fix a word yourself with Pause, it learns to fix it next time. It stays quiet in games and full-screen apps. All hotkeys can be changed in Settings (double-click the fish). KeyFish updates itself in one click. The interface is in English or Russian.
 
+KeyFish is free. If it saves you time, you can [buy me a coffee on Ko-fi](https://ko-fi.com/pravken) ☕
+
 ## Install
 
 Download `KeyFish.exe` from [Releases](../../releases/latest) and run it — no installation needed. Turn on autostart in Settings.
