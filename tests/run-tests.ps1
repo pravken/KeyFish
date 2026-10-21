@@ -68,3 +68,4 @@ foreach ($f in $files) { $p = Join-Path $root $f; if ($backup[$f]) { [IO.File]::
 Get-Process KeyFish -ErrorAction SilentlyContinue | Stop-Process; Start-Sleep -Milliseconds 800
 foreach ($n in $regNames) { if ($null -ne $regBackup[$n]) { Set-ItemProperty $key -Name $n -Value $regBackup[$n] -Type DWord } else { Remove-ItemProperty $key -Name $n -ErrorAction SilentlyContinue } }
 explorer.exe (Join-Path $root 'KeyFish.exe')
+"tests finished"
