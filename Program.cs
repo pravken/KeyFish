@@ -731,6 +731,7 @@ class App : ApplicationContext
     {
         if (busy) return;
         busy = true;
+        hotkeyWindow = Native.GetForegroundWindow();
         try
         {
             if (id == HkLayout && watcher.Undo()) return;
@@ -745,10 +746,17 @@ class App : ApplicationContext
 
     // Paste through the clipboard. The pause before Ctrl+V is required: without it the app
     // sometimes pastes the old clipboard contents (seen with Shift+Pause)
+    // The window the hotkey was pressed in. Hotkeys work through Ctrl+C, Ctrl+V and selecting text; if the user switches
+    // to another window meanwhile (or the window closes), none of that may land there
+    static IntPtr hotkeyWindow;
+
+    static bool SameWindow() { return Native.GetForegroundWindow() == hotkeyWindow; }
+
     static bool Paste(string text)
     {
-        if (!SetClipboardText(text)) return false;
+        if (!SameWindow() || !SetClipboardText(text)) return false;
         Pump(50);
+        if (!SameWindow()) return false;
         Native.Chord(Native.VK_CONTROL, (byte)'V');
         Pump(150);
         return true;
@@ -781,7 +789,7 @@ class App : ApplicationContext
                 // Select the pasted text again so the next press continues the cycle
                 // One caret step per character: an emoji is two UTF-16 units, a line break two characters
                 int caretSteps = new System.Globalization.StringInfo(result).LengthInTextElements - CountOf(result, "\r\n");
-                if (caretSteps <= 5000) Native.SelectLeft(caretSteps);
+                if (caretSteps <= 5000 && SameWindow()) Native.SelectLeft(caretSteps);
                 Pump(50);
             }
         }
@@ -802,6 +810,7 @@ class App : ApplicationContext
         if (string.IsNullOrEmpty(text))
         {
             // Nothing is selected, so take the last word before the caret
+            if (!SameWindow()) return null;
             Native.Chord(Native.VK_CONTROL, Native.VK_SHIFT, Native.VK_LEFT);
             Pump(30);
             text = CopySelection();
@@ -815,6 +824,7 @@ class App : ApplicationContext
         Native.WaitModifiersReleased();
         IntPtr target = Native.GetForegroundWindow();
         IDataObject saved = SaveClipboard();
+        if (!SameWindow()) { RestoreClipboard(saved); return; }
         Native.Chord(Native.VK_SHIFT, Native.VK_HOME);
         Pump(30);
         string text = CopySelection();
@@ -863,6 +873,7 @@ class App : ApplicationContext
 
     static string CopySelection()
     {
+        if (!SameWindow()) return null;
         uint before = Native.GetClipboardSequenceNumber();
         Native.Chord(Native.VK_CONTROL, (byte)'C');
         for (int i = 0; i < 40; i++)

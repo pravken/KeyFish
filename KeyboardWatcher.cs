@@ -890,7 +890,12 @@ class KeyboardWatcher
     }
 
     // Undo the last correction (Pause right after it). false means there is nothing to undo
-    public bool Undo() { return StartUndo(false); }
+    // A fix that is still being typed (double Shift right after the space) is waited for, up to half a second
+    public bool Undo()
+    {
+        for (int i = 0; i < 50 && pending && last != null; i++) Thread.Sleep(10);
+        return StartUndo(false);
+    }
 
     // releaseCtrl: the undo comes from Ctrl+Z, so Ctrl is held and must be lifted while the text is retyped
     bool StartUndo(bool releaseCtrl)

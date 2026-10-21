@@ -68,7 +68,7 @@ $tests = @(
   @('Ctrl+Z then a letter',   'hello ~~ljvf ~~~~%z~~~~b~~~~',             'hello ljvf b', ''),
   @('hold Ctrl, Z, release',  'hello ~~dtxth ~~~~[z~~~~]~~b~~~~',         'hello dtxth b', ''),
   @('double Shift fixes word', "hello ~~ghjcnj~~!~!$w",                   'hello просто', ''),
-  @('double Shift undoes fix', 'hello ~~cjkywt ~~~~!~!~~~~~~',              'hello cjkywt ', '')
+  @('double Shift undoes fix', "hello ~~cjkywt ~~~~!~!$w",              'hello cjkywt ', '')
 )
 $pass = 0; $total = 0
 foreach ($t in $tests) {
