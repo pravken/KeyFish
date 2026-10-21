@@ -1059,25 +1059,29 @@ static class Bubble
     static byte[] Wave()
     {
         const int rate = 44100;
-        int n = rate * 110 / 1000;
-        // Silence first: an idle sound device (many cards, Bluetooth headphones) wakes up on the first samples and drops
-        // them, and a sound this short would be lost whole
-        int lead = rate * 250 / 1000;
+        // Silence before: an idle sound device (many cards, Bluetooth headphones) wakes up on the first samples and drops them.
+        // Silence after: some drivers cut the end of a buffer, which sounds like a chopped-off tail
+        int lead = rate * 250 / 1000, n = rate * 200 / 1000, tail = rate * 150 / 1000;
         var ms = new MemoryStream();
         var w = new BinaryWriter(ms);
-        w.Write(Encoding.ASCII.GetBytes("RIFF")); w.Write(36 + (lead + n) * 2); w.Write(Encoding.ASCII.GetBytes("WAVEfmt "));
+        int total = lead + n + tail;
+        w.Write(Encoding.ASCII.GetBytes("RIFF")); w.Write(36 + total * 2); w.Write(Encoding.ASCII.GetBytes("WAVEfmt "));
         w.Write(16); w.Write((short)1); w.Write((short)1); w.Write(rate); w.Write(rate * 2); w.Write((short)2); w.Write((short)16);
-        w.Write(Encoding.ASCII.GetBytes("data")); w.Write((lead + n) * 2);
+        w.Write(Encoding.ASCII.GetBytes("data")); w.Write(total * 2);
         for (int i = 0; i < lead; i++) w.Write((short)0);
         double phase = 0;
         for (int i = 0; i < n; i++)
         {
             double t = (double)i / n;
-            double freq = 320 * Math.Pow(3.2, t);                       // 320 → about 1000 Hz
+            // The pitch rises fast and settles, like an air bubble: 280 Hz → about 850 Hz in the first third
+            double freq = 280 + 570 * (1 - Math.Exp(-t * 6));
             phase += 2 * Math.PI * freq / rate;
-            double envelope = Math.Min(1, i / (rate * 0.004)) * Math.Exp(-4.5 * t);
-            w.Write((short)(Math.Sin(phase) * envelope * 0.28 * short.MaxValue));
+            double attack = 0.5 - 0.5 * Math.Cos(Math.PI * Math.Min(1, i / (rate * 0.012)));   // a soft 12 ms start, no click
+            double decay = Math.Exp(-3.2 * t);
+            double fade = t > 0.75 ? 0.5 + 0.5 * Math.Cos(Math.PI * (t - 0.75) / 0.25) : 1;    // down to true silence
+            w.Write((short)(Math.Sin(phase) * attack * decay * fade * 0.3 * short.MaxValue));
         }
+        for (int i = 0; i < tail; i++) w.Write((short)0);
         w.Flush();
         return ms.ToArray();
     }
