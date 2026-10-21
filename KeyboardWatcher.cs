@@ -123,20 +123,24 @@ class KeyboardWatcher
     readonly WordList ignored;           // words whose correction was undone or erased
     readonly WordList learned;           // words the user fixed manually with Pause
     bool pending;                        // a correction is still being typed
-    readonly List<int> heldDuringPending = new List<int>();
+    readonly List<HeldKey> heldDuringPending = new List<HeldKey>();
     readonly BlockingCollection<Job> jobs = new BlockingCollection<Job>();
 
+    // The files below are re-read on the file thread (see FileQueue), never in the keyboard hook
     readonly string replacementsPath;
-    Dictionary<string, string> replacements = new Dictionary<string, string>();
+    volatile Dictionary<string, string> replacements = new Dictionary<string, string>();
     DateTime replacementsStamp;
 
     readonly string exclusionsPath;
-    HashSet<string> excluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-    DateTime exclusionsStamp, exclusionsChecked;
-    readonly Dictionary<uint, string> processNames = new Dictionary<uint, string>();
+    volatile HashSet<string> excluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    DateTime exclusionsStamp;
+    readonly System.Threading.Timer reloadTimer;
 
     // Keep the delegates in fields, otherwise the GC collects them while the hook is still alive
     readonly W.HookProc keyboardProc, mouseProc;
+    IntPtr keyboardHook, mouseHook;
+    volatile int lastHookEvent = Environment.TickCount;   // when either hook was last called
+    int lastReinstall;
 
     public KeyboardWatcher(string exclusionsFile, string ignoredFile, string replacementsFile, string learnedFile)
     {
@@ -144,7 +148,8 @@ class KeyboardWatcher
         replacementsPath = replacementsFile;
         ignored = new WordList(ignoredFile);
         learned = new WordList(learnedFile);
-        LoadReplacements();
+        ReloadFiles();
+        reloadTimer = new System.Threading.Timer(_ => FileQueue.Run(ReloadFiles), null, 2000, 2000);
         keyboardProc = KeyboardHook;
         mouseProc = MouseHook;
 
@@ -152,15 +157,41 @@ class KeyboardWatcher
         new Thread(Worker) { IsBackground = true }.Start();
         new Thread(() =>
         {
-            IntPtr mod = W.GetModuleHandle(null);
-            W.SetWindowsHookEx(W.WH_KEYBOARD_LL, keyboardProc, mod, 0);
-            W.SetWindowsHookEx(W.WH_MOUSE_LL, mouseProc, mod, 0);
+            InstallHooks();
+            var watchdog = new System.Windows.Forms.Timer { Interval = 2000 };
+            watchdog.Tick += (s, e) => CheckHooks();
+            watchdog.Start();
             Application.Run();
         }) { IsBackground = true }.Start();
     }
 
+    void InstallHooks()
+    {
+        if (keyboardHook != IntPtr.Zero) W.UnhookWindowsHookEx(keyboardHook);
+        if (mouseHook != IntPtr.Zero) W.UnhookWindowsHookEx(mouseHook);
+        IntPtr mod = W.GetModuleHandle(null);
+        keyboardHook = W.SetWindowsHookEx(W.WH_KEYBOARD_LL, keyboardProc, mod, 0);
+        mouseHook = W.SetWindowsHookEx(W.WH_MOUSE_LL, mouseProc, mod, 0);
+    }
+
+    // Windows silently removes a low-level hook that once answered too slowly (LowLevelHooksTimeout), and KeyFish
+    // would quietly stop working. Input the system registered that never reached the hooks means they are gone,
+    // so they are installed again. A false alarm (touch input, say) only reinstalls hooks that still work
+    void CheckHooks()
+    {
+        var info = new W.LASTINPUTINFO { cbSize = (uint)Marshal.SizeOf(typeof(W.LASTINPUTINFO)) };
+        if (!W.GetLastInputInfo(ref info)) return;
+        int seen = (int)info.dwTime;
+        bool lost = keyboardHook == IntPtr.Zero || mouseHook == IntPtr.Zero || seen - lastHookEvent > 1000;
+        if (!lost || Environment.TickCount - lastReinstall < 10000) return;
+        lastReinstall = Environment.TickCount;
+        lastHookEvent = seen;   // this input is accounted for: only newer missed input counts next time
+        InstallHooks();
+    }
+
     IntPtr MouseHook(int code, IntPtr wParam, IntPtr lParam)
     {
+        lastHookEvent = Environment.TickCount;
         int msg = wParam.ToInt32();
         if (code >= 0 && (msg == 0x0201 || msg == 0x0204 || msg == 0x0207)) // L/R/M button down
             lock (sync) { ResetAll(); last = null; }
@@ -169,6 +200,7 @@ class KeyboardWatcher
 
     IntPtr KeyboardHook(int code, IntPtr wParam, IntPtr lParam)
     {
+        lastHookEvent = Environment.TickCount;
         if (code >= 0)
         {
             var k = (W.KBDLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(W.KBDLLHOOKSTRUCT));
@@ -219,8 +251,9 @@ class KeyboardWatcher
 
             if (pending)
             {
-                // While a correction is being typed, hold keystrokes back and replay them afterwards
-                heldDuringPending.Add(vk);
+                // While a correction is being typed, hold keystrokes back and replay them afterwards,
+                // with the modifiers held right now: by the replay the user may have let go of Shift
+                heldDuringPending.Add(new HeldKey { Vk = vk, Shift = Down(0x10), Ctrl = Down(0x11), Alt = Down(0x12) });
                 return true;
             }
 
@@ -304,28 +337,47 @@ class KeyboardWatcher
 
     bool IsIgnored(string s) { return ignored.Contains(s.ToLowerInvariant()); }
 
-    // Line format: "abbreviation = text"; \n is a line break, \t a tab, # a comment
-    void LoadReplacements()
+    // Re-reads the files that changed in Settings or in Notepad. Runs on the file thread: disk access in the
+    // keyboard hook could hold it past the system's timeout
+    void ReloadFiles()
     {
-        var map = new Dictionary<string, string>();
         try
         {
-            if (File.Exists(replacementsPath))
+            var stamp = File.Exists(replacementsPath) ? File.GetLastWriteTimeUtc(replacementsPath) : DateTime.MinValue;
+            if (stamp != replacementsStamp)
             {
-                replacementsStamp = File.GetLastWriteTimeUtc(replacementsPath);
-                foreach (string line in File.ReadAllLines(replacementsPath, Encoding.UTF8))
-                {
-                    string s = line.Trim();
-                    int eq = s.IndexOf('=');
-                    if (s.StartsWith("#") || eq <= 0) continue;
-                    string key = s.Substring(0, eq).Trim().ToLowerInvariant();
-                    string value = s.Substring(eq + 1).Trim().Replace("\\n", "\n").Replace("\\t", "\t");
-                    if (key.Length > 0 && key.IndexOf(' ') < 0 && value.Length > 0) map[key] = value;
-                }
+                replacementsStamp = stamp;
+                var map = new Dictionary<string, string>();
+                if (File.Exists(replacementsPath))
+                    foreach (var kv in ReplacementFile.Parse(File.ReadAllText(replacementsPath, Encoding.UTF8)))
+                        map[kv.Key.ToLowerInvariant()] = kv.Value;
+                replacements = map;
             }
         }
         catch { }
-        replacements = map;
+
+        try
+        {
+            var stamp = File.Exists(exclusionsPath) ? File.GetLastWriteTimeUtc(exclusionsPath) : DateTime.MinValue;
+            if (stamp != exclusionsStamp)
+            {
+                exclusionsStamp = stamp;
+                var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (File.Exists(exclusionsPath))
+                    foreach (string line in File.ReadAllLines(exclusionsPath, Encoding.UTF8))
+                    {
+                        string s = line.Trim();
+                        if (s.Length == 0 || s.StartsWith("#")) continue;
+                        if (s.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) s = s.Substring(0, s.Length - 4);
+                        set.Add(s);
+                    }
+                excluded = set;
+            }
+        }
+        catch { }
+
+        ignored.ReloadIfChanged();
+        learned.ReloadIfChanged();
     }
 
     string FindReplacement(string token)
@@ -456,8 +508,6 @@ class KeyboardWatcher
         if (T == null) { history.Clear(); return false; }   // a layout KeyFish has no language model for
 
         string typed = Build(word, current);
-        foreach (char c in typed)
-            if (char.IsDigit(c) || c == '@' || c == '_') { history.Clear(); return false; }
 
         // The same keys in every installed layout of another alphabet
         var others = new List<LayoutTable>();
@@ -504,6 +554,10 @@ class KeyboardWatcher
             });
             return true;
         }
+
+        // Numbers, e-mails, identifiers aren't words to fix (an abbreviation like "addr1" was expanded above)
+        foreach (char c in typed)
+            if (char.IsDigit(c) || c == '@' || c == '_') { history.Clear(); return false; }
 
         // Which layout did the user mean? A word they taught KeyFish goes to their usual other layout
         int chosen = -1;
@@ -665,7 +719,7 @@ class KeyboardWatcher
                 else Execute(job);
             }
             catch { }
-            int[] held;
+            HeldKey[] held;
             lock (sync)
             {
                 // More jobs queued: keep holding keystrokes so they replay after those jobs, in typing order
@@ -675,7 +729,7 @@ class KeyboardWatcher
                 heldDuringPending.Clear();
             }
             // Replay the keystrokes held back during typing, now as normal input
-            if (held.Length > 0) W.SendKeys(held);
+            if (held.Length > 0) W.SendHeld(held);
         }
     }
 
@@ -779,52 +833,7 @@ class KeyboardWatcher
         return pid == ownPid;
     }
 
-    bool IsExcluded(IntPtr hwnd)
-    {
-        if (DateTime.UtcNow - exclusionsChecked > TimeSpan.FromSeconds(2))
-        {
-            exclusionsChecked = DateTime.UtcNow;
-            try
-            {
-                var stamp = File.GetLastWriteTimeUtc(exclusionsPath);
-                if (stamp != exclusionsStamp)
-                {
-                    exclusionsStamp = stamp;
-                    var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                    foreach (string line in File.ReadAllLines(exclusionsPath))
-                    {
-                        string s = line.Trim();
-                        if (s.Length == 0 || s.StartsWith("#")) continue;
-                        if (s.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) s = s.Substring(0, s.Length - 4);
-                        set.Add(s);
-                    }
-                    excluded = set;
-                }
-            }
-            catch { }
-
-            try
-            {
-                var stamp = File.Exists(replacementsPath) ? File.GetLastWriteTimeUtc(replacementsPath) : DateTime.MinValue;
-                if (stamp != replacementsStamp) LoadReplacements();
-            }
-            catch { }
-
-            ignored.ReloadIfChanged();
-            learned.ReloadIfChanged();
-        }
-
-        uint pid;
-        W.GetWindowThreadProcessId(hwnd, out pid);
-        string name;
-        if (!processNames.TryGetValue(pid, out name))
-        {
-            try { name = Process.GetProcessById((int)pid).ProcessName; }
-            catch { name = ""; }
-            processNames[pid] = name;
-        }
-        return excluded.Contains(name);
-    }
+    bool IsExcluded(IntPtr hwnd) { return excluded.Contains(W.ProcessName(hwnd)); }
 
     static bool IsPasswordField(IntPtr hwnd)
     {
@@ -836,6 +845,9 @@ class KeyboardWatcher
         return (W.GetWindowLong(info.hwndFocus, -16) & 0x20) != 0 && W.ClassName(info.hwndFocus) == "Edit"; // ES_PASSWORD
     }
 }
+
+// A keystroke held back while a correction was typed, with the modifiers that were down
+struct HeldKey { public int Vk; public bool Shift, Ctrl, Alt; }
 
 static class W
 {
@@ -879,6 +891,31 @@ static class W
     }
 
     [DllImport("user32.dll")] public static extern IntPtr SetWindowsHookEx(int idHook, HookProc fn, IntPtr hMod, uint threadId);
+    [DllImport("user32.dll")] public static extern bool UnhookWindowsHookEx(IntPtr hhk);
+    [DllImport("user32.dll")] public static extern bool GetLastInputInfo(ref LASTINPUTINFO info);
+    [DllImport("kernel32.dll")] static extern IntPtr OpenProcess(uint access, bool inherit, uint pid);
+    [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern bool QueryFullProcessImageName(IntPtr process, int flags, StringBuilder name, ref int size);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct LASTINPUTINFO { public uint cbSize, dwTime; }
+
+    // The window's process name as Task Manager shows it, without .exe; "" if unknown. Asked each time instead of
+    // cached by process id: ids are reused, and a stale name could treat a terminal as some excluded app or back
+    public static string ProcessName(IntPtr hwnd)
+    {
+        uint pid;
+        GetWindowThreadProcessId(hwnd, out pid);
+        IntPtr h = OpenProcess(0x1000, false, pid);   // PROCESS_QUERY_LIMITED_INFORMATION
+        if (h == IntPtr.Zero) return "";
+        try
+        {
+            var sb = new StringBuilder(1024);
+            int size = sb.Capacity;
+            return QueryFullProcessImageName(h, 0, sb, ref size) ? Path.GetFileNameWithoutExtension(sb.ToString()) : "";
+        }
+        finally { CloseHandle(h); }
+    }
     [DllImport("user32.dll")] public static extern IntPtr CallNextHookEx(IntPtr hhk, int code, IntPtr wParam, IntPtr lParam);
     [DllImport("kernel32.dll")] public static extern IntPtr GetModuleHandle(string name);
     [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int vk);
@@ -938,18 +975,38 @@ static class W
         SendInput((uint)arr.Length, arr, Marshal.SizeOf(typeof(INPUT)));
     }
 
-    // Held-back keystrokes are sent without the marker so the hook handles them as normal typing
-    public static void SendKeys(int[] vks)
+    // Held-back keystrokes are sent without the marker so the hook handles them as normal typing.
+    // Each goes with the Shift, Ctrl and Alt it was pressed with: where the keyboard differs now, those modifiers
+    // are pressed or released around the key (with the marker, so the hook doesn't count them) and put back after
+    public static void SendHeld(IList<HeldKey> keys)
     {
-        var arr = new INPUT[vks.Length * 2];
-        for (int i = 0; i < vks.Length; i++)
+        var list = new List<INPUT>();
+        foreach (var k in keys)
         {
-            arr[2 * i] = Key((ushort)vks[i], 0, 0);
-            arr[2 * i + 1] = Key((ushort)vks[i], 0, 2);
-            arr[2 * i].u.ki.dwExtraInfo = UIntPtr.Zero;
-            arr[2 * i + 1].u.ki.dwExtraInfo = UIntPtr.Zero;
+            var undo = new List<INPUT>();
+            Modifier(list, undo, k.Shift, 0xA0, 0xA1);
+            Modifier(list, undo, k.Ctrl, 0xA2, 0xA3);
+            Modifier(list, undo, k.Alt, 0xA4, 0xA5);
+            var down = Key((ushort)k.Vk, 0, 0);
+            var up = Key((ushort)k.Vk, 0, 2);
+            down.u.ki.dwExtraInfo = up.u.ki.dwExtraInfo = UIntPtr.Zero;
+            list.Add(down);
+            list.Add(up);
+            undo.Reverse();
+            list.AddRange(undo);
         }
+        var arr = list.ToArray();
         SendInput((uint)arr.Length, arr, Marshal.SizeOf(typeof(INPUT)));
+    }
+
+    // Makes a modifier (its left and right keys) match what a held key needs; undo gets the inputs that restore it
+    static void Modifier(List<INPUT> list, List<INPUT> undo, bool want, int left, int right)
+    {
+        bool l = (GetAsyncKeyState(left) & 0x8000) != 0, r = (GetAsyncKeyState(right) & 0x8000) != 0;
+        if (want == (l || r)) return;
+        if (want) { list.Add(Key((ushort)left, 0, 0)); undo.Add(Key((ushort)left, 0, 2)); return; }
+        if (l) { list.Add(Key((ushort)left, 0, 2)); undo.Add(Key((ushort)left, 0, 0)); }
+        if (r) { list.Add(Key((ushort)right, 0, 2)); undo.Add(Key((ushort)right, 0, 0)); }
     }
 
     public static void SwitchLayout(IntPtr hwnd, IntPtr hkl)
@@ -959,11 +1016,13 @@ static class W
 }
 
 // A word list in a text file next to the app: one word per line, case-insensitive.
-// The file is re-read when it changes in Settings or in Notepad
+// The file is re-read when it changes in Settings or in Notepad. The keyboard hook only touches the set in memory;
+// the file is written on the file thread
 class WordList
 {
     readonly string path;
-    readonly HashSet<string> words = new HashSet<string>();
+    readonly object gate = new object();
+    HashSet<string> words = new HashSet<string>();
     DateTime stamp;
 
     public WordList(string path)
@@ -972,45 +1031,120 @@ class WordList
         ReloadIfChanged();
     }
 
-    public bool Contains(string word) { return words.Contains(word.ToLowerInvariant()); }
+    public bool Contains(string word) { lock (gate) return words.Contains(word.ToLowerInvariant()); }
 
     public void Add(string word)
     {
         string w = word.ToLowerInvariant();
-        if (!words.Add(w)) return;
-        try { File.AppendAllText(path, w + "\r\n", Encoding.UTF8); stamp = File.GetLastWriteTimeUtc(path); }
-        catch { }
+        lock (gate) if (!words.Add(w)) return;
+        FileQueue.Run(() =>
+        {
+            File.AppendAllText(path, w + "\r\n", Encoding.UTF8);
+            lock (gate) stamp = File.GetLastWriteTimeUtc(path);
+        });
     }
 
     public void Remove(string word)
     {
-        if (!words.Remove(word.ToLowerInvariant()) || !File.Exists(path)) return;
-        try
+        string w = word.ToLowerInvariant();
+        lock (gate) if (!words.Remove(w)) return;
+        FileQueue.Run(() =>
         {
+            if (!File.Exists(path)) return;
             var kept = new List<string>();
             foreach (string line in File.ReadAllLines(path, Encoding.UTF8))
-                if (!string.Equals(line.Trim(), word, StringComparison.OrdinalIgnoreCase)) kept.Add(line);
+                if (!string.Equals(line.Trim(), w, StringComparison.OrdinalIgnoreCase)) kept.Add(line);
             File.WriteAllLines(path, kept, Encoding.UTF8);
-            stamp = File.GetLastWriteTimeUtc(path);
-        }
-        catch { }
+            lock (gate) stamp = File.GetLastWriteTimeUtc(path);
+        });
     }
 
+    // Called on the file thread (and once at start)
     public void ReloadIfChanged()
     {
         try
         {
             var current = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
-            if (current == stamp) return;
-            stamp = current;
-            words.Clear();
+            lock (gate) if (current == stamp) return;
+            var set = new HashSet<string>();
             if (File.Exists(path))
                 foreach (string line in File.ReadAllLines(path, Encoding.UTF8))
                 {
                     string s = line.Trim();
-                    if (s.Length > 0 && !s.StartsWith("#")) words.Add(s.ToLowerInvariant());
+                    if (s.Length > 0 && !s.StartsWith("#")) set.Add(s.ToLowerInvariant());
                 }
+            lock (gate) { words = set; stamp = current; }
         }
         catch { }
+    }
+}
+
+// One background thread for writing and re-reading KeyFish's text files, in order. Disk access can take a while
+// (an antivirus scanning the file, a sleeping disk), and the keyboard hook must answer within the system's timeout
+static class FileQueue
+{
+    static readonly BlockingCollection<Action> queue = new BlockingCollection<Action>();
+
+    static FileQueue()
+    {
+        new Thread(() =>
+        {
+            foreach (var action in queue.GetConsumingEnumerable())
+                try { action(); } catch { }
+        }) { IsBackground = true, Name = "KeyFish files" }.Start();
+    }
+
+    public static void Run(Action action) { queue.Add(action); }
+
+    // Waits until everything queued so far is written: before Settings reads the files and before exit
+    public static void Flush(int timeoutMs)
+    {
+        using (var done = new ManualResetEvent(false))
+        {
+            queue.Add(() => done.Set());
+            done.WaitOne(timeoutMs);
+        }
+    }
+}
+
+// replacements.txt: "abbreviation = text" per line, # starts a comment. Inside the text \n is a line break,
+// \t a tab and \\ a backslash, so a path like C:\new survives saving and reading back
+static class ReplacementFile
+{
+    public static List<KeyValuePair<string, string>> Parse(string text)
+    {
+        var list = new List<KeyValuePair<string, string>>();
+        foreach (string raw in (text ?? "").Split('\n'))
+        {
+            string s = raw.Trim();
+            int eq = s.IndexOf('=');
+            if (s.StartsWith("#") || eq <= 0) continue;
+            string key = s.Substring(0, eq).Trim(), value = Unescape(s.Substring(eq + 1).Trim());
+            if (key.Length > 0 && key.IndexOf(' ') < 0 && value.Length > 0) list.Add(new KeyValuePair<string, string>(key, value));
+        }
+        return list;
+    }
+
+    public static string Escape(string value)
+    {
+        return value.Replace("\\", "\\\\").Replace("\t", "\\t").Replace("\n", "\\n");
+    }
+
+    static string Unescape(string value)
+    {
+        var sb = new StringBuilder(value.Length);
+        for (int i = 0; i < value.Length; i++)
+        {
+            char c = value[i];
+            if (c == '\\' && i + 1 < value.Length)
+            {
+                char next = value[i + 1];
+                if (next == 'n') { sb.Append('\n'); i++; continue; }
+                if (next == 't') { sb.Append('\t'); i++; continue; }
+                if (next == '\\') { sb.Append('\\'); i++; continue; }
+            }
+            sb.Append(c);
+        }
+        return sb.ToString();
     }
 }

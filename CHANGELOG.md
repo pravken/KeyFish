@@ -10,6 +10,12 @@
 • The fish is now drawn in detail, and the About window hides a little surprise 🐟
 • Pause on selected text converts it to your other installed layout, not just English ⇄ Russian
 • New Support ☕ button in the About window and in Settings
+• More reliable: if Windows quietly turns off KeyFish's keyboard watching (it does that to a program that answered too slowly once), KeyFish notices and turns it back on; files are read and written in the background so typing is never held up
+• Terminals, SSH clients, virtual machines, remote desktops and more password managers are excluded by default (added to your list once)
+• Text KeyFish puts on the clipboard stays out of clipboard history (Win+V) and cloud sync
+• Fixed: a backslash in a replacement (C:\new) turned into a line break after saving; abbreviations with digits (addr1) didn't expand; words KeyFish learned while Settings was open were lost on Save; letters typed very fast right after a correction could lose Shift; in VS Code and Visual Studio, Pause with nothing selected added a converted copy of the whole line
+• KeyFish starts even from a read-only folder such as Program Files: its files then go to %APPDATA%\KeyFish
+• Each release comes with a signed build attestation (see the README)
 
 1.8.3
 • New About window: version, statistics and a link to the project; the list of changes now opens from a separate What's new button

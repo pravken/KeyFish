@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write       # for the build attestation below
+  attestations: write
 
 jobs:
   release:
@@ -34,6 +36,12 @@ jobs:
           $hash = (Get-FileHash KeyFish.exe -Algorithm SHA256).Hash.ToLowerInvariant()
           Set-Content -Path KeyFish.exe.sha256 -Value "$hash  KeyFish.exe" -NoNewline -Encoding ascii
           Write-Host "SHA-256: $hash"
+
+      # A signed record that this exact KeyFish.exe was built here from this commit. Anyone can check it:
+      # gh attestation verify KeyFish.exe --repo pravken/KeyFish
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: KeyFish.exe
 
       - name: Release notes from the changelogs
         shell: pwsh

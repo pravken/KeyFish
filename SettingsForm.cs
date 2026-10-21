@@ -283,16 +283,17 @@ class SettingsForm : Form
         holder.Controls.Add(grid);
         page.Controls.Add(holder);
 
-        foreach (var kv in ParseReplacements(Replacements)) grid.Rows.Add(kv.Key, Show(kv.Value));
         // The table shows line breaks as ⏎; the real text is kept in the row's Tag
-        for (int i = 0; i < grid.Rows.Count; i++) grid.Rows[i].Tag = ParseReplacements(Replacements)[(string)grid.Rows[i].Cells[0].Value];
+        foreach (var kv in ParseReplacements(Replacements)) grid.Rows[grid.Rows.Add(kv.Key, Show(kv.Value))].Tag = kv.Value;
 
         Func<DataGridViewRow> find = () => grid.Rows.Cast<DataGridViewRow>()
             .FirstOrDefault(r => string.Equals((string)r.Cells[0].Value, key.Text.Trim(), StringComparison.OrdinalIgnoreCase));
         Action refresh = () =>
         {
             add.Text = find() != null ? L.T("Сохранить", "Save") : L.T("Добавить", "Add");
-            add.Enabled = key.Text.Trim().Length > 0 && key.Text.Trim().IndexOf(' ') < 0 && key.Text.IndexOf('=') < 0 && val.Text.Trim().Length > 0;
+            // No spaces or "=" in an abbreviation, and no "#" at its start: the file would read it as a comment
+            string k = key.Text.Trim();
+            add.Enabled = k.Length > 0 && k.IndexOf(' ') < 0 && k.IndexOf('=') < 0 && !k.StartsWith("#") && val.Text.Trim().Length > 0;
             del.Enabled = grid.SelectedRows.Count > 0;
         };
         key.TextChanged += (s, e) => refresh();
@@ -328,17 +329,11 @@ class SettingsForm : Form
 
     static string Show(string value) { return value.Replace("\t", " ").Replace("\n", " ⏎ "); }
 
-    // Same format KeyboardWatcher reads: "abbreviation = text", \n and \t inside the text, # starts a comment
+    // Same format KeyboardWatcher reads, see ReplacementFile
     static Dictionary<string, string> ParseReplacements(string text)
     {
         var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (string s in Lines(text))
-        {
-            int eq = s.IndexOf('=');
-            if (eq <= 0) continue;
-            string k = s.Substring(0, eq).Trim(), v = s.Substring(eq + 1).Trim().Replace("\\n", "\n").Replace("\\t", "\t");
-            if (k.Length > 0 && k.IndexOf(' ') < 0 && v.Length > 0) map[k] = v;
-        }
+        foreach (var kv in ReplacementFile.Parse(text)) map[kv.Key] = kv.Value;
         return map;
     }
 
@@ -579,7 +574,7 @@ class SettingsForm : Form
         var sb = new StringBuilder(L.T("# Автозамены KeyFish: сокращение = замена (\\n — перенос строки). Удобнее править в настройках.\r\n",
                                        "# KeyFish replacements: abbreviation = text (\\n is a line break). Easier to edit in Settings.\r\n"));
         foreach (DataGridViewRow r in gridReplacements.Rows)
-            sb.Append((string)r.Cells[0].Value).Append(" = ").Append(((string)r.Tag).Replace("\t", "\\t").Replace("\n", "\\n")).Append("\r\n");
+            sb.Append((string)r.Cells[0].Value).Append(" = ").Append(ReplacementFile.Escape((string)r.Tag)).Append("\r\n");
         Replacements = sb.ToString();
 
         var ex = new StringBuilder(L.T("# Программы, где автоисправление выключено (имя процесса). Удобнее править в настройках.\r\n",

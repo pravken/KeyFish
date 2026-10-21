@@ -59,8 +59,57 @@ class App : ApplicationContext
                        "# Apps where auto-correction is off.\r\n" +
                        "# One process name per line, as in Task Manager (.exe is optional).\r\n") +
                    "Code\r\ndevenv\r\ncmd\r\npowershell\r\npwsh\r\nWindowsTerminal\r\nidea64\r\npycharm64\r\nrider64\r\n" +
-                   "KeePass\r\nKeePassXC\r\n1Password\r\nmstsc\r\n";
+                   "KeePass\r\nKeePassXC\r\n1Password\r\nmstsc\r\n" + string.Join("\r\n", AddedExclusions) + "\r\n";
         }
+    }
+
+    // Added in 2.0: terminals and SSH clients, where a password prompt is invisible to the password check;
+    // virtual machines and remote desktops, which type with the layout of the other computer; password managers.
+    // Existing exclusion lists get them once (see AddNewExclusions)
+    static readonly string[] AddedExclusions =
+    {
+        "conhost", "OpenConsole", "wsl", "ssh", "putty", "kitty", "mintty", "wezterm-gui", "alacritty", "MobaXterm", "Termius",
+        "Tabby", "Hyper", "vmware", "vmplayer", "VirtualBoxVM", "vmconnect", "AnyDesk", "TeamViewer", "rustdesk", "parsecd",
+        "Bitwarden", "Enpass"
+    };
+    const int ExclusionsVersion = 2;
+
+    // Adds the new default exclusions to an older list, once: if the user removes one later, it stays removed
+    void AddNewExclusions()
+    {
+        if (GetSetting("ExclusionsVersion", 1) >= ExclusionsVersion) return;
+        try
+        {
+            var have = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string line in File.ReadAllLines(exclusionsPath, Encoding.UTF8))
+            {
+                string s = line.Trim();
+                if (s.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) s = s.Substring(0, s.Length - 4);
+                have.Add(s);
+            }
+            var add = new StringBuilder();
+            foreach (string name in AddedExclusions) if (!have.Contains(name)) add.Append(name).Append("\r\n");
+            string text = File.ReadAllText(exclusionsPath, Encoding.UTF8);
+            if (add.Length > 0) File.WriteAllText(exclusionsPath, text + (text.Length == 0 || text.EndsWith("\n") ? "" : "\r\n") + add, Encoding.UTF8);
+            SetSetting("ExclusionsVersion", ExclusionsVersion);
+        }
+        catch { }
+    }
+
+    // Settings files live next to the exe, so KeyFish stays portable. If that folder is read-only
+    // (Program Files, say), they go to %APPDATA%\KeyFish instead of KeyFish failing to start
+    static string DataDir()
+    {
+        string exeDir = Path.GetDirectoryName(Application.ExecutablePath);
+        try
+        {
+            using (new FileStream(Path.Combine(exeDir, "~keyfish-write-test.tmp"), FileMode.Create, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose)) { }
+            return exeDir;
+        }
+        catch { }
+        string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "KeyFish");
+        try { Directory.CreateDirectory(dir); } catch { }
+        return dir;
     }
 
     static string DefaultReplacements
@@ -99,11 +148,8 @@ class App : ApplicationContext
     void ApplyAppLayout(IntPtr hwnd, uint pid)
     {
         if (appLayouts.Count == 0) return;
-        string name;
-        try { using (var p = Process.GetProcessById((int)pid)) name = p.ProcessName; }
-        catch { return; }
         long hkl;
-        if (!appLayouts.TryGetValue(name, out hkl)) return;
+        if (!appLayouts.TryGetValue(W.ProcessName(hwnd), out hkl)) return;
         var target = new IntPtr(hkl);
         if (W.LayoutHkl(hwnd) == target || watcher.Layouts.Get(target) == null) return;
         W.SwitchLayout(hwnd, target);
@@ -180,7 +226,9 @@ class App : ApplicationContext
 
         int total = statsBase + watcher.CorrectionCount;
         int since = GetSetting("StatsSince", 0);
-        string sinceText = since > 0 ? new DateTime(since / 10000, since / 100 % 100, since % 100).ToString("d", L.Culture) : "";
+        string sinceText = "";
+        try { if (since > 0) sinceText = new DateTime(since / 10000, since / 100 % 100, since % 100).ToString("d", L.Culture); }
+        catch { since = 0; }
         string count = total.ToString("N0", L.Culture);
         string stats;
         if (L.Ru) stats = "Рыбка поймала " + count + " " + Plural(total, "ошибку", "ошибки", "ошибок") + (since > 0 ? " с " + sinceText : "");
@@ -195,10 +243,15 @@ class App : ApplicationContext
 
     AboutForm aboutForm;
 
+    // A value broken in regedit (text instead of a number) reads as the default instead of stopping KeyFish
     static int GetSetting(string name, int def)
     {
-        using (var k = Registry.CurrentUser.OpenSubKey(SettingsKey))
-            return k == null ? def : Convert.ToInt32(k.GetValue(name, def));
+        try
+        {
+            using (var k = Registry.CurrentUser.OpenSubKey(SettingsKey))
+                return k == null ? def : Convert.ToInt32(k.GetValue(name, def));
+        }
+        catch { return def; }
     }
 
     static void SetSetting(string name, int value)
@@ -313,14 +366,23 @@ class App : ApplicationContext
         L.Setting = GetSetting("Language", 0);
         statsBase = GetSetting("StatsTotal", 0);
         if (GetSetting("StatsSince", 0) == 0) SetSetting("StatsSince", int.Parse(DateTime.Today.ToString("yyyyMMdd")));
-        string dir = Path.GetDirectoryName(Application.ExecutablePath);
+        string dir = DataDir();
         exclusionsPath = Path.Combine(dir, "exclusions.txt");
         ignoredPath = Path.Combine(dir, "ignored-words.txt");
         learnedPath = Path.Combine(dir, "learned-words.txt");
         replacementsPath = Path.Combine(dir, "replacements.txt");
         appLayoutsPath = Path.Combine(dir, "app-layouts.txt");
-        if (!File.Exists(exclusionsPath)) File.WriteAllText(exclusionsPath, DefaultExclusions, Encoding.UTF8);
-        if (!File.Exists(replacementsPath)) File.WriteAllText(replacementsPath, DefaultReplacements, Encoding.UTF8);
+        try
+        {
+            if (!File.Exists(exclusionsPath))
+            {
+                File.WriteAllText(exclusionsPath, DefaultExclusions, Encoding.UTF8);
+                SetSetting("ExclusionsVersion", ExclusionsVersion);
+            }
+            else AddNewExclusions();
+            if (!File.Exists(replacementsPath)) File.WriteAllText(replacementsPath, DefaultReplacements, Encoding.UTF8);
+        }
+        catch { }
 
         watcher = new KeyboardWatcher(exclusionsPath, ignoredPath, replacementsPath, learnedPath)
         {
@@ -451,6 +513,8 @@ class App : ApplicationContext
     void OpenSettings()
     {
         if (settingsForm != null) { settingsForm.Activate(); return; }
+        FileQueue.Flush(2000);   // words KeyFish has just learned reach the files before Settings reads them
+        string ignoredBefore = ReadText(ignoredPath), learnedBefore = ReadText(learnedPath);
 
         var keys = new Keys[HotkeyDefaults.Length];
         for (int i = 0; i < keys.Length; i++) keys[i] = GetHotkey(i);
@@ -458,7 +522,7 @@ class App : ApplicationContext
         {
             AutoCorrect = watcher.Enabled, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
             CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting,
-            Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ReadText(ignoredPath), Learned = ReadText(learnedPath),
+            Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ignoredBefore, Learned = learnedBefore,
             AppLayouts = ReadText(appLayoutsPath), InstalledLayouts = new List<LayoutTable>(watcher.Layouts.All), Logo = FishLogo.Render(72)
         };
         settingsForm.Icon = iconEn;
@@ -480,8 +544,10 @@ class App : ApplicationContext
                 for (int i = 0; i < f.Hotkeys.Length; i++) SetSetting("Hotkey" + (i + 1), (int)f.Hotkeys[i]);
                 File.WriteAllText(replacementsPath, f.Replacements, Encoding.UTF8);
                 File.WriteAllText(exclusionsPath, f.Exclusions, Encoding.UTF8);
-                File.WriteAllText(ignoredPath, f.Ignored, Encoding.UTF8);
-                File.WriteAllText(learnedPath, f.Learned, Encoding.UTF8);
+                // KeyFish keeps learning while the window is open: keep those changes along with the user's edits
+                FileQueue.Flush(2000);
+                File.WriteAllText(ignoredPath, MergeWords(f.Ignored, ignoredBefore, ReadText(ignoredPath)), Encoding.UTF8);
+                File.WriteAllText(learnedPath, MergeWords(f.Learned, learnedBefore, ReadText(learnedPath)), Encoding.UTF8);
                 File.WriteAllText(appLayoutsPath, f.AppLayouts, Encoding.UTF8);
                 LoadAppLayouts();
                 if (f.Language != L.Setting)
@@ -496,11 +562,38 @@ class App : ApplicationContext
         }
         finally
         {
+            if (settingsForm.Logo != null) settingsForm.Logo.Dispose();
             settingsForm.Dispose();
             settingsForm = null;
             WarnHotkeys(RegisterHotkeys());
         }
     }
+
+    // A word list as the user edited it in Settings, plus the words KeyFish added to the file meanwhile,
+    // minus the ones it removed meanwhile (a word moved between "Never correct" and "Always correct")
+    static string MergeWords(string edited, string before, string now)
+    {
+        var was = WordSet(before);
+        var isNow = WordSet(now);
+        var result = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string w in Words(edited))
+            if (!(was.Contains(w) && !isNow.Contains(w)) && seen.Add(w)) result.Add(w);
+        foreach (string w in Words(now))
+            if (!was.Contains(w) && seen.Add(w)) result.Add(w);
+        return result.Count == 0 ? "" : string.Join("\r\n", result) + "\r\n";
+    }
+
+    static IEnumerable<string> Words(string text)
+    {
+        foreach (string line in (text ?? "").Split('\n'))
+        {
+            string s = line.Trim();
+            if (s.Length > 0 && !s.StartsWith("#")) yield return s;
+        }
+    }
+
+    static HashSet<string> WordSet(string text) { return new HashSet<string>(Words(text), StringComparer.OrdinalIgnoreCase); }
 
     void OnHotkey(int id)
     {
@@ -553,7 +646,8 @@ class App : ApplicationContext
             if (Paste(result))
             {
                 // Select the pasted text again so the next press continues the cycle
-                int caretSteps = result.Length - CountOf(result, "\r\n");
+                // One caret step per character: an emoji is two UTF-16 units, a line break two characters
+                int caretSteps = new System.Globalization.StringInfo(result).LengthInTextElements - CountOf(result, "\r\n");
                 if (caretSteps <= 5000) Native.SelectLeft(caretSteps);
                 Pump(50);
             }
@@ -628,7 +722,7 @@ class App : ApplicationContext
                 for (int attempt = 0; attempt < 10; attempt++)
                 {
                     Pump(20);
-                    try { return Clipboard.ContainsText() ? Clipboard.GetText() : null; }
+                    try { return Clipboard.ContainsText() && !IsLineCopy() ? Clipboard.GetText() : null; }
                     catch { }
                 }
                 return null;
@@ -637,14 +731,48 @@ class App : ApplicationContext
         return null;
     }
 
+    // With nothing selected, Ctrl+C in VS Code and Visual Studio copies the whole line. That isn't a selection:
+    // converting and pasting it would add a converted copy of the line, so the last word is taken instead
+    static bool IsLineCopy()
+    {
+        var data = Clipboard.GetDataObject();
+        if (data == null) return false;
+        foreach (string f in data.GetFormats(false))
+        {
+            if (f == "VisualStudioEditorOperationsLineCutCopyClipboardTag" || f == "MSDEVLineSelect") return true;
+            if (f.IndexOf("vscode-editor-data", StringComparison.OrdinalIgnoreCase) < 0 && f != "Chromium Web Custom MIME Data Format") continue;
+            try
+            {
+                object raw = data.GetData(f, false);
+                var stream = raw as MemoryStream;
+                string s = raw as string ?? (stream == null ? "" : Encoding.UTF8.GetString(stream.ToArray()) + Encoding.Unicode.GetString(stream.ToArray()));
+                if (s.Replace(" ", "").IndexOf("\"isFromEmptySelection\":true", StringComparison.Ordinal) >= 0) return true;
+            }
+            catch { }
+        }
+        return false;
+    }
+
     static bool SetClipboardText(string text)
     {
+        var data = new DataObject();
+        data.SetData(DataFormats.UnicodeText, text);
         for (int i = 0; i < 5; i++)
         {
-            try { Clipboard.SetText(text); return true; }
+            try { Clipboard.SetDataObject(Private(data), true); return true; }
             catch { Pump(30); }
         }
         return false;
+    }
+
+    // KeyFish puts text on the clipboard only for a moment: keep it out of clipboard history (Win+V)
+    // and cloud clipboard sync, the way password managers do
+    static IDataObject Private(IDataObject data)
+    {
+        data.SetData("ExcludeClipboardContentFromMonitorProcessing", new MemoryStream(new byte[4]));
+        data.SetData("CanIncludeInClipboardHistory", new MemoryStream(new byte[4]));
+        data.SetData("CanUploadToCloudClipboard", new MemoryStream(new byte[4]));
+        return data;
     }
 
     static IDataObject SaveClipboard()
@@ -671,7 +799,7 @@ class App : ApplicationContext
             try
             {
                 if (saved == null || saved.GetFormats().Length == 0) Clipboard.Clear();
-                else Clipboard.SetDataObject(saved, true);
+                else Clipboard.SetDataObject(Private(saved), true);   // already in the history from the user's own copy
                 return;
             }
             catch { Pump(30); }
@@ -726,6 +854,7 @@ class App : ApplicationContext
     protected override void ExitThreadCore()
     {
         SaveStats();
+        FileQueue.Flush(2000);
         tray.Visible = false;
         hotkeys.UnregisterAll();
         base.ExitThreadCore();

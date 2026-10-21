@@ -140,6 +140,7 @@ class ChangelogForm : Form
         Theme.DarkScrollbars(box);
         // A line that is just "1.8.2" becomes a "Version 1.8.2" heading; versions are already separated by blank lines
         var heading = new Font("Segoe UI Semibold", 12f);
+        FormClosed += (s, e) => heading.Dispose();
         foreach (string line in changelog.Replace("\r\n", "\n").Trim().Split('\n'))
         {
             bool isHeading = Regex.IsMatch(line, @"^\d+\.\d+\.\d+$");

@@ -334,6 +334,8 @@ public class LayoutSet
     {
         LayoutTable t;
         if (tables.TryGetValue(hkl.ToInt64(), out t)) return t;
+        // One that couldn't be read isn't tried again on every keystroke, only after the layout list changes
+        if (unreadable.ContainsKey(hkl.ToInt64())) return null;
         // A layout we haven't seen yet (just added): read it now, it takes a moment
         try
         {
@@ -343,9 +345,11 @@ public class LayoutSet
             tables = copy;
             LoadModels(new[] { t });
         }
-        catch { t = null; }
+        catch { t = null; unreadable[hkl.ToInt64()] = 0; }
         return t;
     }
+
+    readonly System.Collections.Concurrent.ConcurrentDictionary<long, byte> unreadable = new System.Collections.Concurrent.ConcurrentDictionary<long, byte>();
 
     public ICollection<LayoutTable> All { get { return tables.Values; } }
 
@@ -355,6 +359,7 @@ public class LayoutSet
         string sig = string.Join(",", Array.ConvertAll(hkls, h => h.ToInt64().ToString("X")));
         if (sig == signature) return;
         signature = sig;
+        unreadable.Clear();
         var fresh = new Dictionary<long, LayoutTable>();
         foreach (var h in hkls)
         {

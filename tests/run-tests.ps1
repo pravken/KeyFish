@@ -16,7 +16,7 @@ $files = 'replacements.txt', 'ignored-words.txt', 'learned-words.txt', 'app-layo
 $backup = @{}; foreach ($f in $files) { $p = Join-Path $root $f; $backup[$f] = if (Test-Path $p) { [IO.File]::ReadAllBytes($p) } else { $null } }
 $regNames = 'Typos', 'StatsTotal', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect'
 $regBackup = @{}; foreach ($n in $regNames) { $regBackup[$n] = (Get-ItemProperty $key -Name $n -ErrorAction SilentlyContinue).$n }
-[IO.File]::WriteAllText((Join-Path $root 'replacements.txt'), "спс = спасибо`r`nсув = С уважением,\nТест`r`n", (New-Object Text.UTF8Encoding $false))
+[IO.File]::WriteAllText((Join-Path $root 'replacements.txt'), "спс = спасибо`r`nсув = С уважением,\nТест`r`nln2 = C:\\new`r`n", (New-Object Text.UTF8Encoding $false))
 foreach ($f in 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt') { $p = Join-Path $root $f; if (Test-Path $p) { Remove-Item $p } }
 if (-not (Test-Path $key)) { New-Item $key | Out-Null }
 foreach ($n in 'Typos', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect') { Set-ItemProperty $key -Name $n -Value 1 -Type DWord }
@@ -34,6 +34,7 @@ $tests = @(
   @('replacement',            'hello ~~cgc ~~~~',                         'hello спасибо ', ''),
   @('replacement capital',    'hello ~~^cgc ~~~~',                        'hello Спасибо ', ''),
   @('replacement two lines',  'hello ~~ced ~~~~',                         "hello С уважением,`r`nТест ", ''),
+  @('replacement digit, \',   'hello ~~ln2 ~~~~',                         'hello C:\new ', ''),
   @('typos',                  'hello ~~recieve ~~adress ~~~~',            'hello receive address ', ''),
   @('transliteration',        "hello ~~privet~~^|$w",                     'hello привет', ''),
   @('learn from Pause',       "hello ~~ye~~|$w",                          'hello ну', ''),
