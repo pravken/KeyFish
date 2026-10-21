@@ -9,3 +9,6 @@ learned-words.txt
 
 # Test outputs
 tests/bin/
+
+# Compressed word lists made by build.bat
+obj/

@@ -229,6 +229,9 @@ public static class Detector
                          + (i == preferred ? 1 : 0);
             if (score > bestScore) { bestScore = score; best = i; }
         }
+        // Layouts of related languages type most words the same (Russian and Belarusian "добрая"): such a word
+        // says nothing about the language, so stay with the layout the user was typing in
+        if (best >= 0 && preferred >= 0 && preferred != best && alts[preferred] == alts[best]) return preferred;
         return best;
     }
 }

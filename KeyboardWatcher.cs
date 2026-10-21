@@ -11,10 +11,11 @@ using System.Windows.Forms;
 // Watches typing and fixes words typed in the wrong layout or with wrong case
 class KeyboardWatcher
 {
+    // A physical key press: the scan code identifies the key itself, whatever the layout
     struct KeyStroke
     {
-        public int Vk; public bool Shift, Caps;
-        public KeyStroke(int vk, bool shift, bool caps) { Vk = vk; Shift = shift; Caps = caps; }
+        public int Scan; public bool Shift, Caps, AltGr;
+        public KeyStroke(int scan, bool shift, bool caps, bool altGr) { Scan = scan; Shift = shift; Caps = caps; AltGr = altGr; }
     }
 
     class Correction
@@ -24,7 +25,7 @@ class KeyboardWatcher
         public int LastWordLength;           // length of the last corrected word on screen
         public int Backspaced;               // how many Backspaces were pressed right after the correction
         public int TerminatorVk;
-        public bool OriginalRu;
+        public IntPtr OriginalLayout;        // the layout the user typed in, restored on undo
         public IntPtr Hwnd;
     }
 
@@ -33,7 +34,7 @@ class KeyboardWatcher
     {
         public List<KeyStroke> Keys;
         public string Shown;                 // how the word looks on screen now
-        public bool TypedRu;
+        public LayoutTable Layout;           // the layout it was typed in
         public bool Changed;                 // KeyFish has already changed it
         public int TerminatorVk;
     }
@@ -44,7 +45,7 @@ class KeyboardWatcher
         public string Text;
         public int TerminatorVk;
         public bool ToggleCaps;
-        public string Layout;
+        public IntPtr Layout;                // not zero: switch the window to this layout afterwards
         public IntPtr Hwnd;
         public WordRec TypoRec;              // not null: check the word for a typo (the space is already typed)
         public bool ReleaseCtrl;             // lift the held Ctrl while typing (undo via Ctrl+Z)
@@ -70,27 +71,42 @@ class KeyboardWatcher
         {
             fixTypos = value;
             // Load the dictionaries up front so the first word doesn't wait
-            if (value) ThreadPool.QueueUserWorkItem(_ => { try { CheckTypo("проверка", true); } catch { } });
+            if (value) ThreadPool.QueueUserWorkItem(_ => { try { CheckTypo("проверка", "ru"); } catch { } });
         }
     }
 
-    string CheckTypo(string word, bool ru)
+    // Windows spell checker language for each language model
+    static readonly Dictionary<string, string> SpellTags = new Dictionary<string, string>
     {
+        { "en", "en-US" }, { "ru", "ru-RU" }, { "uk", "uk-UA" }, { "be", "be-BY" }, { "de", "de-DE" }, { "pl", "pl-PL" },
+        { "sr-latn", "sr-Latn-RS" }, { "sr-cyrl", "sr-Cyrl-RS" }
+    };
+
+    string CheckTypo(string word, string lang)
+    {
+        string tag;
+        if (lang == null || !SpellTags.TryGetValue(lang, out tag)) return null;
         lock (spellSync)
         {
             if (spell == null) spell = new SpellService();
-            var model = ru ? Detector.Ru : Detector.En;
-            return spell.Fix(word, ru ? "ru-RU" : "en-US", w => model == null ? 0 : model.Count(w));
+            var model = Detector.Loaded(lang);
+            return spell.Fix(word, tag, w => model == null ? 0 : model.Count(w));
         }
     }
-    public bool Ready { get { return Detector.Ru != null; } }
+
+    // The installed keyboard layouts and what each key types in them
+    public readonly LayoutSet Layouts = new LayoutSet();
+    public bool Ready { get { return true; } }
+
+    // The layout of each alphabet the user typed in last (true — Cyrillic): breaks ties such as Russian vs Ukrainian
+    readonly Dictionary<bool, IntPtr> lastLayoutByScript = new Dictionary<bool, IntPtr>();
 
     readonly object sync = new object();
     readonly List<KeyStroke> word = new List<KeyStroke>();
     bool partial;                        // the word didn't start at a word start (Backspace went into earlier text)
     readonly List<WordRec> history = new List<WordRec>();
     IntPtr wordHwnd;
-    bool? context;                       // language of the previous word: true — Russian
+    string context;                      // language of the previous word, or null if unknown
     Correction last;                     // the last correction; Pause can undo it
     readonly WordList ignored;           // words whose correction was undone or erased
     readonly WordList learned;           // words the user fixed manually with Pause
@@ -120,7 +136,6 @@ class KeyboardWatcher
         keyboardProc = KeyboardHook;
         mouseProc = MouseHook;
 
-        new Thread(() => Detector.LoadEmbedded()) { IsBackground = true }.Start();
         try { guard = new PasswordGuardClient(); } catch { }
         new Thread(Worker) { IsBackground = true }.Start();
         new Thread(() =>
@@ -158,7 +173,7 @@ class KeyboardWatcher
             if (down && k.dwExtraInfo != W.Marker)
             {
                 bool swallow;
-                try { swallow = OnKey((int)k.vkCode); }
+                try { swallow = OnKey((int)k.vkCode, (int)k.scanCode); }
                 catch { swallow = false; }
                 if (swallow) return (IntPtr)1;
             }
@@ -173,7 +188,7 @@ class KeyboardWatcher
 
     static bool Down(int vk) { return (W.GetAsyncKeyState(vk) & 0x8000) != 0; }
 
-    bool OnKey(int vk)
+    bool OnKey(int vk, int scan)
     {
         lock (sync)
         {
@@ -221,9 +236,18 @@ class KeyboardWatcher
             }
             last = null;
 
-            if (ctrl || Down(0x12) || Down(0x5B) || Down(0x5C)) { ResetAll(); return false; }
-
             IntPtr hwnd = W.GetForegroundWindow();
+            IntPtr hkl = W.LayoutHkl(hwnd);
+            var layout = Layouts.Get(hkl);
+            // Input injected without a scan code (some tools, our tests): work it out from the virtual key
+            if (scan == 0) scan = (int)W.MapVirtualKeyEx((uint)vk, 0, hkl);
+            bool shift = Down(0x10), caps = (W.GetKeyState(0x14) & 1) != 0;
+
+            // AltGr (right Alt, which Windows reports as Ctrl+Alt) types letters in many layouts: Polish ą, ł, ę…
+            bool altGr = Down(0xA5) || (ctrl && Down(0x12));
+            bool typesChar = layout != null && LayoutTable.IsTypingKey(scan) && layout.CharFor(scan, shift, caps, altGr) != '\0';
+            if (!(altGr && typesChar) && (ctrl || Down(0x12) || Down(0x5B) || Down(0x5C))) { ResetAll(); return false; }
+
             if (hwnd != wordHwnd) { ResetAll(); wordHwnd = hwnd; context = null; }
 
             if (vk == 0x08)
@@ -233,10 +257,10 @@ class KeyboardWatcher
                 return false;
             }
 
-            if (KeyMap.IsCharKey(vk))
+            if (typesChar)
             {
                 if (word.Count == 0) wordStartedAt = Environment.TickCount;
-                if (word.Count < 40) word.Add(new KeyStroke(vk, Down(0x10), (W.GetKeyState(0x14) & 1) != 0));
+                if (word.Count < 40) word.Add(new KeyStroke(scan, shift, caps, altGr));
                 RequestFocusCheck();
                 return false;
             }
@@ -302,13 +326,71 @@ class KeyboardWatcher
     }
 
     // The user fixed a word with Pause, so it gets corrected automatically next time
-    public void Learn(string typed, string result, bool resultRu)
+    // Selected text retyped in the layout of the other alphabet: the same keys, as if pressed there.
+    // Among several layouts of that alphabet, the one whose dictionary knows most of the words wins,
+    // ties go to the one used last. Returns null if no installed layout fits
+    public string ConvertText(string text, IntPtr hwnd, out LayoutTable target)
+    {
+        target = null;
+        int lat = 0, cyr = 0;
+        foreach (char ch in text)
+        {
+            if (!char.IsLetter(ch)) continue;
+            if (ch >= 'Ѐ' && ch <= 'ӿ') cyr++; else lat++;
+        }
+        bool fromCyrillic = cyr > lat;
+
+        IntPtr lastSame, lastOther;
+        lock (sync)
+        {
+            lastLayoutByScript.TryGetValue(fromCyrillic, out lastSame);
+            lastLayoutByScript.TryGetValue(!fromCyrillic, out lastOther);
+        }
+        // The text was typed in the window's layout if that has the right alphabet, otherwise in the one used last
+        LayoutTable source = Layouts.Get(W.LayoutHkl(hwnd));
+        if (source == null || source.Cyrillic != fromCyrillic)
+        {
+            source = null;
+            foreach (var t in Layouts.All)
+                if (t.Cyrillic == fromCyrillic && (source == null || t.Hkl == lastSame)) source = t;
+        }
+        if (source == null) return null;
+
+        string best = null;
+        double bestScore = double.MinValue;
+        foreach (var t in Layouts.All)
+        {
+            if (t.Cyrillic == fromCyrillic) continue;
+            var sb = new StringBuilder(text.Length);
+            foreach (char ch in text)
+            {
+                int scan; bool shift, altGr;
+                char r = source.Find(ch, out scan, out shift, out altGr) ? t.CharFor(scan, shift, false, altGr) : '\0';
+                sb.Append(r == '\0' ? ch : r);
+            }
+            string s = sb.ToString();
+            double score = t.Hkl == lastOther ? 0.5 : 0;
+            var model = Detector.Loaded(t.Lang);
+            if (model != null)
+                foreach (string w in s.Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    string core = Detector.Core(w);
+                    if (!string.IsNullOrEmpty(core) && model.Count(core) > 0) score++;
+                }
+            if (score > bestScore) { bestScore = score; best = s; target = t; }
+        }
+        if (target != null) lock (sync) lastLayoutByScript[target.Cyrillic] = target.Hkl;
+        return best;
+    }
+
+    public void Learn(string typed, string result, string resultLang)
     {
         string w = typed.Trim();
-        if (w.Length == 0 || w.IndexOfAny(new[] { ' ', '\t', '\r', '\n' }) >= 0 || w.Length > 40 || !Ready) return;
+        if (w.Length == 0 || w.IndexOfAny(new[] { ' ', '\t', '\r', '\n' }) >= 0 || w.Length > 40) return;
         // Learn only when the result is a real word: converting a correct word by accident teaches nothing
         string core = Detector.Core(result.Trim());
-        if (string.IsNullOrEmpty(core) || (resultRu ? Detector.Ru : Detector.En).Count(core) == 0) return;
+        var model = Detector.Loaded(resultLang);
+        if (string.IsNullOrEmpty(core) || model == null || model.Count(core) == 0) return;
         lock (sync)
         {
             learned.Add(w);
@@ -322,8 +404,9 @@ class KeyboardWatcher
         var c = last;
         last = null;
         foreach (string w in c.OriginalWords) AddIgnored(w);
-        W.SwitchLayout(c.Hwnd, c.OriginalRu ? "00000419" : "00000409");
-        context = c.OriginalRu;
+        W.SwitchLayout(c.Hwnd, c.OriginalLayout);
+        var original = Layouts.Get(c.OriginalLayout);
+        context = original == null ? null : original.Lang;
     }
 
     void PushHistory(WordRec rec)
@@ -333,10 +416,10 @@ class KeyboardWatcher
     }
 
     // A confidently corrected word: long enough and in the dictionary
-    static bool IsStrong(string text, bool ru)
+    static bool IsStrong(string text, LangModel model)
     {
         string core = Detector.Core(text);
-        return core != null && core.Length >= 3 && (ru ? Detector.Ru : Detector.En).Count(core) > 0;
+        return core != null && core.Length >= 3 && model != null && model.Count(core) > 0;
     }
 
     bool OnWordEnd(int terminatorVk, IntPtr hwnd)
@@ -347,62 +430,93 @@ class KeyboardWatcher
         if (wasPartial || word.Count >= 40 || passwordFocused || !FocusVerified || IsOwnWindow(hwnd) || IsExcluded(hwnd) || IsPasswordField(hwnd) ||
             (QuietFullscreen && IsFullscreen(hwnd))) { history.Clear(); return false; }
 
-        int lang = W.LayoutLanguage(hwnd);
-        if (lang != 0x19 && lang != 0x09) { history.Clear(); return false; }
-        bool typedRu = lang == 0x19;
+        var current = Layouts.Get(W.LayoutHkl(hwnd));
+        var T = current == null ? null : Detector.Loaded(current.Lang);
+        if (T == null) { history.Clear(); return false; }   // a layout KeyFish has no language model for
 
-        string typed = Build(word, typedRu), alt = Build(word, !typedRu);
+        string typed = Build(word, current);
         foreach (char c in typed)
             if (char.IsDigit(c) || c == '@' || c == '_') { history.Clear(); return false; }
 
-        var rec = new WordRec { Keys = new List<KeyStroke>(word), Shown = typed, TypedRu = typedRu, TerminatorVk = terminatorVk };
+        // The same keys in every installed layout of the other alphabet
+        var others = new List<LayoutTable>();
+        var alts = new List<string>();
+        var altModels = new List<LangModel>();
+        int preferred = -1;
+        IntPtr lastOther;
+        lastLayoutByScript.TryGetValue(!current.Cyrillic, out lastOther);
+        foreach (var t in Layouts.All)
+        {
+            if (t.Cyrillic == current.Cyrillic) continue;
+            var m = Detector.Loaded(t.Lang);
+            if (m == null) continue;
+            if (t.Hkl == lastOther) preferred = others.Count;
+            others.Add(t);
+            alts.Add(Build(word, t));
+            altModels.Add(m);
+        }
 
-        // Replacement: an abbreviation from replacements.txt, typed in either layout
-        bool viaAlt = false;
+        var rec = new WordRec { Keys = new List<KeyStroke>(word), Shown = typed, Layout = current, TerminatorVk = terminatorVk };
+
+        // Replacement: an abbreviation from replacements.txt, typed in any layout
+        LayoutTable via = null;
         string expansion = FindReplacement(typed);
-        if (expansion == null) { expansion = FindReplacement(alt); viaAlt = expansion != null; }
+        for (int i = 0; expansion == null && i < others.Count; i++)
+        {
+            expansion = FindReplacement(alts[i]);
+            if (expansion != null) via = others[i];
+        }
         if (expansion != null)
         {
             rec.Shown = expansion;
             rec.Changed = true;
             PushHistory(rec);
-            if (viaAlt) context = !typedRu;
+            if (via != null) { context = via.Lang; lastLayoutByScript[via.Cyrillic] = via.Hkl; }
             last = new Correction
             {
                 Original = typed, Replaced = expansion, OriginalWords = new List<string>(),
-                LastWordLength = expansion.Length, TerminatorVk = terminatorVk, OriginalRu = typedRu, Hwnd = hwnd
+                LastWordLength = expansion.Length, TerminatorVk = terminatorVk, OriginalLayout = current.Hkl, Hwnd = hwnd
             };
             pending = true;
             Interlocked.Increment(ref expansionCount);
             jobs.Add(new Job
             {
                 Backspaces = word.Count, Text = expansion, TerminatorVk = terminatorVk,
-                Layout = viaAlt ? (typedRu ? "00000409" : "00000419") : null, Hwnd = hwnd
+                Layout = via != null ? via.Hkl : IntPtr.Zero, Hwnd = hwnd
             });
             return true;
         }
 
-        bool convert = !IsIgnored(typed) && (learned.Contains(typed) || Detector.ShouldConvert(typed, alt, typedRu, context));
-        string result = convert ? alt : typed;
-        bool resultRu = convert ? !typedRu : typedRu;
+        // Which layout did the user mean? A word they taught KeyFish goes to their usual other layout
+        int chosen = -1;
+        if (!IsIgnored(typed) && others.Count > 0)
+            chosen = learned.Contains(typed) ? (preferred >= 0 ? preferred : 0)
+                                             : Detector.Choose(typed, T, alts, altModels, context, preferred);
+        bool convert = chosen >= 0;
+        var target = convert ? others[chosen] : current;
+        var targetModel = convert ? altModels[chosen] : T;
+        string result = convert ? alts[chosen] : typed;
 
         bool capsMistake;
         string fixedCase = FixCase(result, out capsMistake);
         if (!convert && IsIgnored(fixedCase)) fixedCase = result;
 
         string core = Detector.Core(result);
-        if (convert || (!string.IsNullOrEmpty(core) && (resultRu ? Detector.Ru : Detector.En).Count(core) > 0))
-            context = resultRu;
+        if (convert || (!string.IsNullOrEmpty(core) && targetModel.Count(core) > 0))
+        {
+            context = target.Lang;
+            lastLayoutByScript[target.Cyrillic] = target.Hkl;
+        }
 
         // A word was confidently corrected, so check the short words before it: "f vj;yj" → "а можно"
         var retro = new List<WordRec>();
-        if (convert && IsStrong(alt, resultRu))
+        if (convert && IsStrong(result, targetModel))
         {
             for (int i = history.Count - 1; i >= 0 && retro.Count < 3; i--)
             {
                 var p = history[i];
-                if (p.TerminatorVk != 0x20 || p.Changed || p.TypedRu != typedRu || IsIgnored(p.Shown)) break;
-                if (!Detector.ShouldConvert(p.Shown, Build(p.Keys, !typedRu), typedRu, resultRu)) break;
+                if (p.TerminatorVk != 0x20 || p.Changed || p.Layout != current || IsIgnored(p.Shown)) break;
+                if (!Detector.ShouldConvert(p.Shown, Build(p.Keys, target), T, targetModel, target.Lang)) break;
                 retro.Insert(0, p);
             }
         }
@@ -425,7 +539,7 @@ class KeyboardWatcher
         int backspaces = word.Count;
         foreach (var p in retro)
         {
-            string pAlt = Build(p.Keys, !typedRu);
+            string pAlt = Build(p.Keys, target);
             original.Append(p.Shown).Append(' ');
             replaced.Append(pAlt).Append(' ');
             originalWords.Add(p.Shown);
@@ -443,7 +557,7 @@ class KeyboardWatcher
         last = new Correction
         {
             Original = original.ToString(), Replaced = replaced.ToString(), OriginalWords = originalWords,
-            LastWordLength = fixedCase.Length, TerminatorVk = terminatorVk, OriginalRu = typedRu, Hwnd = hwnd
+            LastWordLength = fixedCase.Length, TerminatorVk = terminatorVk, OriginalLayout = current.Hkl, Hwnd = hwnd
         };
         pending = true;
         Interlocked.Increment(ref correctionCount);
@@ -453,7 +567,7 @@ class KeyboardWatcher
             Text = replaced.ToString(),
             TerminatorVk = terminatorVk,
             ToggleCaps = capsMistake && (W.GetKeyState(0x14) & 1) != 0,
-            Layout = convert ? (resultRu ? "00000419" : "00000409") : null,
+            Layout = convert ? target.Hkl : IntPtr.Zero,
             Hwnd = hwnd
         });
         return true;
@@ -481,7 +595,7 @@ class KeyboardWatcher
             Backspaces = c.Replaced.Length + 1,
             Text = c.Original,
             TerminatorVk = c.TerminatorVk,
-            Layout = c.OriginalRu ? "00000419" : "00000409",
+            Layout = c.OriginalLayout,
             Hwnd = c.Hwnd,
             ReleaseCtrl = releaseCtrl
         });
@@ -504,7 +618,7 @@ class KeyboardWatcher
         string typed = rec.Shown;
         string core = Detector.Core(typed);
         int start = typed.IndexOf(core, StringComparison.Ordinal);
-        string fixedWord = CheckTypo(core, rec.TypedRu);
+        string fixedWord = CheckTypo(core, rec.Layout.Lang);
         if (fixedWord == null || fixedWord == core || start < 0) return;
 
         string text = typed.Substring(0, start) + fixedWord + typed.Substring(start + core.Length);
@@ -514,7 +628,7 @@ class KeyboardWatcher
             last = new Correction
             {
                 Original = typed, Replaced = text, OriginalWords = new List<string> { typed },
-                LastWordLength = text.Length, TerminatorVk = job.TerminatorVk, OriginalRu = rec.TypedRu, Hwnd = job.Hwnd
+                LastWordLength = text.Length, TerminatorVk = job.TerminatorVk, OriginalLayout = rec.Layout.Hkl, Hwnd = job.Hwnd
             };
             rec.Shown = text;
             rec.Changed = true;
@@ -571,13 +685,18 @@ class KeyboardWatcher
         }
         W.AddKey(inputs, job.TerminatorVk);
         W.Send(inputs);
-        if (job.Layout != null) W.SwitchLayout(job.Hwnd, job.Layout);
+        if (job.Layout != IntPtr.Zero) W.SwitchLayout(job.Hwnd, job.Layout);
     }
 
-    static string Build(List<KeyStroke> keys, bool ru)
+    // The word these keys type in the given layout
+    static string Build(List<KeyStroke> keys, LayoutTable t)
     {
         var sb = new StringBuilder(keys.Count);
-        foreach (var k in keys) sb.Append(KeyMap.CharFor(k.Vk, k.Shift, k.Caps, ru));
+        foreach (var k in keys)
+        {
+            char c = t.CharFor(k.Scan, k.Shift, k.Caps, k.AltGr);
+            sb.Append(c == '\0' ? '�' : c);   // a key with nothing in this layout spoils the word
+        }
         return sb.ToString();
     }
 
@@ -709,45 +828,6 @@ class KeyboardWatcher
     }
 }
 
-// What a key types in the US and ЙЦУКЕН layouts
-static class KeyMap
-{
-    const string Digits = "1234567890", EnShiftDigits = "!@#$%^&*()", RuShiftDigits = "!\"№;%:?*()";
-    static readonly Dictionary<int, string> EnOem = new Dictionary<int, string>
-    {
-        { 0xBA, ";:" }, { 0xBB, "=+" }, { 0xBC, ",<" }, { 0xBD, "-_" }, { 0xBE, ".>" }, { 0xBF, "/?" },
-        { 0xC0, "`~" }, { 0xDB, "[{" }, { 0xDC, "\\|" }, { 0xDD, "]}" }, { 0xDE, "'\"" }
-    };
-    static readonly Dictionary<int, string> RuOem = new Dictionary<int, string>
-    {
-        { 0xBA, "жЖ" }, { 0xBB, "=+" }, { 0xBC, "бБ" }, { 0xBD, "-_" }, { 0xBE, "юЮ" }, { 0xBF, ".," },
-        { 0xC0, "ёЁ" }, { 0xDB, "хХ" }, { 0xDC, "\\/" }, { 0xDD, "ъЪ" }, { 0xDE, "эЭ" }
-    };
-
-    public static bool IsCharKey(int vk)
-    {
-        return (vk >= 0x41 && vk <= 0x5A) || (vk >= 0x30 && vk <= 0x39) || EnOem.ContainsKey(vk);
-    }
-
-    public static char CharFor(int vk, bool shift, bool caps, bool ru)
-    {
-        if (vk >= 0x30 && vk <= 0x39)
-        {
-            int i = Digits.IndexOf((char)vk);
-            return shift ? (ru ? RuShiftDigits : EnShiftDigits)[i] : Digits[i];
-        }
-        if (vk >= 0x41 && vk <= 0x5A)
-        {
-            char en = (char)(vk + 32);
-            char c = ru ? Converter.Convert(en.ToString(), true)[0] : en;
-            return shift ^ caps ? char.ToUpper(c) : c;
-        }
-        string pair = (ru ? RuOem : EnOem)[vk];
-        bool letter = char.IsLetter(pair[0]);
-        return pair[(letter ? shift ^ caps : shift) ? 1 : 0];
-    }
-}
-
 static class W
 {
     public static readonly UIntPtr Marker = (UIntPtr)0x4C464958; // marks our own input so the hook skips it
@@ -801,15 +881,18 @@ static class W
     [DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr hwnd, int index);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr hwnd, StringBuilder sb, int max);
     [DllImport("user32.dll")] static extern uint SendInput(uint n, INPUT[] inputs, int size);
-    [DllImport("user32.dll")] static extern IntPtr LoadKeyboardLayout(string klid, uint flags);
+    [DllImport("user32.dll")] public static extern uint MapVirtualKeyEx(uint code, uint mapType, IntPtr hkl);
     [DllImport("user32.dll")] static extern bool PostMessage(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
 
-    public static int LayoutLanguage(IntPtr hwnd)
+    // The keyboard layout of the window's thread (HKL)
+    public static IntPtr LayoutHkl(IntPtr hwnd)
     {
         uint pid;
-        uint tid = GetWindowThreadProcessId(hwnd, out pid);
-        return (int)(GetKeyboardLayout(tid).ToInt64() & 0x3FF); // primary language: 0x09 — English, 0x19 — Russian
+        return GetKeyboardLayout(GetWindowThreadProcessId(hwnd, out pid));
     }
+
+    // Primary language of the window's layout: 0x09 — English, 0x19 — Russian, …
+    public static int LayoutLanguage(IntPtr hwnd) { return (int)(LayoutHkl(hwnd).ToInt64() & 0x3FF); }
 
     public static string ClassName(IntPtr hwnd)
     {
@@ -860,9 +943,8 @@ static class W
         SendInput((uint)arr.Length, arr, Marshal.SizeOf(typeof(INPUT)));
     }
 
-    public static void SwitchLayout(IntPtr hwnd, string klid)
+    public static void SwitchLayout(IntPtr hwnd, IntPtr hkl)
     {
-        IntPtr hkl = LoadKeyboardLayout(klid, 0);
         if (hkl != IntPtr.Zero) PostMessage(hwnd, 0x0050, IntPtr.Zero, hkl); // WM_INPUTLANGCHANGEREQUEST
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -96,9 +96,9 @@ class App : ApplicationContext
         if (fg != IntPtr.Zero && pid != ownPid && cls != "Shell_TrayWnd" && cls != "NotifyIconOverflowWindow"
             && cls != "TopLevelWindowForOverflowXamlIsland")
         {
-            int lang = W.LayoutLanguage(fg);
-            if (lang == 0x19) currentRu = true;
-            else if (lang == 0x09) currentRu = false;
+            // The tray icon shows the alphabet of the layout: Cyrillic or Latin
+            var layout = watcher.Layouts.Get(W.LayoutHkl(fg));
+            if (layout != null) currentRu = layout.Cyrillic;
         }
 
         int corrections = watcher.CorrectionCount, events = corrections + watcher.ExpansionCount;
@@ -561,12 +561,12 @@ class App : ApplicationContext
         string text = GetSelectionOrLastWord();
         if (!string.IsNullOrEmpty(text))
         {
-            bool toRu = !Converter.IsMostlyRussian(text);
-            string result = Converter.Convert(text, toRu);
-            if (Paste(result))
+            LayoutTable layout;
+            string result = watcher.ConvertText(text, target, out layout);
+            if (result != null && Paste(result))
             {
-                Native.SwitchLayout(target, toRu ? "00000419" : "00000409");
-                watcher.Learn(text, result, toRu);
+                W.SwitchLayout(target, layout.Hkl);
+                watcher.Learn(text, result, layout.Lang);
             }
         }
 
@@ -740,8 +740,6 @@ static class Native
     [DllImport("user32.dll")] public static extern uint GetClipboardSequenceNumber();
     [DllImport("user32.dll")] static extern short GetAsyncKeyState(int vKey);
     [DllImport("user32.dll")] static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
-    [DllImport("user32.dll")] static extern IntPtr LoadKeyboardLayout(string pwszKLID, uint flags);
-    [DllImport("user32.dll")] static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
     static readonly byte[] Modifiers = { VK_SHIFT, VK_CONTROL, VK_MENU, VK_LWIN, VK_RWIN };
 
@@ -777,10 +775,4 @@ static class Native
     }
 
     static uint Flags(byte vk) { return vk == VK_LEFT ? KEYEVENTF_EXTENDEDKEY : 0; }
-
-    public static void SwitchLayout(IntPtr hwnd, string klid)
-    {
-        IntPtr hkl = LoadKeyboardLayout(klid, 0);
-        if (hkl != IntPtr.Zero) PostMessage(hwnd, 0x0050, IntPtr.Zero, hkl); // WM_INPUTLANGCHANGEREQUEST
-    }
 }

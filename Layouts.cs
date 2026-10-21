@@ -135,6 +135,14 @@ public class LayoutTable
         return list;
     }
 
+    public static IntPtr[] InstalledHkls()
+    {
+        int n = GetKeyboardLayoutList(0, null);
+        var hkls = new IntPtr[n];
+        GetKeyboardLayoutList(n, hkls);
+        return hkls;
+    }
+
     // ---- From a .klc file (Microsoft Keyboard Layout Creator format), for tests ----
 
     // lang overrides the language taken from the file (some published .klc files carry another locale)
@@ -178,5 +186,70 @@ public class LayoutTable
         t.Lang = lang ?? LangFor(langId, t.Cyrillic);
         t.Name = Path.GetFileNameWithoutExtension(path);
         return t;
+    }
+}
+
+// The layouts installed in Windows, kept up to date: a layout added or removed in Windows settings is picked up
+// within a few seconds, and the language models those layouts need are loaded in the background
+public class LayoutSet
+{
+    volatile Dictionary<long, LayoutTable> tables = new Dictionary<long, LayoutTable>();
+    string signature = "";
+    readonly System.Threading.Timer timer;
+
+    public LayoutSet()
+    {
+        Refresh();
+        timer = new System.Threading.Timer(_ => { try { Refresh(); } catch { } }, null, 5000, 5000);
+    }
+
+    public LayoutTable Get(IntPtr hkl)
+    {
+        LayoutTable t;
+        if (tables.TryGetValue(hkl.ToInt64(), out t)) return t;
+        // A layout we haven't seen yet (just added): read it now, it takes a moment
+        try
+        {
+            t = LayoutTable.FromHkl(hkl);
+            var copy = new Dictionary<long, LayoutTable>(tables);
+            copy[hkl.ToInt64()] = t;
+            tables = copy;
+            LoadModels(new[] { t });
+        }
+        catch { t = null; }
+        return t;
+    }
+
+    public ICollection<LayoutTable> All { get { return tables.Values; } }
+
+    void Refresh()
+    {
+        var hkls = LayoutTable.InstalledHkls();
+        string sig = string.Join(",", Array.ConvertAll(hkls, h => h.ToInt64().ToString("X")));
+        if (sig == signature) return;
+        signature = sig;
+        var fresh = new Dictionary<long, LayoutTable>();
+        foreach (var h in hkls)
+        {
+            try { fresh[h.ToInt64()] = LayoutTable.FromHkl(h); } catch { }
+        }
+        tables = fresh;
+        LoadModels(fresh.Values);
+    }
+
+    static void LoadModels(IEnumerable<LayoutTable> layouts)
+    {
+        var langs = new List<string>();
+        foreach (var t in layouts)
+        {
+            if (t.Lang == null || langs.Contains(t.Lang)) continue;
+            langs.Add(t.Lang);
+            // Serbian Cyrillic needs the Latin model too: a valid Serbian Latin word is never "fixed"
+            if (t.Lang == "sr-cyrl" && !langs.Contains("sr-latn")) langs.Add("sr-latn");
+        }
+        System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+        {
+            foreach (string l in langs) { try { Detector.Load(l); } catch { } }
+        });
     }
 }
