@@ -55,6 +55,10 @@ KeyFish has to see your keystrokes to fix them, so here is exactly what it does 
 
 Please open an issue and say what you were doing (which app or site, which key you pressed). If it happens again, double-click `tools/crash-dumps-on.reg` (needs administrator rights): Windows will then save a small crash dump to `%LOCALAPPDATA%\CrashDumps` the next time, which shows exactly where it failed. The dump can contain the last few words you typed, so send it privately rather than attaching it to a public issue. `tools/crash-dumps-off.reg` turns this off.
 
+## If KeyFish doesn't correct somewhere
+
+Create an empty file `debug-log.txt` next to `KeyFish.exe` (or in `%APPDATA%\KeyFish`, if the settings files are there). Within a couple of seconds KeyFish starts writing a line for every word you finish: the app, what it decided and why (for example "excluded app" or "looks right as typed") and the word's length. The words themselves are never written. Delete the file to turn this off.
+
 ## Build
 
 Windows only: the C# compiler ships with .NET Framework 4.

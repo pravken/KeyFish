@@ -18,6 +18,8 @@
 • Terminals, SSH clients, virtual machines, remote desktops and more password managers are excluded by default (added to your list once)
 • Text KeyFish puts on the clipboard stays out of clipboard history (Win+V) and cloud sync
 • Fixed: a backslash in a replacement (C:\new) turned into a line break after saving; abbreviations with digits (addr1) didn't expand; words KeyFish learned while Settings was open were lost on Save; letters typed very fast right after a correction could lose Shift; in VS Code and Visual Studio, Pause with nothing selected added a converted copy of the whole line
+• Fixed: with many heavy windows open (browsers, Electron apps, editors), KeyFish could correct nothing for up to a minute or two after it started — the password-field check was still getting ready. It now answers right away
+• To find out why a word wasn't corrected, create an empty debug-log.txt next to KeyFish.exe: KeyFish writes the app and the reason for every word, never the word itself (see the README)
 • KeyFish starts even from a read-only folder such as Program Files: its files then go to %APPDATA%\KeyFish
 • Each release comes with a signed build attestation (see the README)
 

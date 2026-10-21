@@ -224,6 +224,7 @@ class KeyboardWatcher
     {
         exclusionsPath = exclusionsFile;
         replacementsPath = replacementsFile;
+        diagnosePath = Path.Combine(Path.GetDirectoryName(exclusionsFile), "debug-log.txt");
         ignored = new WordList(ignoredFile);
         learned = new WordList(learnedFile);
         ReloadFiles();
@@ -464,6 +465,7 @@ class KeyboardWatcher
         }
         catch { }
 
+        diagnose = File.Exists(diagnosePath);
         ignored.ReloadIfChanged();
         learned.ReloadIfChanged();
     }
@@ -589,12 +591,14 @@ class KeyboardWatcher
         bool wasPartial = partial;
         partial = false;
         if (word.Count == 0) return false;
-        if (wasPartial || word.Count >= 40 || passwordFocused || !FocusVerified || IsOwnWindow(hwnd) || IsExcluded(hwnd) || IsPasswordField(hwnd) ||
-            (QuietFullscreen && IsFullscreen(hwnd))) { history.Clear(); return false; }
+        string skip = wasPartial ? "edited mid-word" : word.Count >= 40 ? "too long" : passwordFocused ? "password field" :
+                      !FocusVerified ? "focus not checked yet" : IsOwnWindow(hwnd) ? "KeyFish window" : IsExcluded(hwnd) ? "excluded app" :
+                      IsPasswordField(hwnd) ? "password field (Win32)" : QuietFullscreen && IsFullscreen(hwnd) ? "full screen" : null;
+        if (skip != null) { Diagnose(hwnd, skip); history.Clear(); return false; }
 
         var current = Layouts.Get(W.LayoutHkl(hwnd));
         var T = current == null ? null : Detector.Loaded(current.Lang);
-        if (T == null) { history.Clear(); return false; }   // a layout KeyFish has no language model for
+        if (T == null) { Diagnose(hwnd, "no language model for the layout"); history.Clear(); return false; }
 
         string typed = Build(word, current);
 
@@ -646,7 +650,7 @@ class KeyboardWatcher
 
         // Numbers, e-mails, identifiers aren't words to fix (an abbreviation like "addr1" was expanded above)
         foreach (char c in typed)
-            if (char.IsDigit(c) || c == '@' || c == '_') { history.Clear(); return false; }
+            if (char.IsDigit(c) || c == '@' || c == '_') { Diagnose(hwnd, "digits or symbols"); history.Clear(); return false; }
 
         // Which layout did the user mean? A word they taught KeyFish goes to their usual other layout
         int chosen = -1;
@@ -684,6 +688,7 @@ class KeyboardWatcher
 
         if (!convert && fixedCase == result)
         {
+            Diagnose(hwnd, IsIgnored(typed) ? "in Never correct" : "looks right as typed");
             PushHistory(rec);
             // Typos are checked after the space without holding it; Enter may already have sent a message
             if (fixTypos && terminatorVk == 0x20 && TypoCandidate(typed))
@@ -715,6 +720,7 @@ class KeyboardWatcher
         rec.Changed = true;
         PushHistory(rec);
 
+        Diagnose(hwnd, convert ? "corrected: layout" : "corrected: case");
         last = new Correction
         {
             Original = original.ToString(), Replaced = replaced.ToString(), OriginalWords = originalWords,
@@ -923,6 +929,19 @@ class KeyboardWatcher
         uint pid;
         W.GetWindowThreadProcessId(hwnd, out pid);
         return pid == ownPid;
+    }
+
+    // Diagnostics, off unless debug-log.txt exists next to the settings files: one line per word with the app, what KeyFish
+    // decided and why, the word's length and how fresh the password check was. Never the word itself
+    readonly string diagnosePath;
+    volatile bool diagnose;
+
+    void Diagnose(IntPtr hwnd, string what)
+    {
+        if (!diagnose) return;
+        string line = DateTime.Now.ToString("HH:mm:ss.fff") + "  " + W.ProcessName(hwnd) + "  " + what + "  (" + word.Count + " keys, password check " +
+                      (guard == null ? "not running" : (guard.CheckedAt - wordStartedAt) + " ms after the word began") + ")\r\n";
+        FileQueue.Run(() => File.AppendAllText(diagnosePath, line, Encoding.UTF8));
     }
 
     bool IsExcluded(IntPtr hwnd) { return excluded.Contains(W.ProcessName(hwnd)); }

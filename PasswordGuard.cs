@@ -99,8 +99,14 @@ static class PasswordGuardProcess
         // Leave together with KeyFish
         new Thread(() => { parent.WaitForExit(); Environment.Exit(0); }) { IsBackground = true }.Start();
 
-        try { System.Windows.Automation.Automation.AddAutomationFocusChangedEventHandler((s, e) => signal.Set()); }
-        catch { }
+        // Subscribing to focus changes can take from seconds to over a minute with many heavy windows open
+        // (browsers, Electron apps, editors): UI Automation visits all of them. Done on its own thread, so the checks
+        // below start answering at once; until it's done, checks still come with every keystroke
+        new Thread(() =>
+        {
+            try { System.Windows.Automation.Automation.AddAutomationFocusChangedEventHandler((s, e) => signal.Set()); }
+            catch { }
+        }) { IsBackground = true }.Start();
 
         bool passwordFocused = false;
         IntPtr passwordWindow = IntPtr.Zero;   // the window where the password field was found; the flag clears when it loses the foreground
