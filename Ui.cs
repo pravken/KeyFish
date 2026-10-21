@@ -80,12 +80,22 @@ static class Theme
         return p;
     }
 
+    public static readonly Icon AppIcon = LoadIcon();
+
+    static Icon LoadIcon()
+    {
+        try { using (var s = typeof(Theme).Assembly.GetManifestResourceStream("fish.ico")) return s == null ? null : new Icon(s); }
+        catch { return null; }
+    }
+
     [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
     [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)] static extern int SetWindowTheme(IntPtr hwnd, string app, string idList);
 
     // Dark title bar and the Mica backdrop behind it (Windows 11; older versions just ignore the attributes)
     public static void Apply(Form f)
     {
+        // Every KeyFish window carries the fish in its title bar, not the default WinForms icon
+        if (AppIcon != null) f.Icon = AppIcon;
         f.BackColor = Back;
         f.ForeColor = Text;
         f.Font = Body;
