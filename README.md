@@ -40,6 +40,13 @@ Download `KeyFish.exe` from [Releases](../../releases/latest) and run it — no 
 
 Windows may show "Windows protected your PC" on first run because the app isn't signed. Click "More info" → "Run anyway".
 
+**If an antivirus flags KeyFish.** To fix your typing, KeyFish has to do what a keylogger does too: watch the keyboard in every app, type for you, use the clipboard and start with Windows. An antivirus that judges by behavior alone (Microsoft Defender may call it something like `Trojan:Win32/Bearfoos.A!ml`; the `!ml` means a machine-learning guess, not a known virus) can take it for one. KeyFish has no hidden behavior: the source code is here, every release is built from it by GitHub Actions, and its only network request is the update check (see [Privacy](#privacy)). To be sure you have the genuine file:
+
+- compare its SHA-256 with `KeyFish.exe.sha256` in the release (`Get-FileHash KeyFish.exe` in PowerShell), or run `gh attestation verify KeyFish.exe --repo pravken/KeyFish`;
+- if it matches, you can restore the file from quarantine (Windows Security → Protection history) and report the false positive to Microsoft at https://www.microsoft.com/wdsi/filesubmission — that helps every user.
+
+If you'd rather not trust a downloaded exe at all, build it yourself from the source (see [Build](#build)).
+
 ## Privacy
 
 KeyFish has to see your keystrokes to fix them, so here is exactly what it does with them:
