@@ -127,6 +127,10 @@ static class Theme
         return new SmoothLabel { Text = text, Font = font ?? Body, ForeColor = color ?? Text, AutoSize = true, BackColor = Color.Transparent };
     }
 
+    // Text is drawn twice, the second time this fraction of a pixel to the right: a touch heavier than the font's regular
+    // weight, closer to how Windows 11 apps look on a dark background
+    public const float Heavier = 0.4f;
+
     // One line of text with soft grayscale smoothing, like SmoothLabel: centered vertically, cut with "…" if too long
     public static void SmoothText(Graphics g, string text, Font font, RectangleF r, Color color, bool center)
     {
@@ -139,7 +143,10 @@ static class Theme
             Alignment = center ? StringAlignment.Center : StringAlignment.Near, LineAlignment = StringAlignment.Center,
             Trimming = StringTrimming.EllipsisCharacter
         })
+        {
             g.DrawString(text, font, b, r, sf);
+            g.DrawString(text, font, b, new RectangleF(r.X + Heavier, r.Y, r.Width, r.Height), sf);
+        }
         g.TextRenderingHint = hint;
     }
 
@@ -862,5 +869,8 @@ class SmoothLabel : Label
         e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
         e.Graphics.TextContrast = 0;
         base.OnPaint(e);
+        e.Graphics.TranslateTransform(Theme.Heavier, 0);   // a touch heavier, see Theme.Heavier
+        base.OnPaint(e);
+        e.Graphics.ResetTransform();
     }
 }
