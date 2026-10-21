@@ -173,7 +173,7 @@ class FishView : Control
 }
 
 // Easter egg: the window fills with water, the fish swims in, eats a word typed in the wrong layout
-// and lets out the right one as a bubble. Any click ends it early
+// and lets out the right one as a bubble. Clicks are ignored until it ends, so it always plays to the end
 class Aquarium : Control
 {
     readonly Timer timer = new Timer { Interval = 16 };

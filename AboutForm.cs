@@ -25,6 +25,7 @@ class AboutForm : Form
         // Five clicks on the fish: the window turns into an aquarium for a few seconds
         fish.EasterEgg += (s, e) =>
         {
+            foreach (Control c in Controls) if (c is Aquarium) return;   // already playing
             var tank = L.Ru ? new Aquarium("ghbdtn", "привет!") : L.Code == "uk" ? new Aquarium("ghbdsn", "привіт!") : new Aquarium("руддщ", "hello!");
             tank.Bounds = ClientRectangle;
             Controls.Add(tank);
