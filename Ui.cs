@@ -172,6 +172,9 @@ static class Theme
     {
         if (!Dark) return;
         c.HandleCreated += (s, e) => { try { SetWindowTheme(c.Handle, "DarkMode_Explorer", null); } catch { } };
+        // A table's scrollbars are separate child controls: they get the dark theme too
+        foreach (Control child in c.Controls) if (child is ScrollBar) DarkScrollbars(child);
+        c.ControlAdded += (s, e) => { if (e.Control is ScrollBar) DarkScrollbars(e.Control); };
     }
 
     public static Label Label(string text, Font font = null, Color? color = null)
