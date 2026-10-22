@@ -189,6 +189,14 @@ static class Theme
     // One line of text with soft grayscale smoothing, like SmoothLabel: centered vertically, cut with "…" if too long
     public static void SmoothText(Graphics g, string text, Font font, RectangleF r, Color color, bool center, bool heavier = true)
     {
+        if (HasEmoji(text))
+        {
+            // The smooth drawing can't take an emoji from another font and leaves an empty square; Windows' own can
+            var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding |
+                        (center ? TextFormatFlags.HorizontalCenter : TextFormatFlags.Left);
+            TextRenderer.DrawText(g, text, font, Rectangle.Round(r), color, flags);
+            return;
+        }
         var hint = g.TextRenderingHint;
         g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
         g.TextContrast = TextContrastFor(color);
@@ -203,6 +211,13 @@ static class Theme
             if (heavier) g.DrawString(text, font, b, new RectangleF(r.X + Heavier, r.Y, r.Width, r.Height), sf);
         }
         g.TextRenderingHint = hint;
+    }
+
+    // Emoji and other characters beyond the basic plane (🐟) come as two UTF-16 halves
+    public static bool HasEmoji(string text)
+    {
+        if (text != null) foreach (char c in text) if (char.IsSurrogate(c)) return true;
+        return false;
     }
 
     // Labels are made transparent to sit on cards, but Windows smooths text (ClearType) only over a solid color it knows:
@@ -997,8 +1012,16 @@ class SmoothLabel : Label
 {
     public SmoothLabel() { UseCompatibleTextRendering = true; }
 
+    // A text with an emoji is drawn by Windows' own text drawing: the smooth one shows an empty square instead of 🐟
+    protected override void OnTextChanged(EventArgs e)
+    {
+        UseCompatibleTextRendering = !Theme.HasEmoji(Text);
+        base.OnTextChanged(e);
+    }
+
     protected override void OnPaint(PaintEventArgs e)
     {
+        if (!UseCompatibleTextRendering) { base.OnPaint(e); return; }
         e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
         e.Graphics.TextContrast = Theme.TextContrastFor(ForeColor);
         base.OnPaint(e);

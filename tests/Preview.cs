@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 // Screenshots of KeyFish windows for checking the design, without starting KeyFish itself.
-// Usage: Preview.exe settings <page 0-4>|about|aquarium|message <out.png> [dark|light] [language code] [menu]
+// Usage: Preview.exe settings <page 0-4>|about|aquarium|message|changelog <out.png> [dark|light] [language code] [menu]
 static class Preview
 {
     [DllImport("user32.dll")] static extern bool PrintWindow(IntPtr hwnd, IntPtr hdc, uint flags);
@@ -50,6 +50,8 @@ static class Preview
                 Ignored = "lol\nкек\n", Learned = "ghbdtn\n", InstalledLayouts = layouts
             };
         }
+        else if (args[0] == "changelog")   // the real changelog of the interface language
+            form = new ChangelogForm(System.IO.File.ReadAllText(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\" + (L.Ru ? "CHANGELOG.ru.md" : "CHANGELOG.md")), System.Text.Encoding.UTF8));
         else if (args[0] == "message")
             form = (Form)Activator.CreateInstance(typeof(ThemedMessage), BindingFlags.NonPublic | BindingFlags.Instance, null,
                 new object[] { "Вышла версия 2.0.1 (у вас 2.0.0).\n\nОбновить сейчас? KeyFish скачает новую версию с GitHub, проверит контрольную сумму и перезапустится.", "Обновление KeyFish", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Information }, null);
@@ -65,6 +67,19 @@ static class Preview
                 var dd = Find<DropDown>(form);
                 if (dd != null) dd.GetType().GetMethod("ShowMenu", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(dd, null);
             }
+            // "scroll=N": scroll the first scrolling panel down N pixels (the changelog, a long settings page)
+            foreach (string arg in args)
+                if (arg.StartsWith("scroll="))
+                {
+                    var stack = new Stack<Control>(); stack.Push(form);
+                    while (stack.Count > 0)
+                    {
+                        var c = stack.Pop();
+                        var sp = c as ScrollableControl;
+                        if (sp != null && sp.AutoScroll && c != form) { sp.AutoScrollPosition = new Point(0, int.Parse(arg.Substring(7))); break; }
+                        foreach (Control child in c.Controls) stack.Push(child);
+                    }
+                }
             // "focus": click into the first hotkey field, to see the recording state
             if (Array.IndexOf(args, "focus") >= 0) { var hk = Find<HotkeyBox>(form); if (hk != null) hk.Focus(); }
             if (args[0] == "aquarium")

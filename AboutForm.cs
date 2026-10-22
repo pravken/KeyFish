@@ -126,6 +126,8 @@ class AboutForm : Form
 // The full changelog in a scrollable window
 class ChangelogForm : Form
 {
+    readonly Panel list;
+
     public ChangelogForm(string changelog)
     {
         Text = L.T("Что нового в KeyFish", "What's new in KeyFish");
@@ -140,24 +142,26 @@ class ChangelogForm : Form
             Location = new Point(16, 16), Size = new Size(568, 418),
             Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
         };
-        var box = new RichTextBox
+        // The text is drawn by KeyFish itself, like in its other windows: smooth, and with 🐟 and ⇄ shown from another
+        // font when the main one lacks them (the system text box left empty squares there)
+        list = new Panel
         {
-            ReadOnly = true, ScrollBars = RichTextBoxScrollBars.Vertical, BackColor = Theme.Card, ForeColor = Theme.Text, BorderStyle = BorderStyle.None,
-            Font = Theme.Body, DetectUrls = false, Location = new Point(16, 12), Size = new Size(540, 396),
+            AutoScroll = true, BackColor = Theme.Card, Location = new Point(16, 12), Size = new Size(540, 396),
             Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
         };
-        Theme.DarkScrollbars(box);
+        Theme.DarkScrollbars(list);
         // A line that is just "1.8.2" becomes a "Version 1.8.2" heading; versions are already separated by blank lines
-        var heading = new Font("Segoe UI Semibold", 12f);
-        FormClosed += (s, e) => heading.Dispose();
         foreach (string line in changelog.Replace("\r\n", "\n").Trim().Split('\n'))
         {
             bool isHeading = Regex.IsMatch(line, @"^\d+\.\d+\.\d+$");
-            box.SelectionFont = isHeading ? heading : box.Font;
-            box.AppendText((isHeading ? L.T("Версия ", "Version ") + line : line) + "\n");
+            if (line.Trim().Length == 0) continue;
+            list.Controls.Add(new SmoothLabel
+            {
+                Text = isHeading ? L.T("Версия ", "Version ") + line : line, Font = isHeading ? Theme.Section : Theme.Body,
+                ForeColor = Theme.Text, BackColor = Theme.Card, AutoSize = false, Tag = isHeading
+            });
         }
-        card.Controls.Add(box);
-        box.BackColor = Theme.Card;
+        card.Controls.Add(list);
         Controls.Add(card);
         var close = new RoundButton
         {
@@ -167,8 +171,41 @@ class ChangelogForm : Form
         close.Click += (s, e) => Close();
         Controls.Add(close);
         KeyPreview = true;
-        KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) Close(); };
-        Shown += (s, e) => { box.SelectionStart = 0; box.SelectionLength = 0; close.Focus(); };
+        KeyDown += (s, e) =>
+        {
+            if (e.KeyCode == Keys.Escape) Close();
+            // The keys scroll the list like a text box would
+            int line = Theme.S(24), page = list.ClientSize.Height - line, y = -list.AutoScrollPosition.Y;
+            if (e.KeyCode == Keys.Down) y += line;
+            else if (e.KeyCode == Keys.Up) y -= line;
+            else if (e.KeyCode == Keys.PageDown || e.KeyCode == Keys.Space) y += page;
+            else if (e.KeyCode == Keys.PageUp) y -= page;
+            else if (e.KeyCode == Keys.Home) y = 0;
+            else if (e.KeyCode == Keys.End) y = int.MaxValue / 2;
+            else return;
+            list.AutoScrollPosition = new Point(0, Math.Max(0, y));
+            e.Handled = true;
+        };
+        list.Resize += (s, e) => Arrange();
+        Shown += (s, e) => { Arrange(); close.Focus(); };
         Theme.ScaleWindow(this);
+    }
+
+    // Lines one under another at the list's current width; called again when the window is resized
+    void Arrange()
+    {
+        list.SuspendLayout();
+        int width = list.ClientSize.Width - SystemInformation.VerticalScrollBarWidth - Theme.S(4);
+        int y = 0, top = list.AutoScrollPosition.Y;
+        foreach (Control c in list.Controls)
+        {
+            bool heading = (bool)c.Tag;
+            if (heading && y > 0) y += Theme.S(14);   // a gap before each version
+            c.Width = width;
+            c.Height = c.GetPreferredSize(new Size(width, 0)).Height + Theme.S(2);
+            c.Location = new Point(0, y + top);
+            y += c.Height + Theme.S(heading ? 4 : 3);
+        }
+        list.ResumeLayout();
     }
 }
