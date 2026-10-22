@@ -1225,12 +1225,7 @@ static class Pictures
     // A small text field with a word in it; a second word crossfades over the first as mix goes from 0 to 1
     public static void Field(Graphics g, RectangleF r, string text, string next = null, float mix = 0, bool caret = false)
     {
-        var box = new RectangleF(r.X + 0.5f, r.Y + r.Height * 0.18f, r.Width - 1, r.Height * 0.64f);
-        using (var path = Theme.Rounded(box, Theme.S(4)))
-        {
-            using (var b = new SolidBrush(Theme.Input)) g.FillPath(b, path);
-            using (var p = new Pen(Theme.InputBorder)) g.DrawPath(p, path);
-        }
+        var box = Box(g, r);
         var inner = new RectangleF(box.X + Theme.S(4), box.Y, box.Width - Theme.S(8), box.Height);
         if (next == null || mix < 1) Text(g, text, inner, next == null ? 1 : 1 - mix, Theme.Text);
         if (next != null && mix > 0) Text(g, next, inner, mix, mix < 1 ? Theme.AccentFill : Theme.Text);
@@ -1247,11 +1242,24 @@ static class Pictures
         Theme.SmoothText(g, text, Font, r, Color.FromArgb((int)(255 * Math.Max(0, Math.Min(1, alpha))), color), false, false);
     }
 
-    // A tray icon in the middle of the box, size in 96-DPI pixels
-    public static void Icon(Graphics g, RectangleF r, Image image, float alpha = 1)
+    // The frame every picture sits in: the same size for words and icons, so the pictures line up as one column
+    public static RectangleF Box(Graphics g, RectangleF r)
     {
-        float s = Theme.S(24);
-        var dest = new RectangleF(r.X + (r.Width - s) / 2, r.Y + (r.Height - s) / 2, s, s);
+        var box = new RectangleF(r.X + 0.5f, r.Y + r.Height * 0.18f, r.Width - 1, r.Height * 0.64f);
+        using (var path = Theme.Rounded(box, Theme.S(4)))
+        {
+            using (var b = new SolidBrush(Theme.Input)) g.FillPath(b, path);
+            using (var p = new Pen(Theme.InputBorder)) g.DrawPath(p, path);
+        }
+        return box;
+    }
+
+    // A tray icon in the middle of the frame (frame: false when another icon is drawn over the same frame)
+    public static void Icon(Graphics g, RectangleF r, Image image, float alpha = 1, bool frame = true)
+    {
+        var box = frame ? Box(g, r) : new RectangleF(r.X + 0.5f, r.Y + r.Height * 0.18f, r.Width - 1, r.Height * 0.64f);
+        float s = box.Height - Theme.S(5);
+        var dest = new RectangleF(box.X + (box.Width - s) / 2, box.Y + (box.Height - s) / 2, s, s);
         if (alpha >= 1) { g.DrawImage(image, dest); return; }
         using (var attr = new System.Drawing.Imaging.ImageAttributes())
         {

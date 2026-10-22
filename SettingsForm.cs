@@ -188,7 +188,7 @@ class SettingsForm : Form
     // One tray icon turning into another
     static FeaturePreview Swap(Image from, Image to)
     {
-        return new FeaturePreview((g, r) => Pictures.Icon(g, r, from), (g, r, t) => { Pictures.Icon(g, r, from, 1 - t); Pictures.Icon(g, r, to, t); });
+        return new FeaturePreview((g, r) => Pictures.Icon(g, r, from), (g, r, t) => { Pictures.Icon(g, r, from, 1 - t); Pictures.Icon(g, r, to, t, false); });
     }
 
     static void Intro(Control page, ref int y, string text)
