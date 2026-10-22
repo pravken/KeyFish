@@ -131,3 +131,7 @@ Click a circle to choose its color: the tray fish, the letters and the tag at th
 Default	Па змаўчанні
 Other…	Іншы…
 Color of {0}	Колер {0}
+Theme	Тэма
+Takes effect after saving.	Ужыецца пасля захавання.
+Light	Светлая
+Dark	Цёмная

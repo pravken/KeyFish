@@ -132,3 +132,7 @@ Click a circle to choose its color: the tray fish, the letters and the tag at th
 Default	Standard
 Other…	Andere…
 Color of {0}	Farbe von {0}
+Theme	Design
+Takes effect after saving.	Wird nach dem Speichern übernommen.
+Light	Hell
+Dark	Dunkel

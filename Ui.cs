@@ -12,8 +12,10 @@ static class Theme
 {
     public static bool Dark = ReadDark();
     public static Color Accent = ReadAccent();
+    public static int Mode;   // the theme chosen in Settings: 0 — as in Windows, 1 — light, 2 — dark
 
-    // Windows switched to the dark or light theme, or the accent color changed: read them again. True if anything changed
+    // Windows switched to the dark or light theme, the accent color changed or another theme was chosen in Settings:
+    // read them again. True if anything changed
     public static bool Refresh()
     {
         bool dark = ReadDark();
@@ -92,6 +94,8 @@ static class Theme
 
     static bool ReadDark()
     {
+        if (Mode == 1) return false;
+        if (Mode == 2) return true;
         try
         {
             using (var k = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"))

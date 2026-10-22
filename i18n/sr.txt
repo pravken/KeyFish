@@ -132,3 +132,7 @@ Click a circle to choose its color: the tray fish, the letters and the tag at th
 Default	Подразумевано
 Other…	Друга…
 Color of {0}	Боја за {0}
+Theme	Тема
+Takes effect after saving.	Примениће се након чувања.
+Light	Светла
+Dark	Тамна

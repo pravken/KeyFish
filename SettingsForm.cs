@@ -17,6 +17,7 @@ class SettingsForm : Form
     public UpdateInfo Updates;               // the update status and how to check or install
     public int QuickKey;                 // 0 — off, 1 — double Shift, 2 — Caps Lock
     public int Language;                 // see L.Choices
+    public int ThemeMode;                // see Theme.Mode
     public Keys[] Hotkeys;
     public string Replacements, Exclusions, Ignored, Learned, AppLayouts;
     public IList<LayoutTable> InstalledLayouts = new List<LayoutTable>();
@@ -24,7 +25,7 @@ class SettingsForm : Form
     public int StartPage { get; set; }   // the section to open with (tests\Preview opens any)
 
     ToggleSwitch tAuto, tTypos, tQuiet, tCtrlZ, tColor, tAutostart, tUpdates, tBadge, tRecent, tSound, tLetters;
-    DropDown cbLanguage, cbQuickKey;
+    DropDown cbLanguage, cbTheme, cbQuickKey;
     HotkeyBox[] hotkeyBoxes;
     DataGridView gridReplacements, gridApps, gridIgnored, gridLearned;
 
@@ -357,6 +358,10 @@ class SettingsForm : Form
         cbLanguage.Items.AddRange(L.Choices);
         cbLanguage.SelectedIndex = Math.Max(0, Math.Min(Language, cbLanguage.Items.Count - 1));
         Row(page, ref y, L.T("Язык интерфейса", "Interface language"), null, cbLanguage);
+        cbTheme = new DropDown { Size = new Size(170, 34) };
+        cbTheme.Items.AddRange(new[] { L.T("Как в Windows", "Same as Windows"), L.T("Светлая", "Light"), L.T("Тёмная", "Dark") });
+        cbTheme.SelectedIndex = Math.Max(0, Math.Min(ThemeMode, 2));
+        Row(page, ref y, L.T("Тема", "Theme"), L.T("Применится после сохранения.", "Takes effect after saving."), cbTheme);
         y += 8;
         Row(page, ref y, L.T("Исправлять раскладку при наборе", "Fix the keyboard layout as you type"),
             L.T("ghbdtn → привет, руддщ → hello. Автозамены тоже работают, только когда это включено.",
@@ -858,7 +863,7 @@ class SettingsForm : Form
             { "UndoCtrlZ", UndoCtrlZ ? 1 : 0 }, { "LayoutColor", LayoutColor ? 1 : 0 }, { "CheckUpdates", CheckUpdates ? 1 : 0 },
             { "LayoutBadge", LayoutBadge ? 1 : 0 }, { "RecentMenu", RecentMenu ? 1 : 0 }, { "QuickKey", QuickKey }, { "Sound", Sound ? 1 : 0 },
             { "TrayLetters", TrayLetters ? 1 : 0 },
-            { "Language", Language }
+            { "Language", Language }, { "Theme", ThemeMode }
         };
         for (int i = 0; i < Hotkeys.Length; i++) v["Hotkey" + (i + 1)] = (int)Hotkeys[i];
         return v;
@@ -926,6 +931,7 @@ class SettingsForm : Form
         int n;
         if (values.TryGetValue("QuickKey", out n)) QuickKey = Math.Max(0, Math.Min(n, 2));
         if (values.TryGetValue("Language", out n)) Language = Math.Max(0, n);
+        if (values.TryGetValue("Theme", out n)) ThemeMode = Math.Max(0, Math.Min(n, 2));
         for (int i = 0; i < Hotkeys.Length; i++) if (values.TryGetValue("Hotkey" + (i + 1), out n)) Hotkeys[i] = (Keys)n;
         DialogResult = DialogResult.OK;
         Close();
@@ -948,6 +954,7 @@ class SettingsForm : Form
         RecentMenu = tRecent.Checked;
         QuickKey = cbQuickKey.SelectedIndex;
         Language = cbLanguage.SelectedIndex;
+        ThemeMode = cbTheme.SelectedIndex;
         for (int i = 0; i < Hotkeys.Length; i++) Hotkeys[i] = hotkeyBoxes[i].Value;
 
         gridApps.EndEdit();
@@ -1299,7 +1306,7 @@ static class SettingsArchive
     public static readonly string[] Values =
     {
         "AutoCorrect", "Typos", "QuietFullscreen", "UndoCtrlZ", "LayoutColor", "CheckUpdates", "LayoutBadge", "RecentMenu", "QuickKey", "Sound", "TrayLetters",
-        "Language", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5"
+        "Language", "Theme", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5"
     };
     static readonly string[] FileNames = { "replacements.txt", "exclusions.txt", "ignored-words.txt", "learned-words.txt", "app-layouts.txt", "layout-colors.txt" };
 

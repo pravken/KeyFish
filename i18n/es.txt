@@ -132,3 +132,7 @@ Click a circle to choose its color: the tray fish, the letters and the tag at th
 Default	Predeterminado
 Other…	Otro…
 Color of {0}	Color de {0}
+Theme	Tema
+Takes effect after saving.	Se aplica al guardar.
+Light	Claro
+Dark	Oscuro

@@ -132,3 +132,7 @@ Click a circle to choose its color: the tray fish, the letters and the tag at th
 Default	Par défaut
 Other…	Autre…
 Color of {0}	Couleur de {0}
+Theme	Thème
+Takes effect after saving.	S'applique après l'enregistrement.
+Light	Clair
+Dark	Sombre

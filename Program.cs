@@ -560,6 +560,8 @@ class App : ApplicationContext
         MigrateFromLayoutFix();
         RepairAutostart();
         L.Setting = GetSetting("Language", 0);
+        Theme.Mode = Math.Max(0, Math.Min(GetSetting("Theme", 0), 2));
+        Theme.Refresh();
         statsBase = GetSetting("StatsTotal", 0);
         if (GetSetting("StatsSince", 0) == 0) SetSetting("StatsSince", int.Parse(DateTime.Today.ToString("yyyyMMdd")));
         string dir = DataDir();
@@ -767,7 +769,7 @@ class App : ApplicationContext
         {
             OpenAbout = owner => ShowAbout(owner), Updates = updates,
             BackupDir = backupDir, TrayLetters = trayLetters, LayoutColors = new Dictionary<string, Color>(layoutColors, StringComparer.OrdinalIgnoreCase), AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, RecentMenu = watcher.KeepRecent, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
-            CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting,
+            CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting, ThemeMode = Theme.Mode,
             Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ignoredBefore, Learned = learnedBefore,
             AppLayouts = ReadText(appLayoutsPath), InstalledLayouts = new List<LayoutTable>(watcher.Layouts.All)
         };
@@ -806,7 +808,14 @@ class App : ApplicationContext
                 File.WriteAllText(appLayoutsPath, f.AppLayouts, Encoding.UTF8);
                 LoadAppLayouts();
                 watcher.ReloadSoon();
-                if (f.Language != L.Setting)
+                bool themeChanged = false;
+                if (f.ThemeMode != Theme.Mode)
+                {
+                    Theme.Mode = f.ThemeMode;
+                    SetSetting("Theme", f.ThemeMode);
+                    themeChanged = Theme.Refresh();
+                }
+                if (f.Language != L.Setting || themeChanged)
                 {
                     L.Setting = f.Language;
                     SetSetting("Language", f.Language);
