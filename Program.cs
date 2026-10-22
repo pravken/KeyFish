@@ -246,7 +246,8 @@ class App : ApplicationContext
         return many;
     }
 
-    void ShowAbout()
+    // owner: the window it opens over (Settings), or none when opened from the tray
+    void ShowAbout(IWin32Window owner = null)
     {
         string changes = "";
         using (var s = typeof(App).Assembly.GetManifestResourceStream(L.Ru ? "changelog-ru.txt" : "changelog-en.txt"))
@@ -265,7 +266,7 @@ class App : ApplicationContext
 
         if (aboutForm != null) { aboutForm.Activate(); return; }
         using (aboutForm = new AboutForm(stats, changes, new List<LayoutTable>(watcher.Layouts.All)) { Icon = iconEn })
-            aboutForm.ShowDialog();
+            aboutForm.ShowDialog(owner);
         aboutForm = null;
     }
 
@@ -620,6 +621,7 @@ class App : ApplicationContext
         for (int i = 0; i < keys.Length; i++) keys[i] = GetHotkey(i);
         settingsForm = new SettingsForm
         {
+            OpenAbout = owner => ShowAbout(owner),
             BackupDir = backupDir, AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, RecentMenu = watcher.KeepRecent, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
             CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting,
             Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ignoredBefore, Learned = learnedBefore,

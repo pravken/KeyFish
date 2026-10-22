@@ -12,7 +12,8 @@ using System.Windows.Forms;
 class SettingsForm : Form
 {
     public bool AutoCorrect, Typos, QuietFullscreen, UndoCtrlZ, LayoutColor, Autostart, CheckUpdates, LayoutBadge, RecentMenu, Sound;
-    public string BackupDir;             // where KeyFish keeps copies of the settings made before each save
+    public string BackupDir;
+    public Action<IWin32Window> OpenAbout;   // the About window, which otherwise opens only from the tray menu             // where KeyFish keeps copies of the settings made before each save
     public int QuickKey;                 // 0 — off, 1 — double Shift, 2 — Caps Lock
     public int Language;                 // see L.Choices
     public Keys[] Hotkeys;
@@ -64,6 +65,14 @@ class SettingsForm : Form
         nav.Items.Add(Tuple.Create("\uE71D", L.T("Программы", "Apps")));
         nav.Items.Add(Tuple.Create("\uE82D", L.T("Слова", "Words")));
         side.Controls.Add(nav);
+
+        // About, at the bottom of the sidebar, level with Save and Cancel
+        var about = new RoundButton
+        {
+            Text = L.T("О программе", "About KeyFish"), Glyph = "\uE946", Location = new Point(16, ClientSize.Height - 50), Size = new Size(SideWidth - 32, 34)
+        };
+        about.Click += (s, ev) => { if (OpenAbout != null) OpenAbout(this); };
+        side.Controls.Add(about);
         Controls.Add(side);
 
         content.Location = new Point(SideWidth, 0);
@@ -248,7 +257,8 @@ class SettingsForm : Form
     {
         var support = new RoundButton
         {
-            Text = L.T("Поддержать ☕", "Support ☕").Replace("☕", "").Trim(), AccentStyle = true, Glyph = "\uEB52", Size = new Size(170, 34)
+            // Like in the About window: a red heart reads well on a plain button, not on the accent color
+            Text = L.T("Поддержать ☕", "Support ☕").Replace("☕", "").Trim(), Glyph = "\uEB52", GlyphColor = Color.FromArgb(232, 72, 85), Size = new Size(170, 34)
         };
         support.Click += (s, e) => { try { Process.Start("https://ko-fi.com/pravken"); } catch { } };
         var holder = new Panel();
