@@ -924,7 +924,8 @@ class LayoutBadge : Form
                 using (var b = new SolidBrush(fill))
                     g.FillPath(b, path);
                 using (var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
-                    g.DrawString(text, font, Brushes.White, new RectangleF(0, 0, w, h + 1), sf);
+                using (var ink = new SolidBrush(LetterIcon.InkOn(fill)))
+                    g.DrawString(text, font, ink, new RectangleF(0, 0, w, h + 1), sf);
             }
             return bmp;
         }
@@ -1109,6 +1110,23 @@ class ThemedMessage : Form
 static class LetterIcon
 {
     public static readonly Color Latin = Color.FromArgb(40, 110, 220), Other = Color.FromArgb(232, 112, 30), Off = Color.FromArgb(150, 150, 150);
+    static readonly Color DarkInk = Color.FromArgb(32, 32, 32);
+
+    // White letters as before, unless the color is so light that white barely stands out on it (white, pale yellow…):
+    // then dark ones. By the WCAG contrast ratio; it leans to white, as the default colors look best with it
+    public static Color InkOn(Color fill)
+    {
+        return 1.05 / (Luminance(fill) + 0.05) >= 2.3 ? Color.White : DarkInk;
+    }
+
+    static double Luminance(Color c)
+    {
+        Func<int, double> lin = v => { double s = v / 255.0; return s <= 0.03928 ? s / 12.92 : Math.Pow((s + 0.055) / 1.055, 2.4); };
+        return 0.2126 * lin(c.R) + 0.7152 * lin(c.G) + 0.0722 * lin(c.B);
+    }
+
+    // A light circle gets a thin darker rim, so it doesn't melt into a light taskbar or window
+    static bool Light(Color fill) { return InkOn(fill) != Color.White; }
 
     public static Bitmap Render(string text, Color fill, Color ink, int size)
     {
@@ -1123,6 +1141,12 @@ static class LetterIcon
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.PixelOffsetMode = PixelOffsetMode.HighQuality;
         using (var b = new SolidBrush(fill)) g.FillEllipse(b, r.X + 0.5f, r.Y + 0.5f, r.Width - 1, r.Height - 1);
+        if (Light(fill))
+        {
+            float w = Math.Max(1, r.Width / 16);
+            using (var p = new Pen(Theme.Blend(fill, Color.Black, 0.35), w))
+                g.DrawEllipse(p, r.X + w / 2 + 0.5f, r.Y + w / 2 + 0.5f, r.Width - w - 1, r.Height - w - 1);
+        }
         if (!string.IsNullOrEmpty(text))
             // The letters as a shape, centered by their real outline: centered by the font's metrics they sit low
             using (var path = new GraphicsPath())
@@ -1290,7 +1314,7 @@ static class Pictures
             return icon.ToBitmap();
     }
 
-    public static Image Letters(string text, bool other) { return LetterIcon.Render(text, other ? LetterIcon.Other : LetterIcon.Latin, Color.White, 32); }
+    public static Image Letters(string text, bool other) { return LetterIcon.Render(text, other ? LetterIcon.Other : LetterIcon.Latin, LetterIcon.InkOn(other ? LetterIcon.Other : LetterIcon.Latin), 32); }
 
     // ---------- the layout tag at the caret ----------
 
@@ -1314,7 +1338,7 @@ static class Pictures
         using (var path = Theme.Rounded(tag, Theme.S(3)))
         using (var b = new SolidBrush(Color.FromArgb(a, second ? LetterIcon.Latin : LetterIcon.Other))) g.FillPath(b, path);
         using (var f = new Font(Theme.Small.FontFamily, Math.Max(1, Theme.Small.Size * 0.72f), FontStyle.Bold))
-            Theme.SmoothText(g, second ? "EN" : "RU", f, tag, Color.FromArgb(a, Color.White), true, false);
+            Theme.SmoothText(g, second ? "EN" : "RU", f, tag, Color.FromArgb(a, LetterIcon.InkOn(second ? LetterIcon.Latin : LetterIcon.Other)), true, false);
     }
 
     public const int BadgeLength = 4800;
@@ -1400,18 +1424,20 @@ static class LayoutColors
         return string.Join(";", parts);
     }
 
-    // The fish icon in another color: the colored disc takes the new color, the white fish stays white
+    // The fish icon in another color: the colored disc takes the new color; the white fish stays white,
+    // or turns dark on a light color
     public static Bitmap Recolor(Bitmap source, Color target)
     {
         var result = new Bitmap(source.Width, source.Height);
+        var ink = LetterIcon.InkOn(target);
         for (int y = 0; y < source.Height; y++)
             for (int x = 0; x < source.Width; x++)
             {
                 var c = source.GetPixel(x, y);
                 int max = Math.Max(c.R, Math.Max(c.G, c.B)), min = Math.Min(c.R, Math.Min(c.G, c.B));
                 float sat = max == 0 ? 0 : (max - min) / (float)max, value = max / 255f;
-                Func<int, int> mix = t => (int)Math.Round((255 * (1 - sat) + t * sat) * value);
-                result.SetPixel(x, y, Color.FromArgb(c.A, mix(target.R), mix(target.G), mix(target.B)));
+                Func<int, int, int> mix = (t, i) => (int)Math.Round((i * (1 - sat) + t * sat) * value);
+                result.SetPixel(x, y, Color.FromArgb(c.A, mix(target.R, ink.R), mix(target.G, ink.G), mix(target.B, ink.B)));
             }
         return result;
     }
@@ -1447,7 +1473,7 @@ class ColorSwatch : Control
         var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
         float ring = Theme.S(3);
-        LetterIcon.Draw(g, new RectangleF(ring, ring, Width - ring * 2, Height - ring * 2), Letters, Color, Color.White);
+        LetterIcon.Draw(g, new RectangleF(ring, ring, Width - ring * 2, Height - ring * 2), Letters, Color, LetterIcon.InkOn(Color));
         if (hover || (Focused && ShowFocusCues))
             using (var p = new Pen(Theme.Text, Math.Max(1.5f, Theme.Scale * 1.5f))) g.DrawEllipse(p, 1, 1, Width - 2.5f, Height - 2.5f);
     }

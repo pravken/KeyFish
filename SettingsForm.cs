@@ -290,6 +290,10 @@ class SettingsForm : Form
         var page = Page(L.T("Основное", "General"), out y);
         page.Controls.Add(SupportCard(ref y));
         UpdatesRow(page, ref y);
+        cbLanguage = new DropDown { Width = 220 };
+        cbLanguage.Items.AddRange(L.Choices);
+        cbLanguage.SelectedIndex = Math.Max(0, Math.Min(Language, cbLanguage.Items.Count - 1));
+        Row(page, ref y, L.T("Язык интерфейса", "Interface language"), null, cbLanguage);
         y += 8;
         Row(page, ref y, L.T("Исправлять раскладку при наборе", "Fix the keyboard layout as you type"),
             L.T("ghbdtn → привет, руддщ → hello. Автозамены тоже работают, только когда это включено.",
@@ -324,11 +328,6 @@ class SettingsForm : Form
         Row(page, ref y, L.T("Проверять обновления", "Check for updates"),
             L.T("Раз в день KeyFish спрашивает у GitHub, вышла ли новая версия. Больше ничего не отправляется.",
                 "Once a day KeyFish asks GitHub whether a new version is out. Nothing else is sent."), tUpdates = Toggle(CheckUpdates));
-
-        cbLanguage = new DropDown { Width = 220 };
-        cbLanguage.Items.AddRange(L.Choices);
-        cbLanguage.SelectedIndex = Math.Max(0, Math.Min(Language, cbLanguage.Items.Count - 1));
-        Row(page, ref y, L.T("Язык интерфейса", "Interface language"), null, cbLanguage);
 
         // All settings in one file: to move to another computer or to go back to an earlier state
         var export = new RoundButton { Text = L.T("Экспорт…", "Export…"), Location = new Point(0, 0), Size = new Size(110, 32) };

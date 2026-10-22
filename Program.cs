@@ -261,8 +261,9 @@ class App : ApplicationContext
         Icon icon;
         if (letterIcons.TryGetValue(key, out icon)) return icon;
         int size = SystemInformation.SmallIconSize.Width;
-        Color fill = kind == 2 ? LetterIcon.Off : kind == 1 ? Color.White : tint;
-        Color ink = kind == 1 ? tint : Color.White;
+        Color onTint = LetterIcon.InkOn(tint);   // white, or dark on a light color
+        Color fill = kind == 2 ? LetterIcon.Off : kind == 1 ? onTint : tint;
+        Color ink = kind == 1 ? tint : kind == 2 ? Color.White : onTint;
         using (var bmp = LetterIcon.Render(text, fill, ink, size)) icon = Icon.FromHandle(bmp.GetHicon());
         letterIcons[key] = icon;
         return icon;
