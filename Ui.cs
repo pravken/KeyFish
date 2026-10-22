@@ -1286,14 +1286,14 @@ static class Pictures
     public const int SwitchLength = 4800;
 
     // The layout is switched there and back: the key combination shows, the icon changes, and later back again
-    public static void Switching(Graphics g, RectangleF r, int ms, Image first, Image second)
+    public static void Switching(Graphics g, RectangleF r, int ms, Func<Image> first, Func<Image> second)
     {
         var box = Box(g, r);
         float t = Ease(ms, 1100, 350) - Ease(ms, 3500, 350);
         float s = box.Height - Theme.S(5), cx = box.X + box.Width * 0.3f;
         var dest = new RectangleF(cx - s / 2, box.Y + (box.Height - s) / 2, s, s);
-        if (t < 1) Draw(g, first, dest, 1 - t);
-        if (t > 0) Draw(g, second, dest, t);
+        if (t < 1) Draw(g, first(), dest, 1 - t);
+        if (t > 0) Draw(g, second(), dest, t);
         Key(g, box, "Alt+Shift", Math.Max(Held(ms, 900, 700), Held(ms, 3300, 700)));
     }
 
@@ -1314,16 +1314,15 @@ static class Pictures
             return icon.ToBitmap();
     }
 
-    public static Image Letters(string text, bool other) { return LetterIcon.Render(text, other ? LetterIcon.Other : LetterIcon.Latin, LetterIcon.InkOn(other ? LetterIcon.Other : LetterIcon.Latin), 32); }
+    public static Image Letters(string text, Color fill) { return LetterIcon.Render(text, fill, LetterIcon.InkOn(fill), 32); }
 
     // ---------- the layout tag at the caret ----------
 
     // The layout is switched there and back while the caret waits after a word; each time the tag pops up under it
-    public static void Badge(Graphics g, RectangleF r, int ms)
+    public static void Badge(Graphics g, RectangleF r, int ms, string word, string firstTag, Color firstColor, string secondTag, Color secondColor)
     {
         var box = Box(g, r);
         var inner = new RectangleF(box.X + Theme.S(5), box.Y, box.Width - Theme.S(10), box.Height);
-        string word = L.Ru ? "привет" : "hello";
         Text(g, word, inner, 1, Theme.Text);
         float x = inner.X + Width(g, word);
         Caret(g, box, x);
@@ -1332,13 +1331,15 @@ static class Pictures
         int at = second ? 3500 : 1100;
         float t = Math.Min(Ease(ms, at, 250), 1 - Ease(ms, at + 1000, 300));
         if (t <= 0) return;
-        float w = Theme.S(22), h = Theme.S(13);
+        string text = second ? secondTag : firstTag;
+        Color fill = second ? secondColor : firstColor;
+        float w = Math.Max(Theme.S(22), g.MeasureString(text, KeyFont).Width + Theme.S(2)), h = Theme.S(13);
         var tag = new RectangleF(x - Theme.S(1), box.Bottom - Theme.S(5) - h * (1 - t) * 0.3f, w, h);
         int a = (int)(255 * t);
         using (var path = Theme.Rounded(tag, Theme.S(3)))
-        using (var b = new SolidBrush(Color.FromArgb(a, second ? LetterIcon.Latin : LetterIcon.Other))) g.FillPath(b, path);
+        using (var b = new SolidBrush(Color.FromArgb(a, fill))) g.FillPath(b, path);
         using (var f = new Font(Theme.Small.FontFamily, Math.Max(1, Theme.Small.Size * 0.72f), FontStyle.Bold))
-            Theme.SmoothText(g, second ? "EN" : "RU", f, tag, Color.FromArgb(a, LetterIcon.InkOn(second ? LetterIcon.Latin : LetterIcon.Other)), true, false);
+            Theme.SmoothText(g, text, f, tag, Color.FromArgb(a, LetterIcon.InkOn(fill)), true, false);
     }
 
     public const int BadgeLength = 4800;

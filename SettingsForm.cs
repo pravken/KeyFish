@@ -239,9 +239,70 @@ class SettingsForm : Form
     }
 
     // The tray icon as the layout is switched there and back
-    static FeaturePreview Switching(Image first, Image second)
+    static FeaturePreview Switching(Func<Image> first, Func<Image> second)
     {
         return new FeaturePreview((g, r, ms) => Pictures.Switching(g, r, ms, first, second), Pictures.SwitchLength);
+    }
+
+    // ---------- the pictures show the user's own layouts ----------
+
+    // The two layouts the pictures switch between: the first Latin one and the first with another alphabet
+    string latinTag = "EN", otherTag = "RU";
+    // A word of the other layout's language, and what the same keys type in the Latin layout
+    string sampleWord = "привет", sampleTyped = "ghbdtn";
+
+    static readonly Dictionary<string, string> SampleWords = new Dictionary<string, string>
+    {
+        { "ru", "привет" }, { "uk", "привіт" }, { "be", "вітаю" }, { "bg", "здравей" }, { "mk", "здраво" },
+        { "sr", "здраво" }, { "el", "γεια" }, { "he", "שלום" }, { "ka", "გამარჯობა" }
+    };
+
+    static string TagOf(LayoutTable t) { return (t.Name ?? "").Split('-')[0].ToUpperInvariant(); }
+
+    // Without a layout of another alphabet (or a word for its language) the pictures keep EN, RU and ghbdtn → привет
+    void PickSample()
+    {
+        var latin = InstalledLayouts.FirstOrDefault(t => t.Script == "Latin" && TagOf(t).Length > 0);
+        var other = InstalledLayouts.FirstOrDefault(t => t.Script != null && t.Script != "Latin" && TagOf(t).Length > 0);
+        if (latin != null) latinTag = TagOf(latin);
+        if (other == null) return;
+        otherTag = TagOf(other);
+        string word;
+        if (latin == null || other.Lang == null || !SampleWords.TryGetValue(other.Lang.Split('-')[0], out word)) return;
+        var keys = other.Keys(word);
+        if (keys == null) return;
+        string typed = latin.Type(keys);
+        if (typed.IndexOf('\uFFFD') >= 0 || typed == word) return;
+        sampleWord = word;
+        sampleTyped = typed;
+    }
+
+    // A typo in the sample word: two letters swapped (привет → пирвет)
+    string SampleTypo() { return sampleWord.Substring(0, 1) + sampleWord[2] + sampleWord[1] + sampleWord.Substring(3); }
+
+    // The color the user chose for a layout, or the default one: blue for Latin, orange for the rest
+    Color ColorOf(string tag, bool other)
+    {
+        Color c;
+        return LayoutColors.TryGetValue(tag, out c) ? c : other ? LetterIcon.Other : LetterIcon.Latin;
+    }
+
+    // The tray icons in the pictures, made once per layout and color (the colors may change while Settings is open)
+    readonly Dictionary<string, Image> sampleIcons = new Dictionary<string, Image>();
+    Func<Image> SampleIcon(bool letters, bool other)
+    {
+        return () =>
+        {
+            string tag = other ? otherTag : latinTag;
+            Color color = ColorOf(tag, other);
+            string key = letters + "|" + tag + "|" + color.ToArgb();
+            Image image;
+            if (sampleIcons.TryGetValue(key, out image)) return image;
+            if (letters) image = Pictures.Letters(tag, color);
+            else using (var fish = Pictures.Fish(false)) image = global::LayoutColors.Recolor((Bitmap)fish, color);
+            sampleIcons[key] = image;
+            return image;
+        };
     }
 
     static void Intro(Control page, ref int y, string text)
@@ -288,6 +349,7 @@ class SettingsForm : Form
     {
         int y;
         var page = Page(L.T("Основное", "General"), out y);
+        PickSample();
         page.Controls.Add(SupportCard(ref y));
         UpdatesRow(page, ref y);
         cbLanguage = new DropDown { Size = new Size(170, 34) };   // as wide and tall as the buttons above
@@ -298,27 +360,28 @@ class SettingsForm : Form
         Row(page, ref y, L.T("Исправлять раскладку при наборе", "Fix the keyboard layout as you type"),
             L.T("ghbdtn → привет, руддщ → hello. Автозамены тоже работают, только когда это включено.",
                 "ghbdtn → привет, руддщ → hello. Replacements also work only while this is on."), tAuto = Toggle(AutoCorrect),
-            Typing("ghbdtn", "привет"));
+            Typing(sampleTyped, sampleWord));
         Row(page, ref y, L.T("Исправлять опечатки", "Fix typos"),
             L.T("Эксперимент: пирвет → привет, через проверку орфографии Windows.", "Experimental: recieve → receive, using Windows spell check."), tTypos = Toggle(Typos),
-            Typing(L.Ru ? "пирвет" : "recieve", L.Ru ? "привет" : "receive"));
+            Typing(SampleTypo(), sampleWord));
         Row(page, ref y, L.T("Молчать в играх и полноэкранных программах", "Stay quiet in games and full-screen apps"), null, tQuiet = Toggle(QuietFullscreen));
         Row(page, ref y, L.T("Ctrl+Z отменяет автоисправление", "Ctrl+Z undoes an auto-fix"),
             L.T("Сразу после исправления, как и Pause. Следующий Ctrl+Z работает в программе как обычно.",
                 "Right after the fix, like Pause. The next Ctrl+Z works in the app as usual."), tCtrlZ = Toggle(UndoCtrlZ),
-            Typing("ghbdtn", "привет", true));
+            Typing(sampleTyped, sampleWord, true));
         Row(page, ref y, L.T("Цвет рыбки показывает раскладку", "Fish color shows the layout"),
             L.T("Синяя — латиница, оранжевая — другой алфавит.", "Blue — Latin, orange — another alphabet."), tColor = Toggle(LayoutColor),
-            Switching(Pictures.Fish(false), Pictures.Fish(true)));
+            Switching(SampleIcon(false, false), SampleIcon(false, true)));
         Row(page, ref y, L.T("Буквы раскладки вместо рыбки", "Layout letters instead of the fish"),
             L.T("В трее EN, RU и т. д. в кружке того же цвета. Пока KeyFish не исправляет, кружок серый.",
                 "The tray shows EN, RU and so on in a circle of the same color. While KeyFish isn't correcting, the circle is grey."),
-            tLetters = Toggle(TrayLetters), Switching(Pictures.Letters("EN", false), Pictures.Letters("RU", true)));
+            tLetters = Toggle(TrayLetters), Switching(SampleIcon(true, false), SampleIcon(true, true)));
         ColorsRow(page, ref y);
         Row(page, ref y, L.T("Показывать раскладку у курсора", "Show the layout at the cursor"),
             L.T("Когда раскладка меняется, рядом с текстовым курсором на секунду появляется EN, RU и т. д. Если программа не сообщает, где курсор, — рядом с мышью.",
                 "When the layout changes, EN, RU and so on appear next to the text cursor for a second, or next to the mouse pointer if the app doesn't tell where its cursor is."), tBadge = Toggle(LayoutBadge),
-            new FeaturePreview(Pictures.Badge, Pictures.BadgeLength));
+            new FeaturePreview((g, r, ms) => Pictures.Badge(g, r, ms, sampleWord, otherTag, ColorOf(otherTag, true), latinTag, ColorOf(latinTag, false)),
+                               Pictures.BadgeLength));
         Row(page, ref y, L.T("Последние исправления в меню рыбки", "Recent corrections in the fish menu"),
             L.T("Нажмите на исправление в меню, и KeyFish больше не будет так исправлять. Список хранится только в памяти.",
                 "Click a correction in the menu and KeyFish won't correct it again. The list is kept only in memory."), tRecent = Toggle(RecentMenu));

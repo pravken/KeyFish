@@ -49,6 +49,19 @@ static class Preview
             var hkl = LayoutTable.InstalledHkls();
             var layouts = new List<LayoutTable>();
             foreach (var h in hkl) layouts.Add(LayoutTable.FromHkl(h));
+            // "layouts=fr-FR:kbdfr,uk-UA:kbdur1": other layouts than the installed ones, from tests\layouts
+            foreach (string a in args)
+                if (a.StartsWith("layouts="))
+                {
+                    layouts.Clear();
+                    foreach (string item in a.Substring(8).Split(','))
+                    {
+                        string[] p = item.Split(':');
+                        var t = LayoutTable.FromKlc(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Application.ExecutablePath), @"..\layouts\" + p[1] + ".klc"));
+                        t.Name = p[0];
+                        layouts.Add(t);
+                    }
+                }
             form = new SettingsForm
             {
                 AutoCorrect = true, QuietFullscreen = true, UndoCtrlZ = true, LayoutColor = true, Autostart = true, CheckUpdates = true, RecentMenu = true, QuickKey = 1,
