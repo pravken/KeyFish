@@ -96,7 +96,9 @@ class SettingsForm : Form
         nav.SelectedChanged += (s, ev) =>
         {
             for (int i = 0; i < pages.Count; i++) pages[i].Visible = i == nav.Selected;
+            PlayPictures();
         };
+        Shown += (s, ev) => PlayPictures();   // only now is the window on screen to be seen
 
         var save = new RoundButton { Text = L.T("Сохранить", "Save"), AccentStyle = true, Size = new Size(130, 34) };
         var cancel = new RoundButton { Text = L.T("Отмена", "Cancel"), Size = new Size(130, 34) };
@@ -179,6 +181,25 @@ class SettingsForm : Form
     }
 
     static ToggleSwitch Toggle(bool value) { return new ToggleSwitch { Checked = value }; }
+
+    // The pictures of the page now shown start one after another, top to bottom, and keep looping
+    void PlayPictures()
+    {
+        var page = pages.FirstOrDefault(p => p.Visible);
+        if (page == null) return;
+        var found = new List<FeaturePreview>();
+        var stack = new Stack<Control>();
+        stack.Push(page);
+        while (stack.Count > 0)
+        {
+            var c = stack.Pop();
+            var f = c as FeaturePreview;
+            if (f != null) found.Add(f);
+            foreach (Control child in c.Controls) stack.Push(child);
+        }
+        found.Sort((a, b) => a.Parent.Top.CompareTo(b.Parent.Top));
+        for (int i = 0; i < found.Count; i++) found[i].Play(200 + i * 180);
+    }
 
     // A color for each installed layout: a click on its circle opens the palette
     void ColorsRow(Panel page, ref int y)

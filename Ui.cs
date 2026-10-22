@@ -1144,8 +1144,8 @@ static class LetterIcon
     }
 }
 
-// A small "before → after" picture next to a setting: what the setting changes. It plays the change when the page
-// opens, when the mouse is over it and when the switch is flipped, and otherwise rests on the result
+// A small "before → after" picture next to a setting: what the setting changes, played over and over while its page
+// is on screen (and from the start when the switch is flipped). Hidden, it stops
 class FeaturePreview : Control
 {
     readonly Action<Graphics, RectangleF> before;
@@ -1153,7 +1153,6 @@ class FeaturePreview : Control
     readonly Timer timer = new Timer { Interval = 33 };
     float t = 1;
     int started;
-    bool hover, played;
 
     public FeaturePreview(Action<Graphics, RectangleF> before, Action<Graphics, RectangleF, float> after)
     {
@@ -1165,33 +1164,27 @@ class FeaturePreview : Control
         Size = new Size(150, 40);
         AccessibleRole = AccessibleRole.Graphic;
         timer.Tick += (s, e) => Step();
-        VisibleChanged += (s, e) => { if (Visible && !played) { played = true; Play(); } };
     }
 
-    // Plays the change once from the start
-    public void Play()
+    // Plays the change from the start, after a delay (the pictures of a page start one after another), then loops
+    public void Play(int delay = 0)
     {
-        started = Environment.TickCount;
+        started = Environment.TickCount + delay;
         t = 0;
         timer.Start();
         Invalidate();
     }
 
+
     void Step()
     {
+        if (!Visible) { timer.Stop(); t = 1; return; }   // the page or the window was hidden; showing the page starts it again
         int ms = Environment.TickCount - started;
-        const int hold = 500, change = 900, rest = 1400;   // before, the change, after (then again while the mouse is over it)
-        t = ms < hold ? 0 : Math.Min(1, (ms - hold) / (float)change);
-        if (ms > hold + change + rest)
-        {
-            if (hover) started = Environment.TickCount;
-            else { timer.Stop(); t = 1; }
-        }
+        const int hold = 700, change = 900, rest = 1800;   // before, the change, after; then from the start
+        t = ms < hold ? 0 : Math.Min(1, (ms - hold) / (float)change);   // ms is negative while the delay lasts
+        if (ms > hold + change + rest) started = Environment.TickCount;
         Invalidate();
     }
-
-    protected override void OnMouseEnter(EventArgs e) { hover = true; if (!timer.Enabled) Play(); base.OnMouseEnter(e); }
-    protected override void OnMouseLeave(EventArgs e) { hover = false; base.OnMouseLeave(e); }
 
     protected override void OnPaint(PaintEventArgs e)
     {
