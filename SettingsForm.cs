@@ -290,7 +290,7 @@ class SettingsForm : Form
         var page = Page(L.T("Основное", "General"), out y);
         page.Controls.Add(SupportCard(ref y));
         UpdatesRow(page, ref y);
-        cbLanguage = new DropDown { Width = 220 };
+        cbLanguage = new DropDown { Size = new Size(170, 34) };   // as wide and tall as the buttons above
         cbLanguage.Items.AddRange(L.Choices);
         cbLanguage.SelectedIndex = Math.Max(0, Math.Min(Language, cbLanguage.Items.Count - 1));
         Row(page, ref y, L.T("Язык интерфейса", "Interface language"), null, cbLanguage);
