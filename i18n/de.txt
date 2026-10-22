@@ -117,3 +117,11 @@ Open	Öffnen
 Yes	Ja
 No	Nein
 The password-field check is starting…	Die Prüfung von Passwortfeldern startet…
+Updates	Updates
+Check	Prüfen
+Update	Aktualisieren
+Checking…	Wird geprüft…
+Version {0} is out (you have {1})	Version {0} ist erschienen (Sie haben {1})
+Checked at {0}.	Geprüft um {0}.
+Version {0}. Click Check to see whether a newer one is out.	Version {0}. Klicken Sie auf „Prüfen“, um zu sehen, ob es eine neuere gibt.
+Version {0} is out — update	Version {0} ist erschienen — aktualisieren

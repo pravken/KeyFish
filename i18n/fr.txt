@@ -117,3 +117,11 @@ Open	Ouvrir
 Yes	Oui
 No	Non
 The password-field check is starting…	La vérification des champs de mot de passe démarre…
+Updates	Mises à jour
+Check	Vérifier
+Update	Mettre à jour
+Checking…	Vérification…
+Version {0} is out (you have {1})	La version {0} est sortie (vous avez la {1})
+Checked at {0}.	Vérifié à {0}.
+Version {0}. Click Check to see whether a newer one is out.	Version {0}. Cliquez sur Vérifier pour voir si une plus récente est sortie.
+Version {0} is out — update	La version {0} est sortie — mettre à jour

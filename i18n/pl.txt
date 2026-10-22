@@ -117,3 +117,11 @@ Open	Otwórz
 Yes	Tak
 No	Nie
 The password-field check is starting…	Sprawdzanie pól haseł się uruchamia…
+Updates	Aktualizacje
+Check	Sprawdź
+Update	Zaktualizuj
+Checking…	Sprawdzam…
+Version {0} is out (you have {1})	Wyszła wersja {0} (masz {1})
+Checked at {0}.	Sprawdzono o {0}.
+Version {0}. Click Check to see whether a newer one is out.	Wersja {0}. Kliknij „Sprawdź”, aby zobaczyć, czy wyszła nowsza.
+Version {0} is out — update	Wyszła wersja {0} — zaktualizuj

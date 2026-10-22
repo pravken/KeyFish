@@ -117,3 +117,11 @@ Open	Відкрити
 Yes	Так
 No	Ні
 The password-field check is starting…	Перевірка полів паролів запускається…
+Updates	Оновлення
+Check	Перевірити
+Update	Оновити
+Checking…	Перевіряю…
+Version {0} is out (you have {1})	Вийшла версія {0} (у вас {1})
+Checked at {0}.	Перевірено о {0}.
+Version {0}. Click Check to see whether a newer one is out.	Версія {0}. Натисніть «Перевірити», щоб дізнатися, чи не вийшла нова.
+Version {0} is out — update	Вийшла версія {0} — оновити

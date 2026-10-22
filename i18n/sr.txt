@@ -117,3 +117,11 @@ Open	Отвори
 Yes	Да
 No	Не
 The password-field check is starting…	Провера поља за лозинке се покреће…
+Updates	Ажурирања
+Check	Провери
+Update	Ажурирај
+Checking…	Проверавам…
+Version {0} is out (you have {1})	Изашла је верзија {0} (имате {1})
+Checked at {0}.	Проверено у {0}.
+Version {0}. Click Check to see whether a newer one is out.	Верзија {0}. Кликните „Провери“ да видите да ли постоји новија.
+Version {0} is out — update	Изашла је верзија {0} — ажурирај

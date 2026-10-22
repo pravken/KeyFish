@@ -284,7 +284,7 @@ class App : ApplicationContext
         else stats = StatsLine(total) + (since > 0 ? L.F("", " (since {0})", sinceText) : "");   // no plural forms needed this way
 
         if (aboutForm != null) { aboutForm.Activate(); return; }
-        using (aboutForm = new AboutForm(stats, changes, new List<LayoutTable>(watcher.Layouts.All)) { Icon = iconEn })
+        using (aboutForm = new AboutForm(stats, changes, new List<LayoutTable>(watcher.Layouts.All), updates) { Icon = iconEn })
             aboutForm.ShowDialog(owner);
         aboutForm = null;
     }
@@ -546,6 +546,8 @@ class App : ApplicationContext
         trayTimer.Start();
 
         hotkeys.Pressed += OnHotkey;
+        updates.Check = CheckNow;
+        updates.Install = () => { if (updates.NewVersion) OfferUpdate(updates.Latest); };
         WarnHotkeys(RegisterHotkeys());
 
         // Updates: half a minute after start, then once a day
@@ -616,9 +618,16 @@ class App : ApplicationContext
         });
     }
 
-    // manual: the user clicked "Check" themselves, so also report "no updates" and errors
-    void CheckForUpdates(bool manual)
+    // What KeyFish knows about updates; Settings and About show it and can check again or install
+    readonly UpdateInfo updates = new UpdateInfo();
+    readonly List<Action> checkDone = new List<Action>();
+
+    // Asks GitHub for the latest release; done runs on this thread when the answer is in (also if a check was already going)
+    void CheckNow(Action done)
     {
+        if (done != null) checkDone.Add(done);
+        if (updates.Checking) return;
+        updates.Checking = true;
         var ui = SynchronizationContext.Current;
         ThreadPool.QueueUserWorkItem(_ =>
         {
@@ -626,6 +635,24 @@ class App : ApplicationContext
             try { latest = Updater.GetLatest(); }
             catch { }
             ui.Post(__ =>
+            {
+                updates.Checking = false;
+                updates.CheckedAt = DateTime.Now;
+                updates.Failed = latest == null;
+                if (latest != null) updates.Latest = latest;
+                var callbacks = checkDone.ToArray();
+                checkDone.Clear();
+                foreach (var c in callbacks) try { c(); } catch { }
+            }, null);
+        });
+    }
+
+    // manual: the user clicked "Check" themselves, so also report "no updates" and errors
+    void CheckForUpdates(bool manual)
+    {
+        CheckNow(() =>
+        {
+            var latest = updates.Failed ? null : updates.Latest;
             {
                 if (latest != null && latest.Version > Updater.Current)
                 {
@@ -644,7 +671,7 @@ class App : ApplicationContext
                                                    : L.F("У вас последняя версия: {0}.", "You have the latest version: {0}.", Application.ProductVersion),
                         L.T("Обновление KeyFish", "KeyFish update"), MessageBoxButtons.OK, latest == null ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
                 }
-            }, null);
+            }
         });
     }
 
@@ -660,7 +687,7 @@ class App : ApplicationContext
         for (int i = 0; i < keys.Length; i++) keys[i] = GetHotkey(i);
         settingsForm = new SettingsForm
         {
-            OpenAbout = owner => ShowAbout(owner),
+            OpenAbout = owner => ShowAbout(owner), Updates = updates,
             BackupDir = backupDir, AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, RecentMenu = watcher.KeepRecent, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
             CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting,
             Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ignoredBefore, Learned = learnedBefore,
@@ -1113,6 +1140,32 @@ class App : ApplicationContext
         tray.Visible = false;
         hotkeys.UnregisterAll();
         base.ExitThreadCore();
+    }
+}
+
+// What KeyFish knows about updates, for Settings and About: the last answer from GitHub and what can be done next
+class UpdateInfo
+{
+    public Updater.Release Latest;       // the newest release seen, null before the first good answer
+    public DateTime CheckedAt;
+    public bool Failed, Checking;
+    public Action<Action> Check;         // asks GitHub now; the callback runs on the UI thread when the answer is in
+    public Action Install;               // offers the new version: download, verify, restart
+
+    public bool NewVersion { get { return Latest != null && Latest.Version > Updater.Current; } }
+
+    public string Status
+    {
+        get
+        {
+            if (Checking) return L.T("Проверяю…", "Checking…");
+            if (NewVersion) return L.F("Вышла версия {0} (у вас {1})", "Version {0} is out (you have {1})", Latest.Tag, Application.ProductVersion);
+            if (Failed) return L.T("Не удалось связаться с GitHub. Проверьте интернет и попробуйте позже.", "Couldn't reach GitHub. Check your connection and try again later.");
+            if (Latest != null)
+                return L.F("У вас последняя версия: {0}.", "You have the latest version: {0}.", Application.ProductVersion) + " " +
+                       L.F("Проверено в {0}.", "Checked at {0}.", CheckedAt.ToString(CheckedAt.Date == DateTime.Today ? "t" : "g", L.Culture));
+            return L.F("Версия {0}. Нажмите «Проверить», чтобы узнать, не вышла ли новая.", "Version {0}. Click Check to see whether a newer one is out.", Application.ProductVersion);
+        }
     }
 }
 

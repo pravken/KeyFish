@@ -12,7 +12,7 @@ class AboutForm : Form
     const string SupportUrl = "https://ko-fi.com/pravken";
 
     // layouts: the installed keyboard layouts, for the easter egg
-    public AboutForm(string stats, string changelog, ICollection<LayoutTable> layouts = null)
+    public AboutForm(string stats, string changelog, ICollection<LayoutTable> layouts = null, UpdateInfo updates = null)
     {
         Text = L.T("О программе", "About KeyFish");
         StartPosition = FormStartPosition.CenterScreen;
@@ -55,6 +55,35 @@ class AboutForm : Form
         link.Click += (s, e) => { try { Process.Start(ProjectUrl); } catch { } };
         Controls.Add(link);
 
+        // Updates: "Check for updates", then the answer; a new version is a link that installs it
+        Control below = link;
+        if (updates != null)
+        {
+            var update = Theme.Label("", Theme.Body, Theme.AccentFill);
+            update.Location = new Point(139, link.Top + (int)Math.Ceiling(link.Height / Theme.Scale) + 2);
+            Action refresh = () =>
+            {
+                bool act = !updates.Checking && (updates.NewVersion || updates.Latest == null);
+                update.Text = updates.Checking ? L.T("Проверяю…", "Checking…")
+                            : updates.NewVersion ? L.F("Вышла версия {0} — обновить", "Version {0} is out — update", updates.Latest.Tag)
+                            : updates.Latest == null && !updates.Failed ? L.T("Проверить обновления", "Check for updates")
+                            : updates.Status;
+                update.ForeColor = act ? Theme.AccentFill : Theme.SubText;
+                update.Cursor = act ? Cursors.Hand : Cursors.Default;
+            };
+            update.Click += (s, e) =>
+            {
+                if (updates.Checking) return;
+                if (updates.NewVersion) { updates.Install(); return; }
+                if (updates.Latest != null && !updates.Failed) return;
+                updates.Check(() => { if (!IsDisposed) refresh(); });
+                refresh();
+            };
+            refresh();
+            Controls.Add(update);
+            below = update;
+        }
+
         // A quiet way to support the project: only here and in Settings, never as a reminder
         var support = new RoundButton
         {
@@ -71,7 +100,7 @@ class AboutForm : Form
         Controls.Add(changes);
         Controls.Add(ok);
         // The buttons sit under the text, however many lines it took ("link" is sized by its font: back to 96-DPI pixels)
-        int buttons = Math.Max(192, link.Top + (int)Math.Ceiling(link.Height / Theme.Scale) + 40);
+        int buttons = Math.Max(192, below.Top + (int)Math.Ceiling(below.Height / Theme.Scale) + 34);
         foreach (var b in new Control[] { support, changes, ok }) b.Top = buttons;
         ClientSize = new Size(500, buttons + 58);
         KeyPreview = true;

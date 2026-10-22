@@ -116,3 +116,11 @@ Open	Адкрыць
 Yes	Так
 No	Не
 The password-field check is starting…	Праверка палёў пароляў запускаецца…
+Updates	Абнаўленні
+Check	Праверыць
+Update	Абнавіць
+Checking…	Правяраю…
+Version {0} is out (you have {1})	Выйшла версія {0} (у вас {1})
+Checked at {0}.	Праверана а {0}.
+Version {0}. Click Check to see whether a newer one is out.	Версія {0}. Націсніце «Праверыць», каб даведацца, ці не выйшла новая.
+Version {0} is out — update	Выйшла версія {0} — абнавіць

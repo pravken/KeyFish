@@ -24,6 +24,14 @@ static class Preview
         return null;
     }
 
+    // "newver": a newer release is out; otherwise nothing was checked yet
+    static UpdateInfo FakeUpdates(string[] args)
+    {
+        var u = new UpdateInfo { Check = done => { }, Install = () => { } };
+        if (Array.IndexOf(args, "newver") >= 0) { u.Latest = new Updater.Release { Version = new Version(9, 0, 0), Tag = "9.0.0" }; u.CheckedAt = DateTime.Now; }
+        return u;
+    }
+
     [STAThread]
     static void Main(string[] args)
     {
@@ -47,7 +55,8 @@ static class Preview
                 Hotkeys = (Keys[])App.HotkeyDefaults.Clone(), Language = 0, StartPage = page, Logo = FishLogo.Render(72),
                 Replacements = "спс = спасибо\nсув = С уважением,\\nМаксим\nthx = thank you\n",
                 Exclusions = "Code\ncmd\nWindowsTerminal\n", AppLayouts = "Telegram = " + hkl[hkl.Length - 1].ToInt64().ToString("X") + "\nCode = " + hkl[0].ToInt64().ToString("X") + "\n",
-                Ignored = "lol\nкек\n", Learned = "ghbdtn\n", InstalledLayouts = layouts
+                Ignored = "lol\nкек\n", Learned = "ghbdtn\n", InstalledLayouts = layouts,
+                Updates = FakeUpdates(args)
             };
         }
         else if (args[0] == "changelog")   // the real changelog of the interface language
@@ -55,7 +64,8 @@ static class Preview
         else if (args[0] == "message")
             form = (Form)Activator.CreateInstance(typeof(ThemedMessage), BindingFlags.NonPublic | BindingFlags.Instance, null,
                 new object[] { "Вышла версия 2.0.1 (у вас 2.0.0).\n\nОбновить сейчас? KeyFish скачает новую версию с GitHub, проверит контрольную сумму и перезапустится.", "Обновление KeyFish", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Information }, null);
-        else form = new AboutForm("Рыбка поймала 1 234 ошибки", "2.0.0\n• Новое\n\n1.8.3\n• Старое\n", LayoutTable.Installed());
+        else form = new AboutForm("Рыбка поймала 1 234 ошибки", "2.0.0\n• Новое\n\n1.8.3\n• Старое\n", LayoutTable.Installed(),
+                                  FakeUpdates(args));
         string outPath = args[args[0] == "settings" ? 2 : 1];
         int at = 3200; foreach (string a in args) if (a.StartsWith("at=")) at = int.Parse(a.Substring(3));   // aquarium: when to take the shot, ms
         var timer = new Timer { Interval = args[0] == "aquarium" ? at : 700 };

@@ -14,6 +14,7 @@ class SettingsForm : Form
     public bool AutoCorrect, Typos, QuietFullscreen, UndoCtrlZ, LayoutColor, Autostart, CheckUpdates, LayoutBadge, RecentMenu, Sound;
     public string BackupDir;             // where KeyFish keeps copies of the settings made before each save
     public Action<IWin32Window> OpenAbout;   // the About window, which otherwise opens only from the tray menu
+    public UpdateInfo Updates;               // the update status and how to check or install
     public int QuickKey;                 // 0 — off, 1 — double Shift, 2 — Caps Lock
     public int Language;                 // see L.Choices
     public Keys[] Hotkeys;
@@ -213,6 +214,8 @@ class SettingsForm : Form
         int y;
         var page = Page(L.T("Основное", "General"), out y);
         page.Controls.Add(SupportCard(ref y));
+        UpdatesRow(page, ref y);
+        y += 8;
         Row(page, ref y, L.T("Исправлять раскладку при наборе", "Fix the keyboard layout as you type"),
             L.T("ghbdtn → привет, руддщ → hello. Автозамены тоже работают, только когда это включено.",
                 "ghbdtn → привет, руддщ → hello. Replacements also work only while this is on."), tAuto = Toggle(AutoCorrect));
@@ -272,8 +275,34 @@ class SettingsForm : Form
             L.T("Если он экономит вам время, можно угостить автора кофе.", "If it saves you time, you can buy the author a coffee."), support);
         var card = (Card)holder.Controls[0];
         holder.Controls.Remove(card);
-        y += 8;
         return card;
+    }
+
+    // Updates: what the last check found, and a button that checks now — or installs, when a new version is out
+    void UpdatesRow(Panel page, ref int y)
+    {
+        if (Updates == null) return;
+        var button = new RoundButton { Size = new Size(170, 34) };
+        // The status may grow by a line ("Couldn't reach GitHub…"): the row is made for the longest one
+        string longest = L.T("Не удалось связаться с GitHub. Проверьте интернет и попробуйте позже.", "Couldn't reach GitHub. Check your connection and try again later.");
+        Row(page, ref y, L.T("Обновления", "Updates"), longest, button);
+        var status = (Label)button.Parent.Controls[1];
+        Action refresh = () =>
+        {
+            status.Text = Updates.Status;
+            status.ForeColor = Updates.NewVersion ? Theme.AccentFill : Theme.SubText;
+            button.Text = Updates.NewVersion ? L.T("Обновить", "Update") : L.T("Проверить", "Check");
+            button.AccentStyle = Updates.NewVersion;
+            button.Enabled = !Updates.Checking;
+            button.Invalidate();
+        };
+        button.Click += (s, e) =>
+        {
+            if (Updates.NewVersion) { Updates.Install(); return; }
+            Updates.Check(() => { if (!IsDisposed) refresh(); });
+            refresh();
+        };
+        refresh();
     }
 
     // ---------- Hotkeys ----------
