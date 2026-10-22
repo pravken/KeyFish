@@ -18,7 +18,7 @@ A tiny Windows tray app that fixes text typed in the wrong keyboard layout — f
 - **Shift+Pause** — transliteration: «Привет» ⇄ "Privet"
 - Typo fixing via Windows spell check (experimental, turn it on in Settings)
 - **Layout per app:** Telegram always in Russian, VS Code in English — KeyFish switches when you go to the app
-- The tray fish shows the current layout: blue — Latin, orange — another alphabet
+- The tray fish shows the current layout: blue — Latin, orange — another alphabet, or a color of your own per layout; or the tray can show the layout's letters (EN, RU…) instead
 - Optional: **double Shift** or **Caps Lock** fixes the last word, like Pause; the layout shows next to the text cursor for a moment when it changes
 - The fish menu: **pause for an hour**, and **recent corrections** — click one and KeyFish won't correct it that way again
 - **Import** replacements and word lists from other programs: plain text, CSV/TSV, AutoHotkey hotstrings, Espanso; all settings export to one file, and a copy is kept before every save

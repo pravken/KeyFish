@@ -1,3 +1,11 @@
+2.0.2
+• Check for updates right from Settings or About: the status shows whether your version is the latest
+• Optional: the tray shows the layout's letters (EN, RU…) in a circle instead of the fish
+• A color of your own for each layout: the fish, the letters and the tag at the cursor use it; on a light color the letters turn dark
+• Settings show small looping pictures of what each option does, with your own layouts, colors and a word of your language
+• Text and hotkey fields are rounded like the buttons; the interface language is near the top of Settings; layout colors go into the settings export
+• What's new shows ⇄ and 🐟 instead of empty squares
+
 2.0.1
 • Password fields: the check could count as done before it had answered (on a PC running for 25 days or more, or while the check was still starting). Fixed, and checks are now timed more strictly
 • Hotkeys (Pause, double Shift, Alt+Pause and the others) don't work in password fields and in excluded apps: in a terminal they used to send Ctrl+C and stop the running command

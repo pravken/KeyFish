@@ -868,7 +868,8 @@ class SettingsForm : Form
         return new Dictionary<string, string>
         {
             { "replacements.txt", Replacements }, { "exclusions.txt", Exclusions }, { "ignored-words.txt", Ignored },
-            { "learned-words.txt", Learned }, { "app-layouts.txt", AppLayouts }
+            { "learned-words.txt", Learned }, { "app-layouts.txt", AppLayouts },
+            { "layout-colors.txt", global::LayoutColors.Format(LayoutColors) }
         };
     }
 
@@ -915,6 +916,7 @@ class SettingsForm : Form
         if (files.TryGetValue("ignored-words.txt", out text)) Ignored = text;
         if (files.TryGetValue("learned-words.txt", out text)) Learned = text;
         if (files.TryGetValue("app-layouts.txt", out text)) AppLayouts = text;
+        if (files.TryGetValue("layout-colors.txt", out text)) LayoutColors = global::LayoutColors.Parse(text.Trim());
         Func<string, bool, bool> flag = (name, current) => { int v; return values.TryGetValue(name, out v) ? v != 0 : current; };
         AutoCorrect = flag("AutoCorrect", AutoCorrect); Typos = flag("Typos", Typos); QuietFullscreen = flag("QuietFullscreen", QuietFullscreen);
         UndoCtrlZ = flag("UndoCtrlZ", UndoCtrlZ); LayoutColor = flag("LayoutColor", LayoutColor); CheckUpdates = flag("CheckUpdates", CheckUpdates);
@@ -1298,7 +1300,7 @@ static class SettingsArchive
         "AutoCorrect", "Typos", "QuietFullscreen", "UndoCtrlZ", "LayoutColor", "CheckUpdates", "LayoutBadge", "RecentMenu", "QuickKey", "Sound", "TrayLetters",
         "Language", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5"
     };
-    static readonly string[] FileNames = { "replacements.txt", "exclusions.txt", "ignored-words.txt", "learned-words.txt", "app-layouts.txt" };
+    static readonly string[] FileNames = { "replacements.txt", "exclusions.txt", "ignored-words.txt", "learned-words.txt", "app-layouts.txt", "layout-colors.txt" };
 
     public static void Save(string path, Dictionary<string, string> files, Dictionary<string, int> values)
     {

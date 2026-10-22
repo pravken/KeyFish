@@ -833,7 +833,8 @@ class App : ApplicationContext
             var files = new Dictionary<string, string>
             {
                 { "replacements.txt", ReadText(replacementsPath) }, { "exclusions.txt", ReadText(exclusionsPath) },
-                { "ignored-words.txt", ignoredBefore }, { "learned-words.txt", learnedBefore }, { "app-layouts.txt", ReadText(appLayoutsPath) }
+                { "ignored-words.txt", ignoredBefore }, { "learned-words.txt", learnedBefore }, { "app-layouts.txt", ReadText(appLayoutsPath) },
+                { "layout-colors.txt", GetText("LayoutColors") }
             };
             var values = new Dictionary<string, int>();
             using (var k = Registry.CurrentUser.OpenSubKey(SettingsKey))
