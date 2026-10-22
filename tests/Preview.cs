@@ -65,7 +65,7 @@ static class Preview
             form = new SettingsForm
             {
                 AutoCorrect = true, QuietFullscreen = true, UndoCtrlZ = true, LayoutColor = true, Autostart = true, CheckUpdates = true, RecentMenu = true, QuickKey = 1,
-                Hotkeys = (Keys[])App.HotkeyDefaults.Clone(), Language = 0, StartPage = page, Logo = FishLogo.Render(72),
+                Hotkeys = (Keys[])App.HotkeyDefaults.Clone(), Language = 0, StartPage = page,
                 Replacements = "спс = спасибо\nсув = С уважением,\\nМаксим\nthx = thank you\n",
                 Exclusions = Array.IndexOf(args, "long") >= 0   // "long": enough apps for the list to scroll
                     ? "Code\ndevenv\ncmd\npowershell\npwsh\nWindowsTerminal\nidea64\npycharm64\nrider64\nKeePass\nKeePassXC\n1Password\nmstsc\n"
@@ -105,6 +105,12 @@ static class Preview
                         foreach (Control child in c.Controls) stack.Push(child);
                     }
                 }
+            // "fury": the sidebar fish beats its tail as after five clicks
+            if (Array.IndexOf(args, "fury") >= 0)
+            {
+                var fish = Find<FishView>(form);
+                if (fish != null) fish.Fury();
+            }
             // "colors": open the palette of the first layout color (captured from the screen)
             if (Array.IndexOf(args, "colors") >= 0)
             {

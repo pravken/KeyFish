@@ -769,7 +769,7 @@ class App : ApplicationContext
             BackupDir = backupDir, TrayLetters = trayLetters, LayoutColors = new Dictionary<string, Color>(layoutColors, StringComparer.OrdinalIgnoreCase), AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, RecentMenu = watcher.KeepRecent, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
             CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting,
             Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ignoredBefore, Learned = learnedBefore,
-            AppLayouts = ReadText(appLayoutsPath), InstalledLayouts = new List<LayoutTable>(watcher.Layouts.All), Logo = FishLogo.Render(72)
+            AppLayouts = ReadText(appLayoutsPath), InstalledLayouts = new List<LayoutTable>(watcher.Layouts.All)
         };
         settingsForm.Icon = iconEn;
 
@@ -818,7 +818,6 @@ class App : ApplicationContext
         }
         finally
         {
-            if (settingsForm.Logo != null) settingsForm.Logo.Dispose();
             settingsForm.Dispose();
             settingsForm = null;
             WarnHotkeys(RegisterHotkeys());

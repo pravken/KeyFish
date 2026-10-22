@@ -21,7 +21,6 @@ class SettingsForm : Form
     public string Replacements, Exclusions, Ignored, Learned, AppLayouts;
     public IList<LayoutTable> InstalledLayouts = new List<LayoutTable>();
     public Dictionary<string, Color> LayoutColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);   // "EN" → color
-    public Image Logo;
     public int StartPage { get; set; }   // the section to open with (tests\Preview opens any)
 
     ToggleSwitch tAuto, tTypos, tQuiet, tCtrlZ, tColor, tAutostart, tUpdates, tBadge, tRecent, tSound, tLetters;
@@ -55,7 +54,9 @@ class SettingsForm : Form
         if (room < ClientSize.Height) ClientSize = new Size(ClientSize.Width, Math.Max(480, room));
         // Sidebar: the fish, the name and the sections
         var side = new Panel { Location = new Point(0, 0), Size = new Size(SideWidth, ClientSize.Height), BackColor = Theme.Back };
-        if (Logo != null) side.Controls.Add(new PictureBox { Image = Logo, SizeMode = PictureBoxSizeMode.Zoom, Location = new Point(20, 18), Size = new Size(36, 36), BackColor = Color.Transparent });
+        var fish = new FishView { Location = new Point(20, 18), Size = new Size(36, 36) };
+        fish.EasterEgg += (s, ev) => fish.Fury();
+        side.Controls.Add(fish);
         var name = Theme.Label("KeyFish", Theme.Section);
         name.Location = new Point(64, 15);
         var ver = Theme.Label(Application.ProductVersion, Theme.Small, Theme.SubText);

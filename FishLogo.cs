@@ -159,11 +159,11 @@ static class FishLogo
     }
 }
 
-// The logo in the About window. Click it: the fish flicks its tail. Click it five times: an easter egg
+// The logo in About and in the Settings sidebar. Click it: the fish flicks its tail. Click it five times: an easter egg
 class FishView : Control
 {
     readonly Timer timer = new Timer { Interval = 33 };   // 30 frames a second is plenty for a blink and a tail flick
-    float wiggle, blink = 1, bubbles;
+    float wiggle, blink = 1, bubbles, fury;
     int clicks, ticks;
     DateTime firstClick;
     public event EventHandler EasterEgg;
@@ -186,9 +186,13 @@ class FishView : Control
         float t = ticks % 130;
         blink = t < 4 ? Math.Abs(t - 2) / 2f : 1;
         wiggle *= 0.8836f;
-        bubbles = (bubbles + 0.008f) % 1;
+        fury = Math.Max(0, fury - 0.014f);   // about two and a half seconds
+        bubbles = (bubbles + 0.008f + fury * 0.03f) % 1;
         Invalidate();
     }
+
+    // The fish beats its tail as hard as it can for a moment
+    public void Fury() { fury = 1; }
 
     protected override void OnClick(EventArgs e)
     {
@@ -206,8 +210,10 @@ class FishView : Control
     {
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-        float tail = wiggle * (float)Math.Sin(ticks * 1.2) + 0.12f * (float)Math.Sin(ticks * 0.1);
-        FishLogo.Draw(e.Graphics, new RectangleF(1, 1, Width - 2, Height - 2), true, tail, blink, bubbles);
+        float strength = Math.Min(1, fury * 3);   // full strength until the last third, then it calms down
+        float tail = wiggle * (float)Math.Sin(ticks * 1.2) + 0.12f * (float)Math.Sin(ticks * 0.1) + strength * 1.7f * (float)Math.Sin(ticks * 2.6);
+        float shake = strength * Math.Max(1, Width / 48f) * (float)Math.Sin(ticks * 3.7);   // the whole fish trembles with it
+        FishLogo.Draw(e.Graphics, new RectangleF(1 + shake, 1, Width - 2, Height - 2), true, tail, blink, bubbles);
     }
 
     protected override void Dispose(bool disposing)
