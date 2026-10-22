@@ -361,9 +361,15 @@ static class Theme
 
     public static TextBox TextField(string placeholder = null)
     {
-        var t = new TextBox { BorderStyle = BorderStyle.FixedSingle, BackColor = Input, ForeColor = Text, Font = Body };
+        var t = new TextBox { BorderStyle = BorderStyle.None, BackColor = Input, ForeColor = Text, Font = Body };
         if (placeholder != null) t.HandleCreated += (s, e) => SetPlaceholder(t, placeholder);
         return t;
+    }
+
+    // A text field in a rounded frame, placed and sized like a button (the frame is what goes on the page)
+    public static FieldFrame Framed(TextBox field, int x, int y, int width, int height)
+    {
+        return new FieldFrame(field) { Location = new Point(x, y), Size = new Size(width, height) };
     }
 
     // Gray hint text shown while a field is empty
@@ -477,6 +483,53 @@ class Card : Panel
         if (!(e.Control is DataGridView) && !(e.Control is TextBoxBase) && !(e.Control is ComboBox))
             try { e.Control.BackColor = Color.Transparent; } catch (ArgumentException) { e.Control.BackColor = Theme.Card; }
         base.OnControlAdded(e);
+    }
+}
+
+// A rounded frame around a borderless text box, drawn like the drop-downs: the box's own color inside,
+// an accent line at the bottom while it has the focus. A click anywhere in the frame goes to the box
+class FieldFrame : Control
+{
+    public readonly TextBox Field;
+
+    public FieldFrame(TextBox field)
+    {
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint |
+                 ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
+        BackColor = Color.Transparent;
+        Field = field;
+        field.BorderStyle = BorderStyle.None;
+        Size = new Size(170, 32);
+        Cursor = Cursors.IBeam;
+        Controls.Add(field);
+        EventHandler redraw = (s, e) => Invalidate();
+        field.GotFocus += redraw;
+        field.LostFocus += redraw;
+        field.BackColorChanged += redraw;
+        field.EnabledChanged += redraw;
+    }
+
+    protected override void OnLayout(LayoutEventArgs e)
+    {
+        base.OnLayout(e);
+        int padX = Theme.S(8), padY = Theme.S(6);
+        if (Field.Multiline) Field.SetBounds(padX, padY, Width - padX - Theme.S(3), Height - padY * 2);
+        else Field.SetBounds(padX, (Height - Field.Height) / 2, Width - padX * 2, Field.Height);   // a one-line box keeps its own height
+    }
+
+    protected override void OnMouseDown(MouseEventArgs e) { Field.Focus(); base.OnMouseDown(e); }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        using (var path = Theme.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), 4))
+        {
+            using (var b = new SolidBrush(Field.BackColor)) g.FillPath(b, path);
+            using (var p = new Pen(Theme.InputBorder)) g.DrawPath(p, path);
+        }
+        if (Field.Focused)
+            using (var p = new Pen(Theme.AccentFill, 2f)) g.DrawLine(p, 4, Height - 1.5f, Width - 4, Height - 1.5f);
     }
 }
 

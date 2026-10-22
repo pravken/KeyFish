@@ -463,12 +463,12 @@ class SettingsForm : Form
         hotkeyBoxes = new HotkeyBox[Hotkeys.Length];
         for (int i = 0; i < Hotkeys.Length; i++)
         {
-            var box = new HotkeyBox { Location = new Point(0, 2), Size = new Size(170, 28), Value = Hotkeys[i] };
+            var box = new HotkeyBox { Value = Hotkeys[i] };
             int index = i;
             var reset = new RoundButton { Text = L.T("Сброс", "Reset"), Location = new Point(178, 0), Size = new Size(82, 32) };
             reset.Click += (s, e) => hotkeyBoxes[index].Value = App.HotkeyDefaults[index];
             var holder = new Panel { Size = new Size(260, 32), BackColor = Color.Transparent };
-            holder.Controls.Add(box);
+            holder.Controls.Add(Theme.Framed(box, 0, 0, 170, 32));   // as tall as Reset next to it
             holder.Controls.Add(reset);
             hotkeyBoxes[i] = box;
             Row(page, ref y, App.HotkeyTitles[i], null, holder);
@@ -497,16 +497,16 @@ class SettingsForm : Form
         var lKey = Theme.Label(L.T("Сокращение", "Abbreviation"), Theme.Small, Theme.SubText); lKey.Location = new Point(16, 10);
         var lVal = Theme.Label(L.T("Замена (Enter — новая строка)", "Text (Enter — new line)"), Theme.Small, Theme.SubText); lVal.Location = new Point(206, 10);
         var key = Theme.TextField(L.T("спс", "thx"));
-        key.Location = new Point(16, 32); key.Width = 160;
+
         var arrow = Theme.Label("→", Theme.Section, Theme.SubText); arrow.Location = new Point(180, 32);
         var val = Theme.TextField();
         val.Multiline = true; val.AcceptsReturn = true;
-        val.Location = new Point(206, 32); val.Size = new Size(270, 84);
+
         Theme.DarkScrollbars(val);
         var add = new RoundButton { Text = L.T("Добавить", "Add"), AccentStyle = true, Location = new Point(490, 14), Size = new Size(134, 32) };
         var del = new RoundButton { Text = L.T("Удалить", "Delete"), Location = new Point(490, 50), Size = new Size(134, 32) };
         var import = new RoundButton { Text = L.T("Импорт…", "Import…"), Location = new Point(490, 86), Size = new Size(134, 32) };
-        editor.Controls.AddRange(new Control[] { lKey, lVal, key, arrow, val, add, del, import });
+        editor.Controls.AddRange(new Control[] { lKey, lVal, Theme.Framed(key, 16, 32, 160, 32), arrow, Theme.Framed(val, 206, 32, 270, 86), add, del, import });
         page.Controls.Add(editor);
         y += editor.Height + 10;
 
@@ -784,7 +784,7 @@ class SettingsForm : Form
         var t = Theme.Label(title, Theme.Section);
         t.Location = new Point(14, 12);
         var input = Theme.TextField(L.T("Новое слово", "New word"));
-        input.Location = new Point(14, 44); input.Width = width - 14 - 14 - 100 - 8;
+
         var add = new RoundButton { Text = L.T("Добавить", "Add"), AccentStyle = true, Location = new Point(width - 14 - 100, 42), Size = new Size(100, 30) };
         var grid = Theme.Grid();
         grid.ColumnHeadersVisible = false;
@@ -794,7 +794,7 @@ class SettingsForm : Form
         grid.Size = new Size(width - 12, card.Height - 84 - 50);
         var del = new RoundButton { Text = L.T("Удалить", "Delete"), Location = new Point(14, card.Height - 44), Size = new Size(100, 30) };
         var import = new RoundButton { Text = L.T("Импорт…", "Import…"), Location = new Point(122, card.Height - 44), Size = new Size(100, 30) };
-        card.Controls.AddRange(new Control[] { t, input, add, grid, del, import });
+        card.Controls.AddRange(new Control[] { t, Theme.Framed(input, 14, 42, width - 14 - 14 - 100 - 8, 30), add, grid, del, import });   // as tall as Add
         page.Controls.Add(card);
 
         foreach (string w in Lines(words)) grid.Rows.Add(w);
@@ -1012,7 +1012,7 @@ class HotkeyBox : TextBox
     public HotkeyBox()
     {
         ReadOnly = true;
-        BorderStyle = BorderStyle.FixedSingle;
+        BorderStyle = BorderStyle.None;   // the rounded frame around it is a FieldFrame
         BackColor = Theme.Input;
         ForeColor = Theme.Text;
         Font = Theme.Body;
