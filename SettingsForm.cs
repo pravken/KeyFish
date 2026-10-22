@@ -12,15 +12,15 @@ using System.Windows.Forms;
 class SettingsForm : Form
 {
     public bool AutoCorrect, Typos, QuietFullscreen, UndoCtrlZ, LayoutColor, Autostart, CheckUpdates, LayoutBadge, RecentMenu, Sound;
-    public string BackupDir;
-    public Action<IWin32Window> OpenAbout;   // the About window, which otherwise opens only from the tray menu             // where KeyFish keeps copies of the settings made before each save
+    public string BackupDir;             // where KeyFish keeps copies of the settings made before each save
+    public Action<IWin32Window> OpenAbout;   // the About window, which otherwise opens only from the tray menu
     public int QuickKey;                 // 0 — off, 1 — double Shift, 2 — Caps Lock
     public int Language;                 // see L.Choices
     public Keys[] Hotkeys;
     public string Replacements, Exclusions, Ignored, Learned, AppLayouts;
     public IList<LayoutTable> InstalledLayouts = new List<LayoutTable>();
     public Image Logo;
-    public int StartPage;                // the section to open with
+    public int StartPage { get; set; }   // the section to open with (tests\Preview opens any)
 
     ToggleSwitch tAuto, tTypos, tQuiet, tCtrlZ, tColor, tAutostart, tUpdates, tBadge, tRecent, tSound;
     DropDown cbLanguage, cbQuickKey;
@@ -39,8 +39,6 @@ class SettingsForm : Form
         MaximizeBox = false;
         ShowInTaskbar = true;
         KeyPreview = true;
-        AutoScaleMode = AutoScaleMode.Dpi;
-        AutoScaleDimensions = new SizeF(96f, 96f);
         Theme.Apply(this);
         ClientSize = new Size(SideWidth + ContentWidth + 40, 660);
     }
@@ -48,6 +46,11 @@ class SettingsForm : Form
     protected override void OnLoad(EventArgs e)
     {
         SuspendLayout();
+        // The window must fit above the taskbar once scaled (1080p at 150 % has room for less than 660 px): then it is
+        // shorter and the pages scroll
+        int chrome = Height - ClientSize.Height;
+        int room = (int)((Screen.FromPoint(Cursor.Position).WorkingArea.Height - chrome - 8) / Theme.Scale);
+        if (room < ClientSize.Height) ClientSize = new Size(ClientSize.Width, Math.Max(480, room));
         // Sidebar: the fish, the name and the sections
         var side = new Panel { Location = new Point(0, 0), Size = new Size(SideWidth, ClientSize.Height), BackColor = Theme.Back };
         if (Logo != null) side.Controls.Add(new PictureBox { Image = Logo, SizeMode = PictureBoxSizeMode.Zoom, Location = new Point(20, 18), Size = new Size(36, 36), BackColor = Color.Transparent });
@@ -102,6 +105,8 @@ class SettingsForm : Form
         Controls.Add(save);
         Controls.Add(cancel);
         Theme.SolidLabels(this);
+        Theme.ScaleWindow(this);   // built in 96-DPI pixels, now sized for this screen
+        CenterToScreen();
         ResumeLayout();
         base.OnLoad(e);
     }
@@ -137,6 +142,7 @@ class SettingsForm : Form
     // One setting: a card with a title, an optional description and a control on the right
     static void Row(Control page, ref int y, string title, string description, Control right)
     {
+        if (right.AccessibleName == null) right.AccessibleName = title;   // Narrator: "Fix typos, check box, checked"
         const int pad = 18;
         int textWidth = ContentWidth - pad * 3 - right.Width;
         var card = new Card { Location = new Point(16, y), Width = ContentWidth };
@@ -564,11 +570,19 @@ class SettingsForm : Form
         {
             try
             {
-                if (p.Id != own && p.MainWindowHandle != IntPtr.Zero && !list.Contains(p.ProcessName, StringComparer.OrdinalIgnoreCase))
+                if (p.Id != own && p.MainWindowHandle != IntPtr.Zero && !list.Contains(p.ProcessName, StringComparer.OrdinalIgnoreCase)
+                    && !string.Equals(p.ProcessName, "ApplicationFrameHost", StringComparison.OrdinalIgnoreCase))
                     list.Add(p.ProcessName);
             }
             catch { }
             finally { p.Dispose(); }
+        }
+        // Store apps show up as ApplicationFrameHost above; their real names come from the frames
+        foreach (IntPtr frame in W.TopWindows("ApplicationFrameWindow"))
+        {
+            string name = W.ProcessName(frame);
+            if (name.Length > 0 && !string.Equals(name, "ApplicationFrameHost", StringComparison.OrdinalIgnoreCase) && !list.Contains(name, StringComparer.OrdinalIgnoreCase))
+                list.Add(name);
         }
         list.Sort(StringComparer.OrdinalIgnoreCase);
         return list;
@@ -654,7 +668,7 @@ class SettingsForm : Form
             ? L.T("В файле не нашлось ничего, что можно добавить.", "Nothing to add was found in the file.")
             : L.F("Добавлено: {0}. Уже были в списке: {1}. Изменения сохранятся по кнопке «Сохранить».",
                   "Added: {0}. Already in the list: {1}. Click Save to keep the changes.", added, had);
-        MessageBox.Show(this, text, L.T("Импорт", "Import"), MessageBoxButtons.OK, added + had == 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
+        ThemedMessage.Show(this, text, L.T("Импорт", "Import"), MessageBoxButtons.OK, added + had == 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
     }
 
     // ---------- One file with everything ----------
@@ -692,7 +706,7 @@ class SettingsForm : Form
         {
             if (dialog.ShowDialog(this) != DialogResult.OK) return;
             try { SettingsArchive.Save(dialog.FileName, Files(), Values()); }
-            catch (Exception ex) { MessageBox.Show(this, ex.Message, L.T("Экспорт", "Export"), MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+            catch (Exception ex) { ThemedMessage.Show(this, ex.Message, L.T("Экспорт", "Export"), MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         }
     }
 
@@ -710,10 +724,10 @@ class SettingsForm : Form
         Dictionary<string, int> values;
         if (!SettingsArchive.Load(path, out files, out values))
         {
-            MessageBox.Show(this, L.T("Это не файл настроек KeyFish.", "This isn't a KeyFish settings file."), L.T("Импорт", "Import"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            ThemedMessage.Show(this, L.T("Это не файл настроек KeyFish.", "This isn't a KeyFish settings file."), L.T("Импорт", "Import"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
-        if (MessageBox.Show(this, L.T("Заменить все настройки содержимым файла? Нынешние сохранятся в папке backups.",
+        if (ThemedMessage.Show(this, L.T("Заменить все настройки содержимым файла? Нынешние сохранятся в папке backups.",
                                       "Replace all settings with the file's contents? The current ones are kept in the backups folder."),
                             L.T("Импорт", "Import"), MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
 
@@ -1154,8 +1168,18 @@ static class SettingsArchive
         using (var w = new System.IO.StreamWriter(zip.CreateEntry(name).Open(), new UTF8Encoding(false))) w.Write(text);
     }
 
+    // Reads at most 5 MB of text: a zip's stated size can lie, and the real data could be gigabytes
     static string Read(System.IO.Compression.ZipArchiveEntry entry)
     {
-        using (var r = new System.IO.StreamReader(entry.Open(), Encoding.UTF8)) return r.ReadToEnd();
+        const int limit = 5 * 1024 * 1024;
+        var sb = new StringBuilder();
+        var buffer = new char[64 * 1024];
+        using (var r = new System.IO.StreamReader(entry.Open(), Encoding.UTF8))
+            for (int n; (n = r.Read(buffer, 0, buffer.Length)) > 0; )
+            {
+                if (sb.Length + n > limit) throw new System.IO.InvalidDataException("too large");
+                sb.Append(buffer, 0, n);
+            }
+        return sb.ToString();
     }
 }

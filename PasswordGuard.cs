@@ -7,7 +7,9 @@ using System.Windows.Forms;
 // The password-field check runs in a separate KeyFish process ("KeyFish.exe --password-guard <pid>").
 // UI Automation can crash the whole process on some windows (a .NET runtime failure that can't be caught);
 // isolated, such a crash only restarts the guard while KeyFish keeps running.
-// Shared memory: offset 0 — int, 1 if focus is in a password field; 4 — int, Environment.TickCount of the last check.
+// Shared memory: one 64-bit value, written and read in one go so a verdict is never paired with another check's time.
+// Low half: 1 if focus is in a password field. High half: Environment.TickCount taken right before the focus was read,
+// never 0 — 0 means no check has been made yet.
 static class GuardNames
 {
     public static string Memory(int pid) { return "Local\\KeyFish_Guard_" + pid; }
@@ -34,13 +36,38 @@ class PasswordGuardClient
         Start();
     }
 
-    public bool Password { get { return view.ReadInt32(0) != 0; } }
-    public int CheckedAt { get { return view.ReadInt32(4); } }
+    // The last verdict and when the focus was read for it (0: never)
+    public void Read(out bool password, out int checkedAt)
+    {
+        long v = view.ReadInt64(0);
+        password = (v & 1) != 0;
+        checkedAt = (int)(v >> 32);
+    }
+
+    public bool Password { get { bool p; int t; Read(out p, out t); return p; } }
+
+    volatile int unansweredSince;   // when a check was asked for that hasn't been answered yet (0: none)
 
     // Ask the guard to look at the focus now; cheap enough to call on every keystroke
     public void RequestCheck()
     {
+        if (unansweredSince == 0) unansweredSince = Environment.TickCount | 1;
         try { signal.Set(); } catch { }
+    }
+
+    // False while a check asked for has gone unanswered for seconds: the guard is starting, restarting or stuck,
+    // and until it answers KeyFish corrects nothing. The tray shows that instead of looking as if all is fine
+    public bool Answering
+    {
+        get
+        {
+            int asked = unansweredSince;
+            if (asked == 0) return true;
+            bool p; int at;
+            Read(out p, out at);
+            if (at != 0 && at - asked >= 0) { unansweredSince = 0; return true; }
+            return Environment.TickCount - asked < 3000;
+        }
     }
 
     void Start()
@@ -115,6 +142,8 @@ static class PasswordGuardProcess
             // Check what has focus on focus changes and while typing. Events alone aren't enough: a browser reports
             // the password field late, so at event time the focus is still the browser window, not the field
             signal.WaitOne();
+            // The time is taken before the focus is read: a check that started before a word may not vouch for it
+            int stamp = Environment.TickCount | 1;
             IntPtr foreground = W.GetForegroundWindow();
             bool password = passwordFocused && foreground == passwordWindow;
             try
@@ -135,9 +164,7 @@ static class PasswordGuardProcess
             catch { }
             if (password) passwordWindow = foreground;
             passwordFocused = password;
-            view.Write(0, password ? 1 : 0);
-            Thread.MemoryBarrier();
-            view.Write(4, Environment.TickCount);   // written last: marks the verdict above as fresh
+            view.Write(0, ((long)stamp << 32) | (password ? 1L : 0L));
             Thread.Sleep(100); // at most ten times a second; keystrokes in between merge into one check
         }
     }

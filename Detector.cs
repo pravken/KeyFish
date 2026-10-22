@@ -146,7 +146,6 @@ public static class Detector
         return m;
     }
 
-    public static void Set(LangModel m) { lock (sync) models[m.Lang] = m; }
 
     static IEnumerable<string> ReadResource(string name)
     {

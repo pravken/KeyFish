@@ -1,3 +1,17 @@
+2.0.1
+• Password fields: the check could count as done before it had answered (on a PC running for 25 days or more, or while the check was still starting). Fixed, and checks are now timed more strictly
+• Hotkeys (Pause, double Shift, Alt+Pause and the others) don't work in password fields and in excluded apps: in a terminal they used to send Ctrl+C and stop the running command
+• Settings, About and messages scale properly on 125–200 % screens, and the Settings window fits on small screens
+• A line break in a replacement is typed as Shift+Enter, so a chat doesn't send the message halfway
+• Undoing a fix made with Enter puts the original back in the input box instead of sending it again
+• Typos are checked without holding up your typing; spell checkers load in advance for all your languages
+• Store apps (Mail, WhatsApp and others) can be excluded and get a layout of their own
+• Fixed: the right Ctrl could stay pressed after undoing with Ctrl+Z; words over 40 letters were fixed wrongly; holding a modifier for a second made KeyFish release it; in slow apps a hotkey could paste the old clipboard instead of the fix
+• While the password-field check is starting, the fish is grey and says so; the tray menu follows a change of the Windows theme
+• KeyFish's messages match its windows, menu text is smoothed like the rest, and Narrator reads the settings switches, sections and lists
+• Safer: Windows DLLs are loaded only from the system folder; after an update the previous version is kept for a minute in case the new one fails to start
+• The logo's bubbles rise and pop in a smooth loop; an About button in Settings; Support with a red heart
+
 2.0.0
 • 19 languages: English, German, Polish, French, Spanish, Italian, Portuguese, Czech, Turkish, Serbian Latin ⇄ Russian, Ukrainian, Belarusian, Bulgarian, Macedonian, Serbian Cyrillic, Greek, Hebrew, Georgian. KeyFish uses the layouts installed in Windows and fixes words typed in a layout of another alphabet
 • Works with any layout arrangement (QWERTZ, AZERTY, letters typed with AltGr or with accent keys like Greek ΄ or French ^): keys are tracked by their position on the keyboard

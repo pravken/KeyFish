@@ -45,9 +45,21 @@ static class L
 
     public static bool Ru { get { return Code == "ru"; } }
 
+    // Number and date formats of the interface language; made once per language (the tray asks several times a second)
+    static CultureInfo culture;
+    static string cultureCode;
     public static CultureInfo Culture
     {
-        get { try { return new CultureInfo(Code == "sr" ? "sr-Cyrl-RS" : Code); } catch { return CultureInfo.InvariantCulture; } }
+        get
+        {
+            string code = Code;
+            if (culture == null || code != cultureCode)
+            {
+                try { culture = new CultureInfo(code == "sr" ? "sr-Cyrl-RS" : code); } catch { culture = CultureInfo.InvariantCulture; }
+                cultureCode = code;
+            }
+            return culture;
+        }
     }
 
     public static string T(string ru, string en)

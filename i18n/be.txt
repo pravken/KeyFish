@@ -110,3 +110,9 @@ All settings in one file	Усе налады адным файлам
 To move to another computer. Before every save KeyFish puts a copy of the previous settings in the backups folder (the last 10), and those can be imported too.	Для пераносу на іншы камп'ютар. Перад кожным захаваннем KeyFish сам кладзе копію ранейшых налад у папку backups (апошнія 10) — іх таксама можна імпартаваць.
 This isn't a KeyFish settings file.	Гэта не файл налад KeyFish.
 Replace all settings with the file's contents? The current ones are kept in the backups folder.	Замяніць усе налады змесцівам файла? Цяперашнія захаваюцца ў папцы backups.
+Turn off	Выключыць
+Turn on	Уключыць
+Open	Адкрыць
+Yes	Так
+No	Не
+The password-field check is starting…	Праверка палёў пароляў запускаецца…

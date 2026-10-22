@@ -18,8 +18,6 @@ class AboutForm : Form
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = MinimizeBox = false;
-        AutoScaleMode = AutoScaleMode.Dpi;
-        AutoScaleDimensions = new SizeF(96f, 96f);
         Theme.Apply(this);
         ClientSize = new Size(500, 250);
 
@@ -39,15 +37,16 @@ class AboutForm : Form
         var name = Theme.Label("KeyFish " + Application.ProductVersion, Theme.Title);
         name.Location = new Point(136, 24);
         Controls.Add(name);
-        var what = Theme.Label(L.T("Исправляет текст, набранный не в той раскладке", "Fixes text typed in the wrong keyboard layout"), Theme.Body, Theme.SubText);
+        // The description wraps when it is long (German, a large screen), and everything below moves down with it
+        var what = Theme.Wrapped(L.T("Исправляет текст, набранный не в той раскладке", "Fixes text typed in the wrong keyboard layout"), 337, Theme.Body, Theme.SubText);
         what.Location = new Point(139, 68);
         Controls.Add(what);
-        var count = Theme.Label(stats, Theme.Body);
-        count.Location = new Point(139, 94);
+        var count = Theme.Wrapped(stats, 337, Theme.Body);
+        count.Location = new Point(139, what.Bottom + 2);
         Controls.Add(count);
 
         var link = Theme.Label("github.com/pravken/KeyFish", Theme.Body, Theme.AccentFill);
-        link.Location = new Point(139, 120);
+        link.Location = new Point(139, count.Bottom + 2);
         link.Cursor = Cursors.Hand;
         var underlined = new Font(Theme.Body, FontStyle.Underline);
         FormClosed += (s, e) => underlined.Dispose();
@@ -60,20 +59,25 @@ class AboutForm : Form
         var support = new RoundButton
         {
             Text = L.T("Поддержать ☕", "Support ☕").Replace("☕", "").Trim(), Glyph = "", GlyphColor = Color.FromArgb(232, 72, 85),
-            Location = new Point(24, 192), Size = new Size(150, 34)
+            Location = new Point(24, 0), Size = new Size(150, 34)
         };
         support.Click += (s, e) => { try { Process.Start(SupportUrl); } catch { } };
         Controls.Add(support);
 
-        var changes = new RoundButton { Text = L.T("Что нового", "What's new"), Location = new Point(246, 192), Size = new Size(124, 34) };
+        var changes = new RoundButton { Text = L.T("Что нового", "What's new"), Location = new Point(246, 0), Size = new Size(124, 34) };
         changes.Click += (s, e) => { using (var f = new ChangelogForm(changelog)) f.ShowDialog(this); };
-        var ok = new RoundButton { Text = "OK", AccentStyle = true, Location = new Point(378, 192), Size = new Size(98, 34) };
+        var ok = new RoundButton { Text = "OK", AccentStyle = true, Location = new Point(378, 0), Size = new Size(98, 34) };
         ok.Click += (s, e) => Close();
         Controls.Add(changes);
         Controls.Add(ok);
+        // The buttons sit under the text, however many lines it took ("link" is sized by its font: back to 96-DPI pixels)
+        int buttons = Math.Max(192, link.Top + (int)Math.Ceiling(link.Height / Theme.Scale) + 40);
+        foreach (var b in new Control[] { support, changes, ok }) b.Top = buttons;
+        ClientSize = new Size(500, buttons + 58);
         KeyPreview = true;
         KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape || e.KeyCode == Keys.Enter) Close(); };
         Theme.SolidLabels(this);
+        Theme.ScaleWindow(this);
     }
     // "Hello" in each language KeyFish knows
     static readonly Dictionary<string, string> Hello = new Dictionary<string, string>
@@ -127,8 +131,6 @@ class ChangelogForm : Form
         Text = L.T("Что нового в KeyFish", "What's new in KeyFish");
         StartPosition = FormStartPosition.CenterParent;
         MinimizeBox = false;
-        AutoScaleMode = AutoScaleMode.Dpi;
-        AutoScaleDimensions = new SizeF(96f, 96f);
         Theme.Apply(this);
         ClientSize = new Size(600, 500);
         MinimumSize = new Size(380, 280);
@@ -167,5 +169,6 @@ class ChangelogForm : Form
         KeyPreview = true;
         KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) Close(); };
         Shown += (s, e) => { box.SelectionStart = 0; box.SelectionLength = 0; close.Focus(); };
+        Theme.ScaleWindow(this);
     }
 }

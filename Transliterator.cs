@@ -30,7 +30,7 @@ public static class Transliterator
 
     public static string Convert(string text)
     {
-        return Converter.IsMostlyRussian(text) ? ToLatin(text) : ToCyrillic(text);
+        return IsMostlyRussian(text) ? ToLatin(text) : ToCyrillic(text);
     }
 
     public static string ToLatin(string text)
@@ -83,5 +83,17 @@ public static class Transliterator
         for (int j = i; j >= 0 && char.IsLetter(text[j]); j--) { letters++; if (char.IsUpper(text[j])) upper++; }
         for (int j = i + 1; j < text.Length && char.IsLetter(text[j]); j++) { letters++; if (char.IsUpper(text[j])) upper++; }
         return letters > 1 && upper == letters;
+    }
+
+    // The direction is chosen by which letters the text has more of
+    static bool IsMostlyRussian(string text)
+    {
+        int lat = 0, cyr = 0;
+        foreach (char c in text)
+        {
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) lat++;
+            else if ((c >= 'а' && c <= 'я') || (c >= 'А' && c <= 'Я') || c == 'ё' || c == 'Ё') cyr++;
+        }
+        return cyr > lat;
     }
 }

@@ -162,7 +162,7 @@ static class FishLogo
 // The logo in the About window. Click it: the fish flicks its tail. Click it five times: an easter egg
 class FishView : Control
 {
-    readonly Timer timer = new Timer { Interval = 16 };
+    readonly Timer timer = new Timer { Interval = 33 };   // 30 frames a second is plenty for a blink and a tail flick
     float wiggle, blink = 1, bubbles;
     int clicks, ticks;
     DateTime firstClick;
@@ -176,16 +176,17 @@ class FishView : Control
         Cursor = Cursors.Hand;
         timer.Tick += (s, e) => Step();
         timer.Start();
+        VisibleChanged += (s, e) => timer.Enabled = Visible;   // no animation while the window is hidden
     }
 
     void Step()
     {
         ticks++;
         // Blink every few seconds; wiggle fades out
-        float t = ticks % 260;
-        blink = t < 8 ? Math.Abs(t - 4) / 4f : 1;
-        wiggle *= 0.94f;
-        bubbles = (bubbles + 0.004f) % 1;
+        float t = ticks % 130;
+        blink = t < 4 ? Math.Abs(t - 2) / 2f : 1;
+        wiggle *= 0.8836f;
+        bubbles = (bubbles + 0.008f) % 1;
         Invalidate();
     }
 
@@ -205,7 +206,7 @@ class FishView : Control
     {
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-        float tail = wiggle * (float)Math.Sin(ticks * 0.6) + 0.12f * (float)Math.Sin(ticks * 0.05);
+        float tail = wiggle * (float)Math.Sin(ticks * 1.2) + 0.12f * (float)Math.Sin(ticks * 0.1);
         FishLogo.Draw(e.Graphics, new RectangleF(1, 1, Width - 2, Height - 2), true, tail, blink, bubbles);
     }
 

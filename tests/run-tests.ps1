@@ -3,6 +3,11 @@
 # Usage: powershell -ExecutionPolicy Bypass -File tests\run-tests.ps1
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
+# The tests run the build in tests\bin (build.bat with OUT=tests\bin\KeyFish.exe), which keeps its own lists next to it.
+# The user's KeyFish.exe in the project folder and its files are never touched: it is only closed for the run and started again
+$app = Join-Path $PSScriptRoot 'bin\KeyFish.exe'
+$data = Join-Path $PSScriptRoot 'bin'
+if (-not (Test-Path $app)) { throw "Build tests\bin\KeyFish.exe first: set OUT=tests\bin\KeyFish.exe and run build.bat" }
 $bin = Join-Path $PSScriptRoot 'bin'
 $key = 'HKCU:\Software\KeyFish'
 $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
@@ -21,7 +26,7 @@ $backupDir = Join-Path $PSScriptRoot 'backup'
 function Restore-Backup {
   Get-Process KeyFish -ErrorAction SilentlyContinue | Stop-Process; Start-Sleep -Milliseconds 800
   foreach ($f in $files) {
-    $p = Join-Path $root $f; $saved = Join-Path $backupDir $f
+    $p = Join-Path $data $f; $saved = Join-Path $backupDir $f
     if (Test-Path $saved) { Copy-Item $saved $p -Force } elseif (Test-Path $p) { Remove-Item $p }
   }
   foreach ($line in Get-Content (Join-Path $backupDir 'registry.txt')) {
@@ -35,16 +40,16 @@ if (Test-Path (Join-Path $backupDir 'complete')) { Restore-Backup; "The previous
 elseif (Test-Path $backupDir) { Remove-Item $backupDir -Recurse -Force }
 
 New-Item -ItemType Directory -Force $backupDir | Out-Null
-foreach ($f in $files) { $p = Join-Path $root $f; if (Test-Path $p) { Copy-Item $p (Join-Path $backupDir $f) } }
+foreach ($f in $files) { $p = Join-Path $data $f; if (Test-Path $p) { Copy-Item $p (Join-Path $backupDir $f) } }
 if (-not (Test-Path $key)) { New-Item $key | Out-Null }
 $regNames | ForEach-Object { "$_=" + (Get-ItemProperty $key -Name $_ -ErrorAction SilentlyContinue).$_ } | Set-Content (Join-Path $backupDir 'registry.txt') -Encoding ascii
 Set-Content (Join-Path $backupDir 'complete') 'ok' -Encoding ascii
 
-[IO.File]::WriteAllText((Join-Path $root 'replacements.txt'), "спс = спасибо`r`nсув = С уважением,\nТест`r`nln2 = C:\\new`r`n", (New-Object Text.UTF8Encoding $false))
-foreach ($f in 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt') { $p = Join-Path $root $f; if (Test-Path $p) { Remove-Item $p } }
+[IO.File]::WriteAllText((Join-Path $data 'replacements.txt'), "спс = спасибо`r`nсув = С уважением,\nТест`r`nln2 = C:\\new`r`n", (New-Object Text.UTF8Encoding $false))
+foreach ($f in 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt') { $p = Join-Path $data $f; if (Test-Path $p) { Remove-Item $p } }
 foreach ($n in 'Typos', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect', 'QuickKey') { Set-ItemProperty $key -Name $n -Value 1 -Type DWord }   # QuickKey 1: double Shift
 Get-Process KeyFish -ErrorAction SilentlyContinue | Stop-Process; Start-Sleep -Milliseconds 800
-explorer.exe (Join-Path $root 'KeyFish.exe'); Start-Sleep 5
+explorer.exe $app; Start-Sleep 5
 
 try {
 $w = '~' * 30
@@ -93,6 +98,6 @@ foreach ($b in @(@('browser password', 'pw', 'KFPW', 'KFPW:ghbdtn vbh'), @('brow
 finally {
   # Restore everything and start KeyFish normally again (also when a test fails with an error)
   Restore-Backup
-  explorer.exe (Join-Path $root 'KeyFish.exe')
+  explorer.exe (Join-Path $root 'KeyFish.exe')   # the user's own copy again
   "tests finished"
 }

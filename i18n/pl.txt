@@ -111,3 +111,9 @@ All settings in one file	Wszystkie ustawienia w jednym pliku
 To move to another computer. Before every save KeyFish puts a copy of the previous settings in the backups folder (the last 10), and those can be imported too.	Do przeniesienia na inny komputer. Przed każdym zapisem KeyFish sam odkłada kopię poprzednich ustawień do folderu backups (ostatnie 10) — je też można zaimportować.
 This isn't a KeyFish settings file.	To nie jest plik ustawień KeyFish.
 Replace all settings with the file's contents? The current ones are kept in the backups folder.	Zastąpić wszystkie ustawienia zawartością pliku? Obecne zostaną w folderze backups.
+Turn off	Wyłącz
+Turn on	Włącz
+Open	Otwórz
+Yes	Tak
+No	Nie
+The password-field check is starting…	Sprawdzanie pól haseł się uruchamia…

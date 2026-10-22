@@ -120,6 +120,7 @@ class KeyboardWatcher
         public IntPtr Layout;                // not zero: switch the window to this layout afterwards
         public IntPtr Hwnd;
         public WordRec TypoRec;              // not null: check the word for a typo (the space is already typed)
+        public int Serial;                   // keySerial when the typo job was made
         public bool ReleaseCtrl;             // lift the held Ctrl while typing (undo via Ctrl+Z)
         public int CtrlComboVk;              // not 0: send Ctrl + this key (Ctrl is still held after an undo)
     }
@@ -143,7 +144,12 @@ class KeyboardWatcher
         {
             fixTypos = value;
             // Load the dictionaries up front so the first word doesn't wait
-            if (value) ThreadPool.QueueUserWorkItem(_ => { try { CheckTypo("проверка", "ru"); } catch { } });
+            // Windows loads a spell checker on first use: do that now for each installed language, not on the first word
+            if (value) ThreadPool.QueueUserWorkItem(_ =>
+            {
+                foreach (var t in Layouts.All)
+                    try { CheckTypo("test", t.Lang); } catch { }
+            });
         }
     }
 
@@ -168,7 +174,6 @@ class KeyboardWatcher
 
     // The installed keyboard layouts and what each key types in them
     public readonly LayoutSet Layouts = new LayoutSet();
-    public bool Ready { get { return true; } }
 
     // Layouts the user typed in, most recent first: breaks ties such as Russian vs Ukrainian
     readonly List<IntPtr> recentLayouts = new List<IntPtr>();
@@ -194,7 +199,8 @@ class KeyboardWatcher
 
     readonly object sync = new object();
     readonly List<KeyStroke> word = new List<KeyStroke>();
-    readonly List<LayoutTable> wordLayouts = new List<LayoutTable>();   // the layout each key of the word was typed in
+    readonly List<LayoutTable> wordLayouts = new List<LayoutTable>();
+    bool overflow;                       // the word had more than 40 keys: not all of them are in `word`   // the layout each key of the word was typed in
 
     // A word the user erased whole, kept for a while: typed again with the same keys in a layout of another alphabet,
     // it is a manual layout fix, and KeyFish learns it like a fix made with Pause
@@ -210,6 +216,10 @@ class KeyboardWatcher
     readonly WordList ignored;           // words whose correction was undone or erased
     readonly WordList learned;           // words the user fixed manually with Pause
     bool pending;                        // a correction is still being typed
+    int pendingSince;
+    int keySerial;                       // counts keys typed; a typo check is applied only if nothing was typed since
+
+    void SetPending() { pending = true; pendingSince = Environment.TickCount; }
     readonly List<HeldKey> heldDuringPending = new List<HeldKey>();
     readonly BlockingCollection<Job> jobs = new BlockingCollection<Job>();
 
@@ -294,7 +304,13 @@ class KeyboardWatcher
         lastHookEvent = Environment.TickCount;
         if (code >= 0)
         {
-            var k = (W.KBDLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(W.KBDLLHOOKSTRUCT));
+            // The fields are read in place: copying the structure would allocate on every key, down and up
+            var k = new W.KBDLLHOOKSTRUCT
+            {
+                vkCode = (uint)Marshal.ReadInt32(lParam, 0),
+                scanCode = (uint)Marshal.ReadInt32(lParam, 4),
+                dwExtraInfo = IntPtr.Size == 8 ? new UIntPtr((ulong)Marshal.ReadInt64(lParam, 16)) : new UIntPtr((uint)Marshal.ReadInt32(lParam, 16))
+            };
             int msg = wParam.ToInt32();
             bool down = msg == 0x0100 || msg == 0x0104; // WM_KEYDOWN, WM_SYSKEYDOWN
             // Track the physical Ctrl key: undo via Ctrl+Z releases it logically and must know whether to press it back
@@ -335,6 +351,17 @@ class KeyboardWatcher
         lock (sync)
         {
             if (vk == 0x13 || IsModifier(vk)) return false; // Pause is undo; modifiers don't reset the word
+            keySerial++;
+
+            // A correction that hasn't finished in 3 seconds is stuck (its thread failed): stop holding keystrokes,
+            // give back the ones held so far, rather than swallow all typing until KeyFish is closed
+            if (pending && Environment.TickCount - pendingSince > 3000)
+            {
+                pending = false;
+                var stuck = heldDuringPending.ToArray();
+                heldDuringPending.Clear();
+                if (stuck.Length > 0) ThreadPool.QueueUserWorkItem(_ => { try { W.SendHeld(stuck); } catch { } });
+            }
 
             // Undo via Ctrl+Z lifted Ctrl while the user still holds it: this key must arrive with Ctrl,
             // so it is swallowed and sent again together with Ctrl (holding Ctrl and pressing Z twice).
@@ -342,7 +369,7 @@ class KeyboardWatcher
             if (ctrlLifted && ctrlHeld)
             {
                 ctrlLifted = false;
-                pending = true;
+                SetPending();
                 jobs.Add(new Job { CtrlComboVk = vk });
                 return true;
             }
@@ -351,14 +378,15 @@ class KeyboardWatcher
             {
                 // While a correction is being typed, hold keystrokes back and replay them afterwards,
                 // with the modifiers held right now: by the replay the user may have let go of Shift
-                heldDuringPending.Add(new HeldKey { Vk = vk, Shift = Down(0x10), Ctrl = Down(0x11), Alt = Down(0x12) });
+                heldDuringPending.Add(new HeldKey { Vk = vk, Shift = Down(0x10), Ctrl = Down(0x11), Alt = Down(0x12), Win = Down(0x5B) || Down(0x5C) });
                 return true;
             }
 
             if (passwordFocused) RequestFocusCheck(); // re-check: focus may have left the password field
-            if (!Enabled || !Ready || passwordFocused) { ResetAll(); last = null; return false; }
+            if (!Enabled || passwordFocused) { ResetAll(); last = null; return false; }
 
             bool ctrl = Down(0x11);
+            if (vk == 0x08 && last != null && last.TerminatorVk == 0x0D) last = null;
             if (vk == 0x08 && word.Count == 0 && last != null && !Down(0x12))
             {
                 // The fresh correction is being erased: erasing the whole word means it shouldn't have been corrected
@@ -428,6 +456,7 @@ class KeyboardWatcher
                 else eraseSnapshot = null;   // a letter in the middle of erasing: the word is being edited, not erased
                 eraseRec = null;
                 if (word.Count < 40) { word.Add(new KeyStroke(scan, shift, caps, altGr)); wordLayouts.Add(layout); }
+                else overflow = true;
                 RequestFocusCheck();
                 return false;
             }
@@ -457,6 +486,7 @@ class KeyboardWatcher
     void ClearWord()
     {
         word.Clear();
+        overflow = false;
         wordLayouts.Clear();
         eraseSnapshot = null;
     }
@@ -521,6 +551,9 @@ class KeyboardWatcher
     }
 
     bool IsIgnored(string s) { return ignored.Contains(s.ToLowerInvariant()); }
+
+    // Settings were just saved: read the files again now, not on the next tick
+    public void ReloadSoon() { FileQueue.Run(ReloadFiles); }
 
     // Re-reads the files that changed in Settings or in Notepad. Runs on the file thread: disk access in the
     // keyboard hook could hold it past the system's timeout
@@ -687,8 +720,16 @@ class KeyboardWatcher
         bool wasPartial = partial;
         partial = false;
         if (word.Count == 0) return false;
-        string skip = wasPartial ? "edited mid-word" : word.Count >= 40 ? "too long" : passwordFocused ? "password field" :
-                      !FocusVerified ? "focus not checked yet" : IsOwnWindow(hwnd) ? "KeyFish window" : IsExcluded(hwnd) ? "excluded app" :
+        // The verdict and its time come in one read; a check counts only if it read the focus after this word began
+        bool password = false, verified = false;
+        if (guard != null)
+        {
+            int checkedAt;
+            guard.Read(out password, out checkedAt);
+            verified = checkedAt != 0 && checkedAt - wordStartedAt >= 0;
+        }
+        string skip = wasPartial ? "edited mid-word" : word.Count >= 40 || overflow ? "too long" : password ? "password field" :
+                      !verified ? "focus not checked yet" : IsOwnWindow(hwnd) ? "KeyFish window" : IsExcluded(hwnd) ? "excluded app" :
                       IsPasswordField(hwnd) ? "password field (Win32)" : QuietFullscreen && IsFullscreen(hwnd) ? "full screen" : null;
         if (skip != null) { Diagnose(hwnd, skip); history.Clear(); return false; }
 
@@ -719,7 +760,7 @@ class KeyboardWatcher
                 Original = shown, Replaced = typed, OriginalWords = shownWords, LastWordLength = typed.Length, TerminatorVk = terminatorVk,
                 OriginalLayout = current.Hkl, Hwnd = hwnd, Recent = Remember(shown, typed, shownWords)
             };
-            pending = true;
+            SetPending();
             Interlocked.Increment(ref correctionCount);
             jobs.Add(new Job { Backspaces = shown.Length, Text = typed, TerminatorVk = terminatorVk, Hwnd = hwnd });
             return true;
@@ -780,7 +821,7 @@ class KeyboardWatcher
                 Original = typed, Replaced = expansion, OriginalWords = new List<string>(),
                 LastWordLength = expansion.Length, TerminatorVk = terminatorVk, OriginalLayout = current.Hkl, Hwnd = hwnd
             };
-            pending = true;
+            SetPending();
             Interlocked.Increment(ref expansionCount);
             jobs.Add(new Job
             {
@@ -839,11 +880,10 @@ class KeyboardWatcher
             Diagnose(hwnd, IsIgnored(typed) ? "in Never correct" : "looks right as typed");
             PushHistory(rec);
             // Typos are checked after the space without holding it; Enter may already have sent a message
+            // The spell check can take a while (Windows loads the dictionary on first use), so typing isn't held
+            // for it; the fix is applied only if nothing was typed after the space
             if (fixTypos && terminatorVk == 0x20 && TypoCandidate(typed))
-            {
-                pending = true;
-                jobs.Add(new Job { TypoRec = rec, TerminatorVk = terminatorVk, Hwnd = hwnd });
-            }
+                jobs.Add(new Job { TypoRec = rec, TerminatorVk = terminatorVk, Hwnd = hwnd, Serial = keySerial });
             return false;
         }
 
@@ -875,7 +915,7 @@ class KeyboardWatcher
             LastWordLength = fixedCase.Length, TerminatorVk = terminatorVk, OriginalLayout = current.Hkl, Hwnd = hwnd,
             Recent = Remember(original.ToString(), replaced.ToString(), originalWords)
         };
-        pending = true;
+        SetPending();
         Interlocked.Increment(ref correctionCount);
         jobs.Add(new Job
         {
@@ -910,13 +950,14 @@ class KeyboardWatcher
             recent.Remove(c.Recent);
             history.Clear();
             context = null;
-            pending = true;
+            SetPending();
         }
         jobs.Add(new Job
         {
             Backspaces = c.Replaced.Length + 1,
             Text = c.Original,
-            TerminatorVk = c.TerminatorVk,
+            // After Enter the message may be sent already: the original is put back in the input box, not sent again
+            TerminatorVk = c.TerminatorVk == 0x0D ? 0 : c.TerminatorVk,
             Layout = c.OriginalLayout,
             Hwnd = c.Hwnd,
             ReleaseCtrl = releaseCtrl
@@ -946,7 +987,8 @@ class KeyboardWatcher
         string text = typed.Substring(0, start) + fixedWord + typed.Substring(start + core.Length);
         lock (sync)
         {
-            if (W.GetForegroundWindow() != job.Hwnd) return;
+            if (W.GetForegroundWindow() != job.Hwnd || keySerial != job.Serial || pending) return;
+            SetPending();   // hold what's typed from now on, while the fix is being typed
             last = new Correction
             {
                 Original = typed, Replaced = text, OriginalWords = new List<string> { typed },
@@ -980,7 +1022,7 @@ class KeyboardWatcher
                 heldDuringPending.Clear();
             }
             // Replay the keystrokes held back during typing, now as normal input
-            if (held.Length > 0) W.SendHeld(held);
+            if (held.Length > 0) try { W.SendHeld(held); } catch { }
         }
     }
 
@@ -991,22 +1033,25 @@ class KeyboardWatcher
         {
             // Ctrl is physically down (it can't have been released: that would have cleared ctrlLifted first),
             // so pressing it logically again can't leave it stuck; the physical release will lift it
-            W.AddKeyDown(inputs, 0xA2);
+            W.AddKeyDown(inputs, (W.GetAsyncKeyState(0xA3) & 0x8000) != 0 ? 0xA3 : 0xA2);   // the side the user holds
             W.AddKey(inputs, job.CtrlComboVk);
             W.Send(inputs);
             return;
         }
+        // The user switched windows in the meantime: typing there would erase and write into the wrong text
+        if (job.Hwnd != IntPtr.Zero && W.GetForegroundWindow() != job.Hwnd) return;
         // With Ctrl held, Backspace would erase whole words: lift Ctrl first
         if (job.ReleaseCtrl) { W.AddKeyUp(inputs, 0xA2); W.AddKeyUp(inputs, 0xA3); W.AddKeyUp(inputs, 0x11); }
         if (job.ToggleCaps) W.AddKey(inputs, 0x14);
         for (int i = 0; i < job.Backspaces; i++) W.AddKey(inputs, 0x08);
         foreach (char c in job.Text)
         {
-            if (c == '\n') W.AddKey(inputs, 0x0D);       // a line break is sent as a real Enter
+            // A line break as Shift+Enter: a new line in chats too, where a plain Enter would send the message half-written
+            if (c == '\n') { W.AddKeyDown(inputs, 0xA0); W.AddKey(inputs, 0x0D); W.AddKeyUp(inputs, 0xA0); }
             else if (c == '\t') W.AddKey(inputs, 0x09);
             else if (c != '\r') W.AddUnicode(inputs, c);
         }
-        W.AddKey(inputs, job.TerminatorVk);
+        if (job.TerminatorVk != 0) W.AddKey(inputs, job.TerminatorVk);
         W.Send(inputs);
         if (job.Layout != IntPtr.Zero) W.SwitchLayout(job.Hwnd, job.Layout);
     }
@@ -1053,7 +1098,8 @@ class KeyboardWatcher
     volatile int wordStartedAt;
 
     // Focus was checked after this word started; otherwise we can't know it isn't a password
-    bool FocusVerified { get { return guard != null && guard.CheckedAt - wordStartedAt >= 0; } }
+    // The password guard answers checks; while it doesn't, nothing is corrected (shown by the tray icon)
+    public bool GuardAnswering { get { return guard == null || guard.Answering; } }
 
     void RequestFocusCheck() { if (guard != null) guard.RequestCheck(); }
 
@@ -1092,12 +1138,35 @@ class KeyboardWatcher
     void Diagnose(IntPtr hwnd, string what)
     {
         if (!diagnose) return;
-        string line = DateTime.Now.ToString("HH:mm:ss.fff") + "  " + W.ProcessName(hwnd) + "  " + what + "  (" + word.Count + " keys, password check " +
-                      (guard == null ? "not running" : (guard.CheckedAt - wordStartedAt) + " ms after the word began") + ")\r\n";
+        string check = "not running";
+        if (guard != null)
+        {
+            bool p; int at;
+            guard.Read(out p, out at);
+            check = at == 0 ? "not answered yet" : (at - wordStartedAt) + " ms after the word began";
+        }
+        string line = DateTime.Now.ToString("HH:mm:ss.fff") + "  " + W.ProcessName(hwnd) + "  " + what + "  (" + word.Count + " keys, password check " + check + ")\r\n";
         FileQueue.Run(() => File.AppendAllText(diagnosePath, line, Encoding.UTF8));
     }
 
     bool IsExcluded(IntPtr hwnd) { return excluded.Contains(W.ProcessName(hwnd)); }
+
+    // Hotkeys on text work through Ctrl+C and Ctrl+V. Not in an excluded app (in a terminal Ctrl+C stops the running
+    // command) and never in a password field: a fresh check of the focus is asked for and waited for, up to half a second
+    public bool HotkeyAllowed(IntPtr hwnd)
+    {
+        if (hwnd == IntPtr.Zero || IsOwnWindow(hwnd) || IsExcluded(hwnd) || IsPasswordField(hwnd) || guard == null) return false;
+        int asked = Environment.TickCount;
+        guard.RequestCheck();
+        for (int i = 0; i < 50; i++)
+        {
+            bool password; int at;
+            guard.Read(out password, out at);
+            if (at != 0 && at - asked >= 0) return !password;
+            Thread.Sleep(10);
+        }
+        return false;
+    }
 
     static bool IsPasswordField(IntPtr hwnd)
     {
@@ -1111,7 +1180,7 @@ class KeyboardWatcher
 }
 
 // A keystroke held back while a correction was typed, with the modifiers that were down
-struct HeldKey { public int Vk; public bool Shift, Ctrl, Alt; }
+struct HeldKey { public int Vk; public bool Shift, Ctrl, Alt, Win; }
 
 static class W
 {
@@ -1168,6 +1237,30 @@ static class W
     // cached by process id: ids are reused, and a stale name could treat a terminal as some excluded app or back
     public static string ProcessName(IntPtr hwnd)
     {
+        string name = ImageName(hwnd);
+        // Store apps (Mail, Calculator, WhatsApp…) live inside a frame window owned by ApplicationFrameHost;
+        // the app itself is the process of the CoreWindow in that frame
+        if (string.Equals(name, "ApplicationFrameHost", StringComparison.OrdinalIgnoreCase))
+        {
+            IntPtr core = FindWindowEx(hwnd, IntPtr.Zero, "Windows.UI.Core.CoreWindow", null);
+            if (core != IntPtr.Zero) name = ImageName(core);
+        }
+        return name;
+    }
+
+    // Top-level windows of a class, e.g. every Store app frame ("ApplicationFrameWindow")
+    public static List<IntPtr> TopWindows(string cls)
+    {
+        var list = new List<IntPtr>();
+        for (IntPtr h = FindWindowEx(IntPtr.Zero, IntPtr.Zero, cls, null); h != IntPtr.Zero && list.Count < 256; h = FindWindowEx(IntPtr.Zero, h, cls, null))
+            list.Add(h);
+        return list;
+    }
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string cls, string title);
+
+    static string ImageName(IntPtr hwnd)
+    {
         uint pid;
         GetWindowThreadProcessId(hwnd, out pid);
         IntPtr h = OpenProcess(0x1000, false, pid);   // PROCESS_QUERY_LIMITED_INFORMATION
@@ -1201,8 +1294,6 @@ static class W
         return GetKeyboardLayout(GetWindowThreadProcessId(hwnd, out pid));
     }
 
-    // Primary language of the window's layout: 0x09 — English, 0x19 — Russian, …
-    public static int LayoutLanguage(IntPtr hwnd) { return (int)(LayoutHkl(hwnd).ToInt64() & 0x3FF); }
 
     public static string ClassName(IntPtr hwnd)
     {
@@ -1251,6 +1342,7 @@ static class W
             Modifier(list, undo, k.Shift, 0xA0, 0xA1);
             Modifier(list, undo, k.Ctrl, 0xA2, 0xA3);
             Modifier(list, undo, k.Alt, 0xA4, 0xA5);
+            Modifier(list, undo, k.Win, 0x5B, 0x5C);
             var down = Key((ushort)k.Vk, 0, 0);
             var up = Key((ushort)k.Vk, 0, 2);
             down.u.ki.dwExtraInfo = up.u.ki.dwExtraInfo = UIntPtr.Zero;
@@ -1301,11 +1393,7 @@ class WordList
     {
         string w = word.ToLowerInvariant();
         lock (gate) if (!words.Add(w)) return;
-        FileQueue.Run(() =>
-        {
-            File.AppendAllText(path, w + "\r\n", Encoding.UTF8);
-            lock (gate) stamp = File.GetLastWriteTimeUtc(path);
-        });
+        FileQueue.Run(() => { bool inSync = InSync(); File.AppendAllText(path, w + "\r\n", Encoding.UTF8); Written(inSync); });
     }
 
     public void Remove(string word)
@@ -1318,9 +1406,24 @@ class WordList
             var kept = new List<string>();
             foreach (string line in File.ReadAllLines(path, Encoding.UTF8))
                 if (!string.Equals(line.Trim(), w, StringComparison.OrdinalIgnoreCase)) kept.Add(line);
+            bool inSync = InSync();
             File.WriteAllLines(path, kept, Encoding.UTF8);
-            lock (gate) stamp = File.GetLastWriteTimeUtc(path);
+            Written(inSync);
         });
+    }
+
+    // The file is as KeyFish last read or wrote it; if Settings or Notepad changed it meanwhile, it isn't
+    bool InSync()
+    {
+        try { lock (gate) return File.Exists(path) ? File.GetLastWriteTimeUtc(path) == stamp : stamp == DateTime.MinValue; }
+        catch { return false; }
+    }
+
+    // After KeyFish's own write: remember the new time only if nothing else changed the file before it. Otherwise the
+    // other change (words deleted in Settings, say) would look already read, and the next reload would skip it
+    void Written(bool inSync)
+    {
+        if (inSync) lock (gate) stamp = File.GetLastWriteTimeUtc(path);
     }
 
     // Called on the file thread (and once at start)

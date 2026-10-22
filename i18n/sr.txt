@@ -111,3 +111,9 @@ All settings in one file	Сва подешавања у једној датот�
 To move to another computer. Before every save KeyFish puts a copy of the previous settings in the backups folder (the last 10), and those can be imported too.	За пренос на други рачунар. Пре сваког чувања KeyFish сам ставља копију претходних подешавања у фасциклу backups (последњих 10) — и њих можете увести.
 This isn't a KeyFish settings file.	Ово није датотека подешавања за KeyFish.
 Replace all settings with the file's contents? The current ones are kept in the backups folder.	Заменити сва подешавања садржајем датотеке? Тренутна остају у фасцикли backups.
+Turn off	Искључи
+Turn on	Укључи
+Open	Отвори
+Yes	Да
+No	Не
+The password-field check is starting…	Провера поља за лозинке се покреће…

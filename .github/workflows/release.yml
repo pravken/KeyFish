@@ -13,6 +13,8 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    # A GitHub environment: in the repository settings it can require an approval before each release is built
+    environment: release
     steps:
       # Pinned to an exact commit, not a tag, so a moved tag can't get into the build
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

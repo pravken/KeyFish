@@ -9,8 +9,19 @@ using Microsoft.Win32;
 // and a few self-drawn controls (switch, card, rounded button, sidebar). No extra libraries.
 static class Theme
 {
-    public static readonly bool Dark = ReadDark();
-    public static readonly Color Accent = ReadAccent();
+    public static bool Dark = ReadDark();
+    public static Color Accent = ReadAccent();
+
+    // Windows switched to the dark or light theme, or the accent color changed: read them again. True if anything changed
+    public static bool Refresh()
+    {
+        bool dark = ReadDark();
+        Color accent = ReadAccent();
+        if (dark == Dark && accent == Accent) return false;
+        Dark = dark;
+        Accent = accent;
+        return true;
+    }
 
     public static Color Back { get { return Dark ? Color.FromArgb(32, 32, 32) : Color.FromArgb(243, 243, 243); } }
     public static Color Card { get { return Dark ? Color.FromArgb(43, 43, 43) : Color.FromArgb(251, 251, 251); } }
@@ -27,16 +38,56 @@ static class Theme
     public static Color OnAccent { get { return Dark ? Color.Black : Color.White; } }
     public static Color SelectionBack { get { return Blend(AccentFill, Card, Dark ? 0.7 : 0.82); } }
 
+    // The screen's scale (125 % → 1.25). Windows are laid out in 96-DPI pixels and scaled by this once, when built
+    // (ScaleWindow); fonts are in points and grow with the screen by themselves.
+    // KEYFISH_UI_SCALE=1.5 shows the windows as on a 150 % screen, to check layouts on a 100 % one (fonts grow too)
+    public static readonly float Scale = ReadScale();
+    static readonly float FontBoost = Scale / ScreenScale();
+
+    static float ScreenScale()
+    {
+        try { using (var g = Graphics.FromHwnd(IntPtr.Zero)) return g.DpiX / 96f; }
+        catch { return 1f; }
+    }
+
+    static float ReadScale()
+    {
+        float forced;
+        string env = Environment.GetEnvironmentVariable("KEYFISH_UI_SCALE");
+        if (env != null && float.TryParse(env, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out forced) && forced >= 1 && forced <= 3)
+            return forced;
+        return ScreenScale();
+    }
+
+    // A size in 96-DPI pixels on this screen, for what is set after a window is scaled or drawn in pixels
+    public static int S(int px) { return (int)Math.Round(px * Scale); }
+
+    // Scales a window built in 96-DPI pixels to the screen, once. Text-sized parts (see Wrapped) are already right
+    public static void ScaleWindow(Form f)
+    {
+        f.AutoScaleMode = AutoScaleMode.None;
+        if (Math.Abs(Scale - 1) > 0.01f) f.Scale(new SizeF(Scale, Scale));
+    }
+
     // Windows 11's own font, Segoe UI Variable, at the sizes of Windows Settings; Segoe UI where it isn't installed (Windows 10)
     static readonly bool Variable = HasFont("Segoe UI Variable Text") && HasFont("Segoe UI Variable Text Semibold");
     static readonly string Regular = Variable ? "Segoe UI Variable Text" : "Segoe UI";
     static readonly string Semibold = Variable ? "Segoe UI Variable Text Semibold" : "Segoe UI Semibold";
-    public static readonly Font Body = new Font(Regular, 10.5f);
-    public static readonly Font Small = new Font(Regular, 9f);
-    public static readonly Font Strong = new Font(Semibold, 10.5f);
-    public static readonly Font Title = new Font(Semibold, 20f);
-    public static readonly Font Section = new Font(Semibold, 11f);
+    public static readonly Font Body = new Font(Regular, 10.5f * FontBoost);
+    public static readonly Font Small = new Font(Regular, 9f * FontBoost);
+    public static readonly Font Strong = new Font(Semibold, 10.5f * FontBoost);
+    public static readonly Font Title = new Font(Semibold, 20f * FontBoost);
+    public static readonly Font Section = new Font(Semibold, 11f * FontBoost);
     public static readonly string IconFontName = HasFont("Segoe Fluent Icons") ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
+
+    // The icon font at a size, made once and kept for the life of KeyFish (a few sizes in all)
+    static readonly System.Collections.Generic.Dictionary<float, Font> iconFonts = new System.Collections.Generic.Dictionary<float, Font>();
+    public static Font IconFont(float size)
+    {
+        Font f;
+        if (!iconFonts.TryGetValue(size, out f)) iconFonts[size] = f = new Font(IconFontName, size);
+        return f;
+    }
 
     static bool ReadDark()
     {
@@ -177,7 +228,10 @@ static class Theme
     public static Label Wrapped(string text, int width, Font font = null, Color? color = null)
     {
         var l = new SmoothLabel { Text = text, Font = font ?? Body, ForeColor = color ?? Text, AutoSize = false, BackColor = Color.Transparent };
-        l.Size = new Size(width, l.GetPreferredSize(new Size(width, 0)).Height + 2);
+        // The text is measured at its real width on this screen, and the height kept in 96-DPI pixels like the rest
+        // of the layout, so scaling the window doesn't enlarge it a second time
+        int real = l.GetPreferredSize(new Size(S(width), 0)).Height;
+        l.Size = new Size(width, (int)Math.Ceiling(real / Scale) + 2);
         return l;
     }
 
@@ -189,13 +243,13 @@ static class Theme
             GridColor = CardBorder, RowHeadersVisible = false, AllowUserToResizeRows = false, AllowUserToAddRows = false,
             AllowUserToDeleteRows = false, SelectionMode = DataGridViewSelectionMode.FullRowSelect, MultiSelect = true,
             EnableHeadersVisualStyles = false, ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None,
-            ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing, ColumnHeadersHeight = 34,
+            ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing, ColumnHeadersHeight = S(34),
             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill, Font = Body, EditMode = DataGridViewEditMode.EditOnEnter
         };
         // Only a thin line between rows, no vertical lines
         g.AdvancedCellBorderStyle.Left = g.AdvancedCellBorderStyle.Right = g.AdvancedCellBorderStyle.Top = DataGridViewAdvancedCellBorderStyle.None;
         g.AdvancedCellBorderStyle.Bottom = DataGridViewAdvancedCellBorderStyle.Single;
-        g.RowTemplate.Height = 34;
+        g.RowTemplate.Height = S(34);   // the grid doesn't scale its rows with the window
         g.DefaultCellStyle.BackColor = Card;
         g.DefaultCellStyle.ForeColor = Text;
         g.DefaultCellStyle.SelectionBackColor = SelectionBack;
@@ -263,7 +317,7 @@ static class Theme
             PaintCellBack(e);
             var box = new Rectangle(e.CellBounds.X + 8, e.CellBounds.Y, e.CellBounds.Width - 36, e.CellBounds.Height);
             SmoothText(g, Convert.ToString(e.FormattedValue), e.CellStyle.Font, box, Text, false);
-            using (var icons = new Font(IconFontName, 8f))
+            var icons = IconFont(8f);
                 SmoothText(g, "\uE70D", icons, new Rectangle(e.CellBounds.Right - 30, e.CellBounds.Y + 1, 22, e.CellBounds.Height), SubText, true, false);
             e.Handled = true;
             return;
@@ -302,13 +356,6 @@ static class Theme
         SendMessage(t.Handle, 0x1501, (IntPtr)1, text);   // EM_SETCUEBANNER
     }
 
-    public static ComboBox Combo()
-    {
-        var c = new ComboBox { FlatStyle = FlatStyle.Flat, BackColor = Input, ForeColor = Text, Font = Body };
-        DarkScrollbars(c);
-        return c;
-    }
-
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr SendMessage(IntPtr hwnd, int msg, IntPtr wParam, string lParam);
 }
 
@@ -326,12 +373,33 @@ class ToggleSwitch : Control
         BackColor = Color.Transparent;
         Cursor = Cursors.Hand;
         TabStop = true;
+        AccessibleRole = AccessibleRole.CheckButton;
+    }
+
+    // Narrator reads it as a check box with its title (AccessibleName, set by the settings row) and "checked" or not
+    protected override AccessibleObject CreateAccessibilityInstance() { return new Accessible(this); }
+
+    class Accessible : ControlAccessibleObject
+    {
+        readonly ToggleSwitch owner;
+        public Accessible(ToggleSwitch owner) : base(owner) { this.owner = owner; }
+        public override AccessibleRole Role { get { return AccessibleRole.CheckButton; } }
+        public override AccessibleStates State { get { return base.State | (owner.Checked ? AccessibleStates.Checked : AccessibleStates.None); } }
+        public override string DefaultAction { get { return owner.Checked ? L.T("Выключить", "Turn off") : L.T("Включить", "Turn on"); } }
+        public override void DoDefaultAction() { owner.Checked = !owner.Checked; }
     }
 
     public bool Checked
     {
         get { return on; }
-        set { if (on == value) return; on = value; Invalidate(); if (CheckedChanged != null) CheckedChanged(this, EventArgs.Empty); }
+        set
+        {
+            if (on == value) return;
+            on = value;
+            Invalidate();
+            AccessibilityNotifyClients(AccessibleEvents.StateChange, -1);
+            if (CheckedChanged != null) CheckedChanged(this, EventArgs.Empty);
+        }
     }
 
     protected override void OnClick(EventArgs e) { Focus(); Checked = !Checked; base.OnClick(e); }
@@ -413,6 +481,7 @@ class RoundButton : Control
         Size = new Size(120, 32);
         Cursor = Cursors.Hand;
         TabStop = true;
+        AccessibleRole = AccessibleRole.PushButton;
     }
 
     protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
@@ -455,8 +524,8 @@ class RoundButton : Control
             Theme.SmoothText(g, Text, font, ClientRectangle, fore, true, heavier);
             return;
         }
-        using (var icon = new Font(Theme.IconFontName, Font.SizeInPoints))
         {
+            var icon = Theme.IconFont(Font.SizeInPoints);
             // The icon is smoothed the same way as the text, not with ClearType's colored edges
             SizeF iconSize = g.MeasureString(Glyph, icon);
             SizeF textSize = g.MeasureString(Text, font);
@@ -473,8 +542,8 @@ class NavList : Control
     public readonly System.Collections.Generic.List<Tuple<string, string>> Items = new System.Collections.Generic.List<Tuple<string, string>>();
     int selected, hover = -1;
     public event EventHandler SelectedChanged;
-    readonly Font icons = new Font(Theme.IconFontName, 12f);
-    public int ItemHeight = 40;
+    readonly Font icons = Theme.IconFont(12f);
+    public int ItemHeight = Theme.S(40);
 
     public NavList()
     {
@@ -483,12 +552,58 @@ class NavList : Control
         BackColor = Theme.Back;
         Font = Theme.Body;
         TabStop = true;
+        AccessibleRole = AccessibleRole.PageTabList;
     }
 
     public int Selected
     {
         get { return selected; }
-        set { if (selected == value) return; selected = value; Invalidate(); if (SelectedChanged != null) SelectedChanged(this, EventArgs.Empty); }
+        set
+        {
+            if (selected == value) return;
+            selected = value;
+            Invalidate();
+            AccessibilityNotifyClients(AccessibleEvents.Selection, selected);
+            AccessibilityNotifyClients(AccessibleEvents.Focus, selected);
+            if (SelectedChanged != null) SelectedChanged(this, EventArgs.Empty);
+        }
+    }
+
+    // Narrator reads the sections as tabs, with their names and which one is open
+    protected override AccessibleObject CreateAccessibilityInstance() { return new Accessible(this); }
+
+    class Accessible : ControlAccessibleObject
+    {
+        readonly NavList owner;
+        public Accessible(NavList owner) : base(owner) { this.owner = owner; }
+        public override AccessibleRole Role { get { return AccessibleRole.PageTabList; } }
+        public override int GetChildCount() { return owner.Items.Count; }
+        public override AccessibleObject GetChild(int index) { return index >= 0 && index < owner.Items.Count ? new Item(this, owner, index) : null; }
+        public override AccessibleObject GetFocused() { return owner.Focused ? GetChild(owner.selected) : null; }
+        public override AccessibleObject GetSelected() { return GetChild(owner.selected); }
+    }
+
+    class Item : AccessibleObject
+    {
+        readonly AccessibleObject parent;
+        readonly NavList owner;
+        readonly int index;
+        public Item(AccessibleObject parent, NavList owner, int index) { this.parent = parent; this.owner = owner; this.index = index; }
+        public override AccessibleObject Parent { get { return parent; } }
+        public override string Name { get { return owner.Items[index].Item2; } }
+        public override AccessibleRole Role { get { return AccessibleRole.PageTab; } }
+        public override AccessibleStates State
+        {
+            get
+            {
+                var s = AccessibleStates.Selectable | AccessibleStates.Focusable;
+                if (index == owner.selected) s |= AccessibleStates.Selected | (owner.Focused ? AccessibleStates.Focused : 0);
+                return s;
+            }
+        }
+        public override Rectangle Bounds { get { return owner.RectangleToScreen(new Rectangle(0, index * owner.ItemHeight, owner.Width, owner.ItemHeight)); } }
+        public override void DoDefaultAction() { owner.Selected = index; }
+        public override string DefaultAction { get { return L.T("Открыть", "Open"); } }
     }
 
     int At(Point p) { int i = p.Y / ItemHeight; return i >= 0 && i < Items.Count ? i : -1; }
@@ -534,8 +649,9 @@ class ThemedMenuRenderer : ToolStripProfessionalRenderer
 
     protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
     {
-        e.TextColor = e.Item.Enabled ? Theme.Text : Theme.SubText;
-        base.OnRenderItemText(e);
+        // Smoothed like the rest of KeyFish's text, not with ClearType's thinner colored letters
+        string text = (e.Text ?? "").Replace("&&", "\u0001").Replace("&", "").Replace("\u0001", "&");
+        Theme.SmoothText(e.Graphics, text, e.TextFont, e.TextRectangle, e.Item.Enabled ? Theme.Text : Theme.SubText, false);
     }
 
     protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
@@ -599,7 +715,7 @@ class DropDown : Control
     bool hover, open;
     int selected = -1;
     public event EventHandler SelectedIndexChanged;
-    readonly Font chevron = new Font(Theme.IconFontName, 8f);
+    readonly Font chevron = Theme.IconFont(8f);
 
     public DropDown(bool editable = false, string placeholder = null)
     {
@@ -610,6 +726,7 @@ class DropDown : Control
         Size = new Size(200, 32);
         TabStop = !editable;
         Cursor = Cursors.Hand;
+        AccessibleRole = AccessibleRole.ComboBox;
         if (editable)
         {
             edit = new TextBox { BorderStyle = BorderStyle.None, BackColor = Theme.Input, ForeColor = Theme.Text, Font = Theme.Body };
@@ -619,6 +736,17 @@ class DropDown : Control
             edit.Cursor = Cursors.IBeam;
             Controls.Add(edit);
         }
+    }
+
+    // Narrator reads the field's title (AccessibleName, set by the settings row) and the chosen value
+    protected override AccessibleObject CreateAccessibilityInstance() { return new Accessible(this); }
+
+    class Accessible : ControlAccessibleObject
+    {
+        readonly DropDown owner;
+        public Accessible(DropDown owner) : base(owner) { this.owner = owner; }
+        public override AccessibleRole Role { get { return AccessibleRole.ComboBox; } }
+        public override string Value { get { return owner.Text; } }
     }
 
     public override string Text
@@ -636,6 +764,7 @@ class DropDown : Control
             selected = value;
             if (edit != null && value >= 0) edit.Text = Items[value];
             Invalidate();
+            AccessibilityNotifyClients(AccessibleEvents.ValueChange, -1);
             if (SelectedIndexChanged != null) SelectedIndexChanged(this, EventArgs.Empty);
         }
     }
@@ -707,7 +836,6 @@ class DropDown : Control
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing) chevron.Dispose();
         base.Dispose(disposing);
     }
 }
@@ -877,5 +1005,78 @@ class SmoothLabel : Label
         e.Graphics.TranslateTransform(Theme.Heavier, 0);   // a touch heavier, see Theme.Heavier
         base.OnPaint(e);
         e.Graphics.ResetTransform();
+    }
+}
+
+// KeyFish's messages in the same style as its windows (the system message box stays light in the dark theme).
+// Used like MessageBox.Show: the same buttons and icons, the same results
+class ThemedMessage : Form
+{
+    public static DialogResult Show(string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon)
+    {
+        return Show(null, text, caption, buttons, icon);
+    }
+
+    public static DialogResult Show(IWin32Window owner, string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon)
+    {
+        using (var m = new ThemedMessage(text, caption, buttons, icon))
+        {
+            if (owner == null) { m.TopMost = true; m.StartPosition = FormStartPosition.CenterScreen; }
+            return m.ShowDialog(owner);
+        }
+    }
+
+    ThemedMessage(string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon)
+    {
+        Text = caption;
+        StartPosition = FormStartPosition.CenterParent;
+        FormBorderStyle = FormBorderStyle.FixedDialog;
+        MaximizeBox = MinimizeBox = false;
+        ShowInTaskbar = false;
+        KeyPreview = true;
+        Theme.Apply(this);
+
+        const int width = 460, pad = 24, iconSize = 32;
+        string glyph = icon == MessageBoxIcon.Warning ? "\uE7BA" : icon == MessageBoxIcon.Question ? "\uE9CE" : "\uE946";
+        Color tint = icon == MessageBoxIcon.Warning ? Color.FromArgb(252, 185, 0) : Theme.AccentFill;
+        var mark = new Label
+        {
+            Text = glyph, Font = Theme.IconFont(20f), ForeColor = tint, BackColor = Theme.Back, AutoSize = false,
+            Location = new Point(pad, pad - 2), Size = new Size(iconSize, iconSize), TextAlign = ContentAlignment.MiddleCenter
+        };
+        var message = Theme.Wrapped(text, width - pad * 3 - iconSize);
+        message.Location = new Point(pad * 2 + iconSize, pad);
+        Controls.Add(mark);
+        Controls.Add(message);
+
+        var choices = new System.Collections.Generic.List<Tuple<string, DialogResult>>();
+        if (buttons == MessageBoxButtons.YesNo || buttons == MessageBoxButtons.YesNoCancel)
+        {
+            choices.Add(Tuple.Create(L.T("Да", "Yes"), DialogResult.Yes));
+            choices.Add(Tuple.Create(L.T("Нет", "No"), DialogResult.No));
+            if (buttons == MessageBoxButtons.YesNoCancel) choices.Add(Tuple.Create(L.T("Отмена", "Cancel"), DialogResult.Cancel));
+        }
+        else choices.Add(Tuple.Create("OK", DialogResult.OK));
+
+        int y = Math.Max(message.Bottom, pad + iconSize) + pad;
+        int x = width - pad;
+        for (int i = choices.Count - 1; i >= 0; i--)
+        {
+            var c = choices[i];
+            var b = new RoundButton { Text = c.Item1, AccentStyle = i == 0, Size = new Size(104, 34) };
+            x -= b.Width;
+            b.Location = new Point(x, y);
+            x -= 8;
+            var result = c.Item2;
+            b.Click += (s, e) => { DialogResult = result; Close(); };
+            Controls.Add(b);
+            if (i == 0) ActiveControl = b;
+        }
+        // Esc answers like the system box: Cancel, or No where there is no Cancel, or OK
+        DialogResult escape = buttons == MessageBoxButtons.YesNoCancel ? DialogResult.Cancel : buttons == MessageBoxButtons.YesNo ? DialogResult.No : DialogResult.OK;
+        KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) { DialogResult = escape; Close(); } };
+        ClientSize = new Size(width, y + 34 + pad);
+        Theme.SolidLabels(this);
+        Theme.ScaleWindow(this);
     }
 }

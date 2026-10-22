@@ -14,9 +14,15 @@ static class Program
 {
     [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
 
+    [DllImport("kernel32.dll")] static extern bool SetDefaultDllDirectories(uint flags);
+
     [STAThread]
     static void Main(string[] args)
     {
+        // System DLLs only from System32. KeyFish is often run from Downloads, and a dwmapi.dll or uxtheme.dll that
+        // happens to lie next to it would otherwise be loaded instead of Windows' own
+        try { SetDefaultDllDirectories(0x800); } catch { }   // LOAD_LIBRARY_SEARCH_SYSTEM32
+
         // The helper process that watches for password fields (see PasswordGuard.cs)
         int parentPid;
         if (args.Length == 2 && args[0] == "--password-guard" && int.TryParse(args[1], out parentPid))
@@ -31,12 +37,21 @@ static class Program
         {
             if (!created)
             {
-                // After an update the old copy is still closing, so wait for it instead of exiting
+                // After an update the old copy is still closing, so wait for it instead of exiting.
+                // If it hangs, it is closed: otherwise the user would be left with no KeyFish at all
                 if (!updated) return;
-                try { if (!mutex.WaitOne(15000)) return; }
+                try
+                {
+                    if (!mutex.WaitOne(15000))
+                    {
+                        int self = Process.GetCurrentProcess().Id;
+                        foreach (var p in Process.GetProcessesByName("KeyFish"))
+                            try { if (p.Id != self) p.Kill(); } catch { }
+                        if (!mutex.WaitOne(5000)) return;
+                    }
+                }
                 catch (AbandonedMutexException) { }
             }
-            Updater.CleanUp();
             // Sharp text and controls on scaled screens instead of a stretched bitmap
             try { SetProcessDPIAware(); } catch { }
             Application.EnableVisualStyles();
@@ -200,12 +215,16 @@ class App : ApplicationContext
         }
 
         bool ru = showLayout && currentRu;
-        Icon want = !watcher.Enabled ? iconOff : blinkTicks > 0 && blinkTicks % 2 == 0 ? (ru ? blinkRu : blinkEn) : (ru ? iconRu : iconEn);
+        // The password-field check isn't answering (starting, restarting): KeyFish corrects nothing until it does,
+        // so the fish is grey and says why, instead of looking as if all is well
+        bool guardDown = watcher.Enabled && !watcher.GuardAnswering;
+        Icon want = !watcher.Enabled || guardDown ? iconOff : blinkTicks > 0 && blinkTicks % 2 == 0 ? (ru ? blinkRu : blinkEn) : (ru ? iconRu : iconEn);
         if (blinkTicks > 0) blinkTicks--;
         if (tray.Icon != want) tray.Icon = want;
 
         string text = "KeyFish " + Application.ProductVersion + (showLayout && currentLayoutName.Length > 0 ? " — " + currentLayoutName : "") +
-                      "\n" + (pausedUntil != DateTime.MinValue ? PausedText : StatsLine(statsBase + corrections));
+                      "\n" + (guardDown ? L.T("Проверка полей паролей запускается…", "The password-field check is starting…")
+                               : pausedUntil != DateTime.MinValue ? PausedText : StatsLine(statsBase + corrections));
         if (text.Length > 63) text = text.Substring(0, 63);
         if (tray.Text != text) tray.Text = text;
     }
@@ -367,7 +386,7 @@ class App : ApplicationContext
         var menu = new ContextMenuStrip();
         ThemedMenuRenderer.Apply(menu);
         var title = new ToolStripMenuItem("KeyFish " + Application.ProductVersion);
-        title.Font = new Font(title.Font, FontStyle.Bold);
+        title.Font = menuTitleFont ?? (menuTitleFont = new Font(title.Font, FontStyle.Bold));   // one font for every rebuilt menu
         title.Click += (s, e) => ShowAbout();
         menu.Items.Add(title);
         menu.Items.Add(new ToolStripSeparator());
@@ -376,6 +395,7 @@ class App : ApplicationContext
         menu.Items.Add(recentItem);
         menu.Opening += (s, e) =>
         {
+            if (busy) { e.Cancel = true; return; }   // a hotkey is working through the clipboard right now
             autoItem.Checked = autoCorrect;
             pauseItem.Enabled = autoCorrect;
             pauseItem.Text = pausedUntil == DateTime.MinValue ? L.T("Пауза на 1 час", "Pause for 1 hour")
@@ -421,6 +441,18 @@ class App : ApplicationContext
     {
         s = s.Replace("\r", "").Replace("\n", " ⏎ ").Replace("\t", " ");
         return s.Length > 40 ? s.Substring(0, 39) + "…" : s;
+    }
+
+    static Font menuTitleFont;
+
+    // Windows switched between the light and dark theme or changed the accent color: the tray menu follows at once
+    void OnSystemPreference(object sender, UserPreferenceChangedEventArgs e)
+    {
+        if (e.Category != UserPreferenceCategory.General && e.Category != UserPreferenceCategory.Color && e.Category != UserPreferenceCategory.VisualStyle) return;
+        if (!Theme.Refresh()) return;
+        var old = tray.ContextMenuStrip;
+        tray.ContextMenuStrip = BuildMenu();
+        if (old != null) old.Dispose();
     }
 
     // Before 1.6.0 the app was called LayoutFix: carry over its settings and autostart
@@ -495,6 +527,7 @@ class App : ApplicationContext
         LoadAppLayouts();
 
         var menu = BuildMenu();
+        SystemEvents.UserPreferenceChanged += OnSystemPreference;
 
         iconEn = MakeIcon("fish.ico");
         iconRu = MakeIcon("fish-ru.ico");
@@ -505,7 +538,7 @@ class App : ApplicationContext
         tray.Icon = iconEn;
         tray.Text = "KeyFish " + Application.ProductVersion;
         tray.ContextMenuStrip = menu;
-        tray.DoubleClick += (s, e) => OpenSettings();
+        tray.DoubleClick += (s, e) => { if (!busy) OpenSettings(); };
         tray.Visible = true;
 
         trayTimer.Interval = 150;
@@ -527,6 +560,12 @@ class App : ApplicationContext
             if (GetSetting("CheckUpdates", 1) != 0) CheckForUpdates(false);
         };
         updateTimer.Start();
+
+        // The copy left by an update is removed after a minute of normal work, not at once: if the new version
+        // failed to start, KeyFish.old.exe would still be there to go back to
+        var cleanup = new System.Windows.Forms.Timer { Interval = 60 * 1000 };
+        cleanup.Tick += (s, e) => { cleanup.Stop(); cleanup.Dispose(); Updater.CleanUp(); };
+        cleanup.Start();
     }
 
     readonly System.Windows.Forms.Timer updateTimer = new System.Windows.Forms.Timer();
@@ -539,14 +578,14 @@ class App : ApplicationContext
         if (installing) return;
         if (!r.CanInstall)
         {
-            if (MessageBox.Show(L.F("Вышла версия {0} (у вас {1}).\n\nОткрыть страницу загрузки?",
+            if (ThemedMessage.Show(L.F("Вышла версия {0} (у вас {1}).\n\nОткрыть страницу загрузки?",
                                     "Version {0} is out (you have {1}).\n\nOpen the download page?", r.Tag, Application.ProductVersion),
                     L.T("Обновление KeyFish", "KeyFish update"), MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
                 Process.Start(r.Url);
             return;
         }
 
-        var answer = MessageBox.Show(
+        var answer = ThemedMessage.Show(
             L.F("Вышла версия {0} (у вас {1}).\n\nОбновить сейчас? KeyFish скачает новую версию с GitHub, " +
                 "проверит контрольную сумму и перезапустится.\n\n«Нет» — открыть страницу загрузки и обновиться вручную.",
                 "Version {0} is out (you have {1}).\n\nUpdate now? KeyFish will download it from GitHub, " +
@@ -570,7 +609,7 @@ class App : ApplicationContext
                     Process.Start(Updater.ExePath, "--updated");
                     ExitThread();
                 }
-                else if (MessageBox.Show(error + "\n\n" + L.T("Открыть страницу загрузки?", "Open the download page?"),
+                else if (ThemedMessage.Show(error + "\n\n" + L.T("Открыть страницу загрузки?", "Open the download page?"),
                              L.T("Обновление KeyFish", "KeyFish update"), MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
                     Process.Start(r.Url);
             }, null);
@@ -600,7 +639,7 @@ class App : ApplicationContext
                 }
                 else if (manual)
                 {
-                    MessageBox.Show(latest == null ? L.T("Не удалось связаться с GitHub. Проверьте интернет и попробуйте позже.",
+                    ThemedMessage.Show(latest == null ? L.T("Не удалось связаться с GitHub. Проверьте интернет и попробуйте позже.",
                                                          "Couldn't reach GitHub. Check your connection and try again later.")
                                                    : L.F("У вас последняя версия: {0}.", "You have the latest version: {0}.", Application.ProductVersion),
                         L.T("Обновление KeyFish", "KeyFish update"), MessageBoxButtons.OK, latest == null ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
@@ -659,6 +698,7 @@ class App : ApplicationContext
                 File.WriteAllText(learnedPath, MergeWords(f.Learned, learnedBefore, ReadText(learnedPath)), Encoding.UTF8);
                 File.WriteAllText(appLayoutsPath, f.AppLayouts, Encoding.UTF8);
                 LoadAppLayouts();
+                watcher.ReloadSoon();
                 if (f.Language != L.Setting)
                 {
                     L.Setting = f.Language;
@@ -737,6 +777,8 @@ class App : ApplicationContext
         try
         {
             if (id == HkLayout && watcher.Undo()) return;
+            if (!watcher.HotkeyAllowed(hotkeyWindow)) return;   // an excluded app or a password field
+            if (!Native.WaitModifiersReleased()) return;      // keys still held: Ctrl+C would become Ctrl+Shift+C
             if (id == HkCase) ChangeCase();
             else if (id == HkTranslit) TransformSelection(Transliterator.Convert);
             else if (id == HkLine) ConvertLine();
@@ -746,14 +788,14 @@ class App : ApplicationContext
         finally { busy = false; }
     }
 
-    // Paste through the clipboard. The pause before Ctrl+V is required: without it the app
-    // sometimes pastes the old clipboard contents (seen with Shift+Pause)
     // The window the hotkey was pressed in. Hotkeys work through Ctrl+C, Ctrl+V and selecting text; if the user switches
     // to another window meanwhile (or the window closes), none of that may land there
     static IntPtr hotkeyWindow;
 
     static bool SameWindow() { return Native.GetForegroundWindow() == hotkeyWindow; }
 
+    // Paste through the clipboard. The pause before Ctrl+V is required: without it the app
+    // sometimes pastes the old clipboard contents (seen with Shift+Pause)
     static bool Paste(string text)
     {
         if (!SameWindow() || !SetClipboardText(text)) return false;
@@ -766,7 +808,6 @@ class App : ApplicationContext
 
     void TransformSelection(Func<string, string> transform)
     {
-        Native.WaitModifiersReleased();
         IDataObject saved = SaveClipboard();
         string text = GetSelectionOrLastWord();
         if (!string.IsNullOrEmpty(text))
@@ -779,7 +820,6 @@ class App : ApplicationContext
 
     void ChangeCase()
     {
-        Native.WaitModifiersReleased();
         IDataObject saved = SaveClipboard();
 
         string text = GetSelectionOrLastWord();
@@ -823,7 +863,6 @@ class App : ApplicationContext
     // A whole phrase typed in the wrong layout: select from the cursor to the start of the line and switch it
     void ConvertLine()
     {
-        Native.WaitModifiersReleased();
         IntPtr target = Native.GetForegroundWindow();
         IDataObject saved = SaveClipboard();
         if (!SameWindow()) { RestoreClipboard(saved); return; }
@@ -841,7 +880,6 @@ class App : ApplicationContext
 
     void ConvertSelection()
     {
-        Native.WaitModifiersReleased();
         IntPtr target = Native.GetForegroundWindow();
 
         IDataObject saved = SaveClipboard();
@@ -861,8 +899,7 @@ class App : ApplicationContext
         RestoreClipboard(saved);
     }
 
-    // Wait while still processing messages: while KeyFish owns the clipboard,
-    // another app can't copy text without an answer from us
+    // Wait while still processing messages, so the clipboard and the target window keep working meanwhile
     static void Pump(int ms)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -941,6 +978,7 @@ class App : ApplicationContext
 
     static IDataObject SaveClipboard()
     {
+        FlushRestore();   // the previous hotkey's restore first, or its text would be saved as the user's
         try
         {
             var src = Clipboard.GetDataObject();
@@ -956,7 +994,40 @@ class App : ApplicationContext
         catch { return null; }
     }
 
+    // The user's clipboard is given back a second later, not right after Ctrl+V: a slow app (a remote desktop, a busy
+    // Electron window) may read the clipboard after that and would paste the old contents instead of the fix.
+    // If anything else is copied in that second, the user's copy wins and nothing is put back
+    static IDataObject restoreData;
+    static uint restoreSeq;
+    static System.Windows.Forms.Timer restoreTimer;
+
     static void RestoreClipboard(IDataObject saved)
+    {
+        FlushRestore();
+        restoreData = saved;
+        restoreSeq = Native.GetClipboardSequenceNumber();
+        if (restoreTimer == null)
+        {
+            restoreTimer = new System.Windows.Forms.Timer { Interval = 1000 };
+            restoreTimer.Tick += (s, e) => FlushRestore();
+        }
+        restoreTimer.Stop();
+        restoreTimer.Start();
+    }
+
+    // Puts the user's clipboard back now, if it is still waiting to be (before the next hotkey and at exit)
+    static void FlushRestore()
+    {
+        if (restoreTimer != null) restoreTimer.Stop();
+        var saved = restoreData;
+        if (saved == null && restoreSeq == 0) return;
+        restoreData = null;
+        uint seq = restoreSeq;
+        restoreSeq = 0;
+        if (Native.GetClipboardSequenceNumber() == seq) PutBack(saved);
+    }
+
+    static void PutBack(IDataObject saved)
     {
         for (int i = 0; i < 5; i++)
         {
@@ -1035,7 +1106,9 @@ class App : ApplicationContext
 
     protected override void ExitThreadCore()
     {
+        SystemEvents.UserPreferenceChanged -= OnSystemPreference;   // a static event: it would keep KeyFish's objects alive
         SaveStats();
+        FlushRestore();
         FileQueue.Flush(2000);
         tray.Visible = false;
         hotkeys.UnregisterAll();
@@ -1134,7 +1207,7 @@ static class Native
     [DllImport("gdi32.dll")] public static extern bool DeleteObject(IntPtr obj);
     [DllImport("user32.dll")] public static extern bool UpdateLayeredWindow(IntPtr hwnd, IntPtr dst, ref POINT pos, ref SIZE size, IntPtr src, ref POINT srcPos, int key, ref BLENDFUNCTION blend, int flags);
 
-    public const uint MOD_ALT = 0x1, MOD_CONTROL = 0x2, MOD_SHIFT = 0x4, MOD_WIN = 0x8, MOD_NOREPEAT = 0x4000;
+    public const uint MOD_ALT = 0x1, MOD_CONTROL = 0x2, MOD_SHIFT = 0x4, MOD_NOREPEAT = 0x4000;
     public const byte VK_SHIFT = 0x10, VK_CONTROL = 0x11, VK_MENU = 0x12, VK_HOME = 0x24, VK_LEFT = 0x25, VK_LWIN = 0x5B, VK_RWIN = 0x5C;
     const uint KEYEVENTF_EXTENDEDKEY = 0x1, KEYEVENTF_KEYUP = 0x2;
 
@@ -1147,17 +1220,18 @@ static class Native
 
     static readonly byte[] Modifiers = { VK_SHIFT, VK_CONTROL, VK_MENU, VK_LWIN, VK_RWIN };
 
-    // Wait until the user releases the hotkey, otherwise Ctrl+C would become Ctrl+Shift+C
-    public static void WaitModifiersReleased()
+    // Wait until the user releases the hotkey's modifiers, up to 3 seconds; false if they are still held then.
+    // KeyFish never releases them itself: Windows would think a key is up that the user is still holding
+    public static bool WaitModifiersReleased()
     {
-        for (int i = 0; i < 100; i++)
+        for (int i = 0; i < 300; i++)
         {
             bool any = false;
             foreach (byte vk in Modifiers) if ((GetAsyncKeyState(vk) & 0x8000) != 0) any = true;
-            if (!any) return;
+            if (!any) return true;
             Thread.Sleep(10);
         }
-        foreach (byte vk in Modifiers) keybd_event(vk, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+        return false;
     }
 
     public static void Chord(params byte[] keys)

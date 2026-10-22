@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 // Screenshots of KeyFish windows for checking the design, without starting KeyFish itself.
-// Usage: Preview.exe settings <page 0-4>|about|aquarium <out.png> [dark|light] [language code] [menu]
+// Usage: Preview.exe settings <page 0-4>|about|aquarium|message <out.png> [dark|light] [language code] [menu]
 static class Preview
 {
     [DllImport("user32.dll")] static extern bool PrintWindow(IntPtr hwnd, IntPtr hdc, uint flags);
@@ -28,8 +28,10 @@ static class Preview
     static void Main(string[] args)
     {
         SetProcessDPIAware();
-        if (args.Length > 3) typeof(Theme).GetField("Dark").SetValue(null, args[3] == "dark");
-        L.Setting = args.Length > 4 ? Array.IndexOf(L.Codes, args[4]) + 1 : 1;
+        // settings <page> <out> [theme] [lang]; about|aquarium <out> [theme] [lang]
+        int ta = args[0] == "settings" ? 3 : 2;
+        if (args.Length > ta) typeof(Theme).GetField("Dark").SetValue(null, args[ta] == "dark");
+        L.Setting = args.Length > ta + 1 ? Array.IndexOf(L.Codes, args[ta + 1]) + 1 : 1;
         Application.EnableVisualStyles();
         Form form;
         int page = 0;
@@ -48,6 +50,9 @@ static class Preview
                 Ignored = "lol\nкек\n", Learned = "ghbdtn\n", InstalledLayouts = layouts
             };
         }
+        else if (args[0] == "message")
+            form = (Form)Activator.CreateInstance(typeof(ThemedMessage), BindingFlags.NonPublic | BindingFlags.Instance, null,
+                new object[] { "Вышла версия 2.0.1 (у вас 2.0.0).\n\nОбновить сейчас? KeyFish скачает новую версию с GitHub, проверит контрольную сумму и перезапустится.", "Обновление KeyFish", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Information }, null);
         else form = new AboutForm("Рыбка поймала 1 234 ошибки", "2.0.0\n• Новое\n\n1.8.3\n• Старое\n", LayoutTable.Installed());
         string outPath = args[args[0] == "settings" ? 2 : 1];
         int at = 3200; foreach (string a in args) if (a.StartsWith("at=")) at = int.Parse(a.Substring(3));   // aquarium: when to take the shot, ms
