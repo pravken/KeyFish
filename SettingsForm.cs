@@ -20,6 +20,7 @@ class SettingsForm : Form
     public Keys[] Hotkeys;
     public string Replacements, Exclusions, Ignored, Learned, AppLayouts;
     public IList<LayoutTable> InstalledLayouts = new List<LayoutTable>();
+    public Dictionary<string, Color> LayoutColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);   // "EN" → color
     public Image Logo;
     public int StartPage { get; set; }   // the section to open with (tests\Preview opens any)
 
@@ -179,6 +180,37 @@ class SettingsForm : Form
 
     static ToggleSwitch Toggle(bool value) { return new ToggleSwitch { Checked = value }; }
 
+    // A color for each installed layout: a click on its circle opens the palette
+    void ColorsRow(Panel page, ref int y)
+    {
+        var holder = new Panel { BackColor = Color.Transparent, Height = 34 };
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        int x = 0;
+        foreach (var t in InstalledLayouts)
+        {
+            string name = (t.Name ?? "").Split('-')[0].ToUpperInvariant();
+            if (name.Length == 0 || !seen.Add(name)) continue;
+            bool other = t.Script != null && t.Script != "Latin";
+            Color def = other ? LetterIcon.Other : LetterIcon.Latin, chosen;
+            var swatch = new ColorSwatch { Letters = name, Location = new Point(x, 0) };
+            swatch.Custom = LayoutColors.TryGetValue(name, out chosen);
+            swatch.Color = swatch.Custom ? chosen : def;
+            swatch.AccessibleName = L.F("Цвет {0}", "Color of {0}", name);
+            swatch.Click += (s, e) => ColorPicker.Show(swatch, swatch.Color, c =>
+            {
+                if (c == null) { LayoutColors.Remove(name); swatch.Color = def; swatch.Custom = false; }
+                else { LayoutColors[name] = c.Value; swatch.Color = c.Value; swatch.Custom = true; }
+                swatch.Invalidate();
+            });
+            holder.Controls.Add(swatch);
+            x += 40;
+        }
+        holder.Width = Math.Max(34, x - 6);
+        Row(page, ref y, L.T("Цвета раскладок", "Layout colors"),
+            L.T("Нажмите на кружок, чтобы выбрать цвет: им будут рыбка, буквы в трее и значок у курсора.",
+                "Click a circle to choose its color: the tray fish, the letters and the tag at the cursor will use it."), holder);
+    }
+
     // A word typed and what KeyFish makes of it
     static FeaturePreview Morph(string from, string to)
     {
@@ -257,6 +289,7 @@ class SettingsForm : Form
             L.T("В трее EN, RU и т. д. в кружке того же цвета. Пока KeyFish не исправляет, кружок серый.",
                 "The tray shows EN, RU and so on in a circle of the same color. While KeyFish isn't correcting, the circle is grey."),
             tLetters = Toggle(TrayLetters), Swap(Pictures.Fish(false), Pictures.Letters("EN", false)));
+        ColorsRow(page, ref y);
         Row(page, ref y, L.T("Показывать раскладку у курсора", "Show the layout at the cursor"),
             L.T("Когда раскладка меняется, рядом с текстовым курсором на секунду появляется EN, RU и т. д. Если программа не сообщает, где курсор, — рядом с мышью.",
                 "When the layout changes, EN, RU and so on appear next to the text cursor for a second, or next to the mouse pointer if the app doesn't tell where its cursor is."), tBadge = Toggle(LayoutBadge),

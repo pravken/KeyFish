@@ -127,3 +127,8 @@ Version {0}. Click Check to see whether a newer one is out.	Versión {0}. Pulsa 
 Version {0} is out — update	Ya está la versión {0} — actualizar
 Layout letters instead of the fish	Letras de la distribución en lugar del pez
 The tray shows EN, RU and so on in a circle of the same color. While KeyFish isn't correcting, the circle is grey.	El área de notificación muestra EN, ES, etc. en un círculo del mismo color. Mientras KeyFish no corrige, el círculo es gris.
+Layout colors	Colores de las distribuciones
+Click a circle to choose its color: the tray fish, the letters and the tag at the cursor will use it.	Haz clic en un círculo para elegir su color: lo usarán el pez, las letras y la etiqueta junto al cursor.
+Default	Predeterminado
+Other…	Otro…
+Color of {0}	Color de {0}

@@ -90,6 +90,12 @@ static class Preview
                         foreach (Control child in c.Controls) stack.Push(child);
                     }
                 }
+            // "colors": open the palette of the first layout color (captured from the screen)
+            if (Array.IndexOf(args, "colors") >= 0)
+            {
+                var sw = Find<ColorSwatch>(form);
+                if (sw != null) sw.GetType().GetMethod("OnClick", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(sw, new object[] { EventArgs.Empty });
+            }
             // "focus": click into the first hotkey field, to see the recording state
             if (Array.IndexOf(args, "focus") >= 0) { var hk = Find<HotkeyBox>(form); if (hk != null) hk.Focus(); }
             if (args[0] == "aquarium")
@@ -100,7 +106,7 @@ static class Preview
         {
             timer.Stop();
             var r = form.Bounds;
-            bool screen = Array.IndexOf(args, "menu") >= 0;
+            bool screen = Array.IndexOf(args, "menu") >= 0 || Array.IndexOf(args, "colors") >= 0;
             using (var bmp = new Bitmap(r.Width, r.Height))
             {
                 using (var g = Graphics.FromImage(bmp))

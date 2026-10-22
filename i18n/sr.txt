@@ -127,3 +127,8 @@ Version {0}. Click Check to see whether a newer one is out.	Верзија {0}. 
 Version {0} is out — update	Изашла је верзија {0} — ажурирај
 Layout letters instead of the fish	Слова распореда уместо рибице
 The tray shows EN, RU and so on in a circle of the same color. While KeyFish isn't correcting, the circle is grey.	У системској палети EN, SR итд. у кругу исте боје. Док KeyFish не исправља, круг је сив.
+Layout colors	Боје распореда
+Click a circle to choose its color: the tray fish, the letters and the tag at the cursor will use it.	Кликните на круг да изаберете боју: користиће је рибица, слова у палети и ознака поред курсора.
+Default	Подразумевано
+Other…	Друга…
+Color of {0}	Боја за {0}

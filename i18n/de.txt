@@ -127,3 +127,8 @@ Version {0}. Click Check to see whether a newer one is out.	Version {0}. Klicken
 Version {0} is out — update	Version {0} ist erschienen — aktualisieren
 Layout letters instead of the fish	Layout-Buchstaben statt des Fisches
 The tray shows EN, RU and so on in a circle of the same color. While KeyFish isn't correcting, the circle is grey.	Im Infobereich stehen EN, DE usw. in einem Kreis derselben Farbe. Solange KeyFish nicht korrigiert, ist der Kreis grau.
+Layout colors	Farben der Layouts
+Click a circle to choose its color: the tray fish, the letters and the tag at the cursor will use it.	Klicken Sie auf einen Kreis, um seine Farbe zu wählen: Fisch, Buchstaben im Infobereich und die Markierung am Cursor nutzen sie.
+Default	Standard
+Other…	Andere…
+Color of {0}	Farbe von {0}

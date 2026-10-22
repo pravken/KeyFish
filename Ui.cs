@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
@@ -885,10 +886,10 @@ class LayoutBadge : Form
         }
     }
 
-    public void Flash(string text, bool latin)
+    public void Flash(string text, Color fill)
     {
         if (picture != null) picture.Dispose();
-        picture = Render(text, latin ? Color.FromArgb(0, 103, 192) : Color.FromArgb(222, 100, 0));
+        picture = Render(text, fill);
         where = Place(picture.Size);
         shownAt = Environment.TickCount;
         Draw(255);
@@ -1290,5 +1291,147 @@ static class Pictures
         if (t > 0.6f)
             using (var f = new Font(Theme.Small.FontFamily, Math.Max(1, Theme.Small.Size * 0.72f), FontStyle.Bold))
                 Theme.SmoothText(g, "RU", f, tag, Color.White, true, false);
+    }
+}
+
+// A color chosen for a layout ("EN", "RU"…): the tray fish, the letters and the layout tag use it.
+// Kept in the registry as one text value: "EN=#2870DC;RU=#D83B3B"
+static class LayoutColors
+{
+    // The palette offered in Settings, in the spirit of Windows 11's accent colors
+    public static readonly Color[] Palette =
+    {
+        Color.FromArgb(40, 110, 220), Color.FromArgb(232, 112, 30), Color.FromArgb(216, 59, 59), Color.FromArgb(214, 65, 140),
+        Color.FromArgb(142, 68, 201), Color.FromArgb(91, 95, 199), Color.FromArgb(15, 157, 154), Color.FromArgb(46, 155, 78),
+        Color.FromArgb(125, 170, 30), Color.FromArgb(227, 169, 11), Color.FromArgb(141, 110, 99), Color.FromArgb(95, 107, 122)
+    };
+
+    public static Dictionary<string, Color> Parse(string text)
+    {
+        var map = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);
+        foreach (string part in (text ?? "").Split(';'))
+        {
+            int eq = part.IndexOf('=');
+            int rgb;
+            if (eq > 0 && part.Length > eq + 1 && part[eq + 1] == '#' &&
+                int.TryParse(part.Substring(eq + 2), System.Globalization.NumberStyles.HexNumber, null, out rgb))
+                map[part.Substring(0, eq).Trim()] = Color.FromArgb(255, Color.FromArgb(rgb));
+        }
+        return map;
+    }
+
+    public static string Format(Dictionary<string, Color> map)
+    {
+        var parts = new List<string>();
+        foreach (var kv in map) parts.Add(kv.Key + "=#" + (kv.Value.ToArgb() & 0xFFFFFF).ToString("X6"));
+        return string.Join(";", parts);
+    }
+
+    // The fish icon in another color: the colored disc takes the new color, the white fish stays white
+    public static Bitmap Recolor(Bitmap source, Color target)
+    {
+        var result = new Bitmap(source.Width, source.Height);
+        for (int y = 0; y < source.Height; y++)
+            for (int x = 0; x < source.Width; x++)
+            {
+                var c = source.GetPixel(x, y);
+                int max = Math.Max(c.R, Math.Max(c.G, c.B)), min = Math.Min(c.R, Math.Min(c.G, c.B));
+                float sat = max == 0 ? 0 : (max - min) / (float)max, value = max / 255f;
+                Func<int, int> mix = t => (int)Math.Round((255 * (1 - sat) + t * sat) * value);
+                result.SetPixel(x, y, Color.FromArgb(c.A, mix(target.R), mix(target.G), mix(target.B)));
+            }
+        return result;
+    }
+}
+
+// A layout's letters in a circle of its color; a click opens the palette
+class ColorSwatch : Control
+{
+    public string Letters;
+    public Color Color;
+    public bool Custom;                  // chosen by the user, not the default for the alphabet
+    bool hover;
+
+    public ColorSwatch()
+    {
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint |
+                 ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor | ControlStyles.Selectable, true);
+        BackColor = Color.Transparent;
+        Size = new Size(34, 34);
+        Cursor = Cursors.Hand;
+        TabStop = true;
+        AccessibleRole = AccessibleRole.PushButton;
+    }
+
+    protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
+    protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
+    protected override void OnGotFocus(EventArgs e) { Invalidate(); base.OnGotFocus(e); }
+    protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
+    protected override void OnKeyDown(KeyEventArgs e) { if (e.KeyCode == Keys.Space || e.KeyCode == Keys.Enter) OnClick(EventArgs.Empty); base.OnKeyDown(e); }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        float ring = Theme.S(3);
+        LetterIcon.Draw(g, new RectangleF(ring, ring, Width - ring * 2, Height - ring * 2), Letters, Color, Color.White);
+        if (hover || (Focused && ShowFocusCues))
+            using (var p = new Pen(Theme.Text, Math.Max(1.5f, Theme.Scale * 1.5f))) g.DrawEllipse(p, 1, 1, Width - 2.5f, Height - 2.5f);
+    }
+}
+
+// The palette that opens under a swatch: the colors, "Default" and "Other color…" (the Windows color dialog)
+static class ColorPicker
+{
+    public static void Show(Control owner, Color current, Action<Color?> chosen)
+    {
+        var menu = new ToolStripDropDown { Padding = Padding.Empty };
+        ThemedMenuRenderer.Apply(menu);
+        menu.Padding = new Padding(0);
+        const int cols = 6, dot = 26, gap = 8, pad = 12;
+        var panel = new Panel { BackColor = Theme.Card, Size = new Size(pad * 2 + cols * dot + (cols - 1) * gap, pad * 2 + 2 * dot + gap + 10 + 32) };
+        var palette = LayoutColors.Palette;
+        int hover = -1;
+        Func<int, Rectangle> cell = i => new Rectangle(pad + (i % cols) * (dot + gap), pad + (i / cols) * (dot + gap), dot, dot);
+        panel.Paint += (s, e) =>
+        {
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            for (int i = 0; i < palette.Length; i++)
+            {
+                var r = cell(i);
+                using (var b = new SolidBrush(palette[i])) g.FillEllipse(b, r.X + 2, r.Y + 2, r.Width - 4, r.Height - 4);
+                if (i == hover || palette[i].ToArgb() == current.ToArgb())
+                    using (var p = new Pen(Theme.Text, 1.6f)) g.DrawEllipse(p, r.X, r.Y, r.Width - 1, r.Height - 1);
+            }
+        };
+        panel.MouseMove += (s, e) =>
+        {
+            int i = -1;
+            for (int k = 0; k < palette.Length; k++) if (cell(k).Contains(e.Location)) i = k;
+            if (i != hover) { hover = i; panel.Cursor = i >= 0 ? Cursors.Hand : Cursors.Default; panel.Invalidate(); }
+        };
+        panel.MouseClick += (s, e) =>
+        {
+            for (int k = 0; k < palette.Length; k++)
+                if (cell(k).Contains(e.Location)) { menu.Close(); chosen(palette[k]); return; }
+        };
+        int by = pad + 2 * dot + gap + 10, bw = (panel.Width - pad * 2 - 8) / 2;
+        var reset = new RoundButton { Text = L.T("По умолчанию", "Default"), Location = new Point(pad, by), Size = new Size(bw, 30), Font = Theme.Small };
+        var other = new RoundButton { Text = L.T("Другой…", "Other…"), Location = new Point(pad + bw + 8, by), Size = new Size(bw, 30), Font = Theme.Small };
+        reset.Click += (s, e) => { menu.Close(); chosen(null); };
+        other.Click += (s, e) =>
+        {
+            menu.Close();
+            using (var dialog = new ColorDialog { Color = current, FullOpen = true, AnyColor = true })
+                if (dialog.ShowDialog(owner.FindForm()) == DialogResult.OK) chosen(dialog.Color);
+        };
+        panel.Controls.Add(reset);
+        panel.Controls.Add(other);
+        if (Math.Abs(Theme.Scale - 1) > 0.01f) panel.Scale(new SizeF(Theme.Scale, Theme.Scale));
+        var host = new ToolStripControlHost(panel) { Padding = Padding.Empty, Margin = Padding.Empty, AutoSize = false, Size = panel.Size };
+        menu.Items.Add(host);
+        menu.Closed += (s, e) => owner.BeginInvoke(new Action(menu.Dispose));
+        menu.Show(owner, new Point(owner.Width, owner.Height + 2), ToolStripDropDownDirection.BelowLeft);   // opens leftwards: the swatches sit at the right edge
     }
 }

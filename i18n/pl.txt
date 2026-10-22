@@ -127,3 +127,8 @@ Version {0}. Click Check to see whether a newer one is out.	Wersja {0}. Kliknij 
 Version {0} is out — update	Wyszła wersja {0} — zaktualizuj
 Layout letters instead of the fish	Litery układu zamiast rybki
 The tray shows EN, RU and so on in a circle of the same color. While KeyFish isn't correcting, the circle is grey.	W zasobniku EN, PL itd. w kółku tego samego koloru. Gdy KeyFish nie poprawia, kółko jest szare.
+Layout colors	Kolory układów
+Click a circle to choose its color: the tray fish, the letters and the tag at the cursor will use it.	Kliknij kółko, aby wybrać kolor: użyją go rybka, litery w zasobniku i znacznik przy kursorze.
+Default	Domyślny
+Other…	Inny…
+Color of {0}	Kolor {0}

@@ -126,3 +126,8 @@ Version {0}. Click Check to see whether a newer one is out.	Версія {0}. Н
 Version {0} is out — update	Выйшла версія {0} — абнавіць
 Layout letters instead of the fish	Літары раскладкі замест рыбкі
 The tray shows EN, RU and so on in a circle of the same color. While KeyFish isn't correcting, the circle is grey.	У трэі EN, BE і г. д. у кружку таго ж колеру. Пакуль KeyFish не выпраўляе, кружок шэры.
+Layout colors	Колеры раскладак
+Click a circle to choose its color: the tray fish, the letters and the tag at the cursor will use it.	Націсніце на кружок, каб выбраць колер: ім будуць рыбка, літары ў трэі і значок каля курсора.
+Default	Па змаўчанні
+Other…	Іншы…
+Color of {0}	Колер {0}
