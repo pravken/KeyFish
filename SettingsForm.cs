@@ -232,16 +232,16 @@ class SettingsForm : Form
                 "Click a circle to choose its color: the tray fish, the letters and the tag at the cursor will use it."), holder);
     }
 
-    // A word typed and what KeyFish makes of it
-    static FeaturePreview Morph(string from, string to)
+    // A word typed with a mistake and what KeyFish makes of it (undo: then Ctrl+Z puts the typed word back)
+    static FeaturePreview Typing(string typed, string fixedWord, bool undo = false)
     {
-        return new FeaturePreview((g, r) => Pictures.Field(g, r, from), (g, r, t) => Pictures.Field(g, r, from, to, t, true));
+        return new FeaturePreview((g, r, ms) => Pictures.Typing(g, r, ms, typed, fixedWord, undo), Pictures.TypingLength(typed, undo));
     }
 
-    // One tray icon turning into another
-    static FeaturePreview Swap(Image from, Image to)
+    // The tray icon as the layout is switched there and back
+    static FeaturePreview Switching(Image first, Image second)
     {
-        return new FeaturePreview((g, r) => Pictures.Icon(g, r, from), (g, r, t) => { Pictures.Icon(g, r, from, 1 - t); Pictures.Icon(g, r, to, t, false); });
+        return new FeaturePreview((g, r, ms) => Pictures.Switching(g, r, ms, first, second), Pictures.SwitchLength);
     }
 
     static void Intro(Control page, ref int y, string text)
@@ -294,27 +294,27 @@ class SettingsForm : Form
         Row(page, ref y, L.T("Исправлять раскладку при наборе", "Fix the keyboard layout as you type"),
             L.T("ghbdtn → привет, руддщ → hello. Автозамены тоже работают, только когда это включено.",
                 "ghbdtn → привет, руддщ → hello. Replacements also work only while this is on."), tAuto = Toggle(AutoCorrect),
-            Morph("ghbdtn", "привет"));
+            Typing("ghbdtn", "привет"));
         Row(page, ref y, L.T("Исправлять опечатки", "Fix typos"),
             L.T("Эксперимент: пирвет → привет, через проверку орфографии Windows.", "Experimental: recieve → receive, using Windows spell check."), tTypos = Toggle(Typos),
-            Morph(L.Ru ? "пирвет" : "recieve", L.Ru ? "привет" : "receive"));
+            Typing(L.Ru ? "пирвет" : "recieve", L.Ru ? "привет" : "receive"));
         Row(page, ref y, L.T("Молчать в играх и полноэкранных программах", "Stay quiet in games and full-screen apps"), null, tQuiet = Toggle(QuietFullscreen));
         Row(page, ref y, L.T("Ctrl+Z отменяет автоисправление", "Ctrl+Z undoes an auto-fix"),
             L.T("Сразу после исправления, как и Pause. Следующий Ctrl+Z работает в программе как обычно.",
                 "Right after the fix, like Pause. The next Ctrl+Z works in the app as usual."), tCtrlZ = Toggle(UndoCtrlZ),
-            Morph("привет", "ghbdtn"));
+            Typing("ghbdtn", "привет", true));
         Row(page, ref y, L.T("Цвет рыбки показывает раскладку", "Fish color shows the layout"),
             L.T("Синяя — латиница, оранжевая — другой алфавит.", "Blue — Latin, orange — another alphabet."), tColor = Toggle(LayoutColor),
-            Swap(Pictures.Fish(false), Pictures.Fish(true)));
+            Switching(Pictures.Fish(false), Pictures.Fish(true)));
         Row(page, ref y, L.T("Буквы раскладки вместо рыбки", "Layout letters instead of the fish"),
             L.T("В трее EN, RU и т. д. в кружке того же цвета. Пока KeyFish не исправляет, кружок серый.",
                 "The tray shows EN, RU and so on in a circle of the same color. While KeyFish isn't correcting, the circle is grey."),
-            tLetters = Toggle(TrayLetters), Swap(Pictures.Fish(false), Pictures.Letters("EN", false)));
+            tLetters = Toggle(TrayLetters), Switching(Pictures.Letters("EN", false), Pictures.Letters("RU", true)));
         ColorsRow(page, ref y);
         Row(page, ref y, L.T("Показывать раскладку у курсора", "Show the layout at the cursor"),
             L.T("Когда раскладка меняется, рядом с текстовым курсором на секунду появляется EN, RU и т. д. Если программа не сообщает, где курсор, — рядом с мышью.",
                 "When the layout changes, EN, RU and so on appear next to the text cursor for a second, or next to the mouse pointer if the app doesn't tell where its cursor is."), tBadge = Toggle(LayoutBadge),
-            new FeaturePreview((g, r) => Pictures.Badge(g, r, 0), Pictures.Badge));
+            new FeaturePreview(Pictures.Badge, Pictures.BadgeLength));
         Row(page, ref y, L.T("Последние исправления в меню рыбки", "Recent corrections in the fish menu"),
             L.T("Нажмите на исправление в меню, и KeyFish больше не будет так исправлять. Список хранится только в памяти.",
                 "Click a correction in the menu and KeyFish won't correct it again. The list is kept only in memory."), tRecent = Toggle(RecentMenu));

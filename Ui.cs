@@ -1144,20 +1144,20 @@ static class LetterIcon
     }
 }
 
-// A small "before → after" picture next to a setting: what the setting changes, played over and over while its page
-// is on screen (and from the start when the switch is flipped). Hidden, it stops
+// A small looping picture next to a setting that shows what it does: a word typed with a mistake and fixed, the tray
+// icon following the layout and so on. Every story ends the way it began, so the loop has no seam. It plays while its
+// page is on screen (and from the start when the switch is flipped); hidden, it stops
 class FeaturePreview : Control
 {
-    readonly Action<Graphics, RectangleF> before;
-    readonly Action<Graphics, RectangleF, float> after;   // t: 0 — just like before, 1 — the change is done
+    readonly Action<Graphics, RectangleF, int> paint;   // the picture at a moment of the story, ms from its start
+    readonly int length;
     readonly Timer timer = new Timer { Interval = 33 };
-    float t = 1;
-    int started;
+    int started, ms;
 
-    public FeaturePreview(Action<Graphics, RectangleF> before, Action<Graphics, RectangleF, float> after)
+    public FeaturePreview(Action<Graphics, RectangleF, int> paint, int length)
     {
-        this.before = before;
-        this.after = after;
+        this.paint = paint;
+        this.length = length;
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint |
                  ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
         BackColor = Color.Transparent;
@@ -1166,41 +1166,27 @@ class FeaturePreview : Control
         timer.Tick += (s, e) => Step();
     }
 
-    // Plays the change from the start, after a delay (the pictures of a page start one after another), then loops
+    // Plays the story from the start, after a delay (the pictures of a page start one after another), then loops
     public void Play(int delay = 0)
     {
         started = Environment.TickCount + delay;
-        t = 0;
+        ms = 0;
         timer.Start();
         Invalidate();
     }
 
-
     void Step()
     {
-        if (!Visible) { timer.Stop(); t = 1; return; }   // the page or the window was hidden; showing the page starts it again
-        int ms = Environment.TickCount - started;
-        const int hold = 700, change = 900, rest = 1800;   // before, the change, after; then from the start
-        t = ms < hold ? 0 : Math.Min(1, (ms - hold) / (float)change);   // ms is negative while the delay lasts
-        if (ms > hold + change + rest) started = Environment.TickCount;
+        if (!Visible) { timer.Stop(); return; }   // the page or the window was hidden; showing the page starts it again
+        ms = Environment.TickCount - started;   // negative while the delay lasts
+        if (ms >= length) { started += length * (ms / length); ms %= length; }
         Invalidate();
     }
 
     protected override void OnPaint(PaintEventArgs e)
     {
-        var g = e.Graphics;
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-        float w = Width, h = Height, box = (w - Theme.S(22)) / 2;
-        before(g, new RectangleF(0, 0, box, h));
-        // the arrow between the two
-        float cx = w / 2, cy = h / 2, a = Theme.S(4);
-        using (var p = new Pen(Theme.SubText, Math.Max(1.2f, Theme.Scale * 1.3f)) { StartCap = LineCap.Round, EndCap = LineCap.Round })
-        {
-            g.DrawLine(p, cx - a * 1.4f, cy, cx + a * 1.2f, cy);
-            g.DrawLines(p, new[] { new PointF(cx, cy - a), new PointF(cx + a * 1.2f, cy), new PointF(cx, cy + a) });
-        }
-        float ease = t < 0.5f ? 2 * t * t : 1 - (float)Math.Pow(-2 * t + 2, 2) / 2;
-        after(g, new RectangleF(w - box, 0, box, h), ease);
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        paint(e.Graphics, new RectangleF(0, 0, Width, Height), Math.Max(0, ms));
     }
 
     protected override void Dispose(bool disposing)
@@ -1210,55 +1196,89 @@ class FeaturePreview : Control
     }
 }
 
-// What the pictures are made of: a small text field, tray icons, a caret with the layout badge
+// The stories of the pictures and what they are made of: a small text field, tray icons, a key being pressed,
+// the layout tag under a caret
 static class Pictures
 {
-    static Font font;
+    static Font font, keyFont;
     static Font Font { get { return font ?? (font = new Font(Theme.Small.FontFamily, Theme.Small.Size * 0.95f)); } }
+    static Font KeyFont { get { return keyFont ?? (keyFont = new Font(Theme.Small.FontFamily, Theme.Small.Size * 0.85f)); } }
 
-    // A small text field with a word in it; a second word crossfades over the first as mix goes from 0 to 1
-    public static void Field(Graphics g, RectangleF r, string text, string next = null, float mix = 0, bool caret = false)
+    const int Letter = 110, Start = 400;   // ms per typed letter; the empty field before the first one
+
+    // 0 before `from`, 1 after `from + span`, eased in between
+    static float Ease(int ms, int from, int span)
+    {
+        float t = Math.Max(0, Math.Min(1, (ms - from) / (float)span));
+        return t < 0.5f ? 2 * t * t : 1 - (float)Math.Pow(-2 * t + 2, 2) / 2;
+    }
+
+    // A key held from `at` for `span` ms: fades in, stays, fades out
+    static float Held(int ms, int at, int span) { return Math.Min(Ease(ms, at, 120), 1 - Ease(ms, at + span - 150, 150)); }
+
+    // The caret blinks while nothing happens and stays on while typing
+    static bool CaretOn(int ms, bool typing) { return typing || (ms / 500) % 2 == 0; }
+
+    // ---------- a word typed with a mistake ----------
+
+    static int FixAt(string typed) { return Start + typed.Length * Letter + 300; }
+
+    // How long the typing story lasts: typing, the fix, (Ctrl+Z putting the word back), a look, selecting, deleting
+    public static int TypingLength(string typed, bool undo) { return FixAt(typed) + (undo ? 1500 : 0) + 3000; }
+
+    // The word is typed letter by letter, KeyFish fixes it (it flashes in the accent color), with undo Ctrl+Z puts
+    // the typed word back; then the word is selected and deleted, and the field is empty again, as at the start
+    public static void Typing(Graphics g, RectangleF r, int ms, string typed, string fixedWord, bool undo)
     {
         var box = Box(g, r);
-        var inner = new RectangleF(box.X + Theme.S(4), box.Y, box.Width - Theme.S(8), box.Height);
-        if (next == null || mix < 1) Text(g, text, inner, next == null ? 1 : 1 - mix, Theme.Text);
-        if (next != null && mix > 0) Text(g, next, inner, mix, mix < 1 ? Theme.AccentFill : Theme.Text);
-        if (caret)
+        var inner = new RectangleF(box.X + Theme.S(5), box.Y, box.Width - Theme.S(10), box.Height);
+        int fixAt = FixAt(typed), undoAt = fixAt + 1100, end = TypingLength(typed, undo);
+        int selectAt = end - 1700, deleteAt = end - 1000;
+
+        int letters = ms < Start ? 0 : Math.Min(typed.Length, (ms - Start) / Letter + 1);
+        string sofar = typed.Substring(0, letters);
+        float mix = Ease(ms, fixAt, 350) - (undo ? Ease(ms, undoAt + 250, 300) : 0);   // 0: the typed word, 1: the fixed one
+        var fixedColor = Theme.Blend(Theme.AccentFill, Theme.Text, Ease(ms, fixAt + 500, 600));
+        string word = ms >= deleteAt ? "" : mix > 0.5f ? fixedWord : sofar;
+        float wordWidth = Width(g, word);
+
+        float sel = ms >= deleteAt ? 0 : Ease(ms, selectAt, 300);   // the selection grows from the end to the start
+        if (sel > 0)
+            using (var b = new SolidBrush(Theme.SelectionBack))
+                g.FillRectangle(b, inner.X + wordWidth * (1 - sel), box.Y + box.Height * 0.2f, wordWidth * sel + Theme.S(1), box.Height * 0.6f);
+
+        if (ms < deleteAt)
         {
-            var size = g.MeasureString(next != null && mix > 0.5f ? next : text, Font);
-            float x = Math.Min(inner.Right - 1, inner.X + size.Width - Theme.S(2));
-            using (var p = new Pen(Theme.Text, 1)) g.DrawLine(p, x, box.Y + box.Height * 0.25f, x, box.Bottom - box.Height * 0.25f);
+            if (mix <= 0) Text(g, sofar, inner, 1, Theme.Text);
+            else if (mix >= 1) Text(g, fixedWord, inner, 1, fixedColor);
+            else { Text(g, sofar, inner, 1 - mix, Theme.Text); Text(g, fixedWord, inner, mix, fixedColor); }
         }
+        if (undo) Key(g, box, "Ctrl+Z", Held(ms, undoAt, 650));
+        if (sel <= 0 && CaretOn(ms, ms >= Start && ms < fixAt)) Caret(g, box, inner.X + wordWidth);
     }
 
-    static void Text(Graphics g, string text, RectangleF r, float alpha, Color color)
+    // ---------- the tray icon following the layout ----------
+
+    public const int SwitchLength = 4800;
+
+    // The layout is switched there and back: the key combination shows, the icon changes, and later back again
+    public static void Switching(Graphics g, RectangleF r, int ms, Image first, Image second)
     {
-        Theme.SmoothText(g, text, Font, r, Color.FromArgb((int)(255 * Math.Max(0, Math.Min(1, alpha))), color), false, false);
+        var box = Box(g, r);
+        float t = Ease(ms, 1100, 350) - Ease(ms, 3500, 350);
+        float s = box.Height - Theme.S(5), cx = box.X + box.Width * 0.3f;
+        var dest = new RectangleF(cx - s / 2, box.Y + (box.Height - s) / 2, s, s);
+        if (t < 1) Draw(g, first, dest, 1 - t);
+        if (t > 0) Draw(g, second, dest, t);
+        Key(g, box, "Alt+Shift", Math.Max(Held(ms, 900, 700), Held(ms, 3300, 700)));
     }
 
-    // The frame every picture sits in: the same size for words and icons, so the pictures line up as one column
-    public static RectangleF Box(Graphics g, RectangleF r)
+    static void Draw(Graphics g, Image image, RectangleF dest, float alpha)
     {
-        var box = new RectangleF(r.X + 0.5f, r.Y + r.Height * 0.18f, r.Width - 1, r.Height * 0.64f);
-        using (var path = Theme.Rounded(box, Theme.S(4)))
-        {
-            using (var b = new SolidBrush(Theme.Input)) g.FillPath(b, path);
-            using (var p = new Pen(Theme.InputBorder)) g.DrawPath(p, path);
-        }
-        return box;
-    }
-
-    // A tray icon in the middle of the frame (frame: false when another icon is drawn over the same frame)
-    public static void Icon(Graphics g, RectangleF r, Image image, float alpha = 1, bool frame = true)
-    {
-        var box = frame ? Box(g, r) : new RectangleF(r.X + 0.5f, r.Y + r.Height * 0.18f, r.Width - 1, r.Height * 0.64f);
-        float s = box.Height - Theme.S(5);
-        var dest = new RectangleF(box.X + (box.Width - s) / 2, box.Y + (box.Height - s) / 2, s, s);
         if (alpha >= 1) { g.DrawImage(image, dest); return; }
         using (var attr = new System.Drawing.Imaging.ImageAttributes())
         {
-            var cm = new System.Drawing.Imaging.ColorMatrix { Matrix33 = Math.Max(0, alpha) };
-            attr.SetColorMatrix(cm);
+            attr.SetColorMatrix(new System.Drawing.Imaging.ColorMatrix { Matrix33 = Math.Max(0, alpha) });
             g.DrawImage(image, Rectangle.Round(dest), 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, attr);
         }
     }
@@ -1272,18 +1292,78 @@ static class Pictures
 
     public static Image Letters(string text, bool other) { return LetterIcon.Render(text, other ? LetterIcon.Other : LetterIcon.Latin, Color.White, 32); }
 
-    // The layout tag under a caret, grown by t (0…1)
-    public static void Badge(Graphics g, RectangleF r, float t)
+    // ---------- the layout tag at the caret ----------
+
+    // The layout is switched there and back while the caret waits after a word; each time the tag pops up under it
+    public static void Badge(Graphics g, RectangleF r, int ms)
     {
-        Field(g, r, "привет", null, 0, true);
+        var box = Box(g, r);
+        var inner = new RectangleF(box.X + Theme.S(5), box.Y, box.Width - Theme.S(10), box.Height);
+        string word = L.Ru ? "привет" : "hello";
+        Text(g, word, inner, 1, Theme.Text);
+        float x = inner.X + Width(g, word);
+        Caret(g, box, x);
+        Key(g, box, "Alt+Shift", Math.Max(Held(ms, 900, 700), Held(ms, 3300, 700)));
+        bool second = ms >= 2400;
+        int at = second ? 3500 : 1100;
+        float t = Math.Min(Ease(ms, at, 250), 1 - Ease(ms, at + 1000, 300));
         if (t <= 0) return;
-        float w = Theme.S(22) * t, h = Theme.S(13) * t;
-        var tag = new RectangleF(r.Right - w - Theme.S(2), r.Bottom - h - Theme.S(1), w, h);
-        using (var path = Theme.Rounded(tag, Math.Max(1, Theme.S(3) * t)))
-        using (var b = new SolidBrush(LetterIcon.Other)) g.FillPath(b, path);
-        if (t > 0.6f)
-            using (var f = new Font(Theme.Small.FontFamily, Math.Max(1, Theme.Small.Size * 0.72f), FontStyle.Bold))
-                Theme.SmoothText(g, "RU", f, tag, Color.White, true, false);
+        float w = Theme.S(22), h = Theme.S(13);
+        var tag = new RectangleF(x - Theme.S(1), box.Bottom - Theme.S(5) - h * (1 - t) * 0.3f, w, h);
+        int a = (int)(255 * t);
+        using (var path = Theme.Rounded(tag, Theme.S(3)))
+        using (var b = new SolidBrush(Color.FromArgb(a, second ? LetterIcon.Latin : LetterIcon.Other))) g.FillPath(b, path);
+        using (var f = new Font(Theme.Small.FontFamily, Math.Max(1, Theme.Small.Size * 0.72f), FontStyle.Bold))
+            Theme.SmoothText(g, second ? "EN" : "RU", f, tag, Color.FromArgb(a, Color.White), true, false);
+    }
+
+    public const int BadgeLength = 4800;
+
+    // ---------- parts ----------
+
+    static void Text(Graphics g, string text, RectangleF r, float alpha, Color color)
+    {
+        if (text.Length == 0) return;
+        Theme.SmoothText(g, text, Font, r, Color.FromArgb((int)(255 * Math.Max(0, Math.Min(1, alpha))), color), false, false);
+    }
+
+    // Where the caret goes after the text (MeasureString pads the text a little on both sides)
+    static float Width(Graphics g, string text)
+    {
+        return text.Length == 0 ? 0 : Math.Max(0, g.MeasureString(text, Font).Width - Theme.S(4));
+    }
+
+    static void Caret(Graphics g, RectangleF box, float x)
+    {
+        using (var p = new Pen(Theme.Text, 1)) g.DrawLine(p, x + Theme.S(1), box.Y + box.Height * 0.25f, x + Theme.S(1), box.Bottom - box.Height * 0.25f);
+    }
+
+    // A key combination at the right end of the frame, shown while it is "pressed"
+    static void Key(Graphics g, RectangleF box, string text, float alpha)
+    {
+        if (alpha <= 0) return;
+        var size = g.MeasureString(text, KeyFont);
+        float h = box.Height - Theme.S(8), w = size.Width + Theme.S(4);
+        var key = new RectangleF(box.Right - w - Theme.S(4), box.Y + (box.Height - h) / 2, w, h);
+        int a = (int)(255 * Math.Min(1, alpha));
+        using (var path = Theme.Rounded(key, Theme.S(3)))
+        {
+            using (var b = new SolidBrush(Color.FromArgb(a, Theme.Hover))) g.FillPath(b, path);
+            using (var p = new Pen(Color.FromArgb(a, Theme.InputBorder))) g.DrawPath(p, path);
+        }
+        Theme.SmoothText(g, text, KeyFont, key, Color.FromArgb(a, Theme.SubText), true, false);
+    }
+
+    // The frame every picture sits in: the same size in every row, so the pictures line up as one column
+    public static RectangleF Box(Graphics g, RectangleF r)
+    {
+        var box = new RectangleF(r.X + 0.5f, r.Y + r.Height * 0.18f, r.Width - 1, r.Height * 0.64f);
+        using (var path = Theme.Rounded(box, Theme.S(4)))
+        {
+            using (var b = new SolidBrush(Theme.Input)) g.FillPath(b, path);
+            using (var p = new Pen(Theme.InputBorder)) g.DrawPath(p, path);
+        }
+        return box;
     }
 }
 
