@@ -125,3 +125,5 @@ Version {0} is out (you have {1})	Wyszła wersja {0} (masz {1})
 Checked at {0}.	Sprawdzono o {0}.
 Version {0}. Click Check to see whether a newer one is out.	Wersja {0}. Kliknij „Sprawdź”, aby zobaczyć, czy wyszła nowsza.
 Version {0} is out — update	Wyszła wersja {0} — zaktualizuj
+Layout letters instead of the fish	Litery układu zamiast rybki
+The tray shows EN, RU and so on in a circle of the same color. While KeyFish isn't correcting, the circle is grey.	W zasobniku EN, PL itd. w kółku tego samego koloru. Gdy KeyFish nie poprawia, kółko jest szare.

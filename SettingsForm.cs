@@ -11,7 +11,7 @@ using System.Windows.Forms;
 // that used to be plain text files (replacements, apps, words)
 class SettingsForm : Form
 {
-    public bool AutoCorrect, Typos, QuietFullscreen, UndoCtrlZ, LayoutColor, Autostart, CheckUpdates, LayoutBadge, RecentMenu, Sound;
+    public bool AutoCorrect, Typos, QuietFullscreen, UndoCtrlZ, LayoutColor, Autostart, CheckUpdates, LayoutBadge, RecentMenu, Sound, TrayLetters;
     public string BackupDir;             // where KeyFish keeps copies of the settings made before each save
     public Action<IWin32Window> OpenAbout;   // the About window, which otherwise opens only from the tray menu
     public UpdateInfo Updates;               // the update status and how to check or install
@@ -23,7 +23,7 @@ class SettingsForm : Form
     public Image Logo;
     public int StartPage { get; set; }   // the section to open with (tests\Preview opens any)
 
-    ToggleSwitch tAuto, tTypos, tQuiet, tCtrlZ, tColor, tAutostart, tUpdates, tBadge, tRecent, tSound;
+    ToggleSwitch tAuto, tTypos, tQuiet, tCtrlZ, tColor, tAutostart, tUpdates, tBadge, tRecent, tSound, tLetters;
     DropDown cbLanguage, cbQuickKey;
     HotkeyBox[] hotkeyBoxes;
     DataGridView gridReplacements, gridApps, gridIgnored, gridLearned;
@@ -141,11 +141,12 @@ class SettingsForm : Form
     }
 
     // One setting: a card with a title, an optional description and a control on the right
-    static void Row(Control page, ref int y, string title, string description, Control right)
+    // picture: an optional "before → after" picture, just left of the control; the titles stay in one column
+    static void Row(Control page, ref int y, string title, string description, Control right, FeaturePreview picture = null)
     {
         if (right.AccessibleName == null) right.AccessibleName = title;   // Narrator: "Fix typos, check box, checked"
-        const int pad = 18;
-        int textWidth = ContentWidth - pad * 3 - right.Width;
+        const int pad = 18, left = pad;
+        int textWidth = ContentWidth - pad * 3 - right.Width - (picture == null ? 0 : picture.Width + 16);
         var card = new Card { Location = new Point(16, y), Width = ContentWidth };
         // The title (and description) are centered vertically, like in Windows Settings
         var t = Theme.Wrapped(title, textWidth);
@@ -159,8 +160,17 @@ class SettingsForm : Form
             textHeight += d.Height + 1;
         }
         card.Height = Math.Max(textHeight + 28, 64);
-        t.Location = new Point(pad, (card.Height - textHeight) / 2);
-        if (d != null) d.Location = new Point(pad, t.Bottom + 1);
+        t.Location = new Point(left, (card.Height - textHeight) / 2);
+        if (d != null) d.Location = new Point(left, t.Bottom + 1);
+        if (picture != null)
+        {
+            picture.Location = new Point(ContentWidth - pad - right.Width - 16 - picture.Width, (card.Height - picture.Height) / 2);
+            picture.AccessibleName = title;
+            card.Controls.Add(picture);
+            // Flipping the switch shows the change again
+            var toggle = right as ToggleSwitch;
+            if (toggle != null) toggle.CheckedChanged += (s, e) => picture.Play();
+        }
         right.Location = new Point(ContentWidth - pad - right.Width, (card.Height - right.Height) / 2);
         card.Controls.Add(right);
         page.Controls.Add(card);
@@ -168,6 +178,18 @@ class SettingsForm : Form
     }
 
     static ToggleSwitch Toggle(bool value) { return new ToggleSwitch { Checked = value }; }
+
+    // A word typed and what KeyFish makes of it
+    static FeaturePreview Morph(string from, string to)
+    {
+        return new FeaturePreview((g, r) => Pictures.Field(g, r, from), (g, r, t) => Pictures.Field(g, r, from, to, t, true));
+    }
+
+    // One tray icon turning into another
+    static FeaturePreview Swap(Image from, Image to)
+    {
+        return new FeaturePreview((g, r) => Pictures.Icon(g, r, from), (g, r, t) => { Pictures.Icon(g, r, from, 1 - t); Pictures.Icon(g, r, to, t); });
+    }
 
     static void Intro(Control page, ref int y, string text)
     {
@@ -218,18 +240,27 @@ class SettingsForm : Form
         y += 8;
         Row(page, ref y, L.T("Исправлять раскладку при наборе", "Fix the keyboard layout as you type"),
             L.T("ghbdtn → привет, руддщ → hello. Автозамены тоже работают, только когда это включено.",
-                "ghbdtn → привет, руддщ → hello. Replacements also work only while this is on."), tAuto = Toggle(AutoCorrect));
+                "ghbdtn → привет, руддщ → hello. Replacements also work only while this is on."), tAuto = Toggle(AutoCorrect),
+            Morph("ghbdtn", "привет"));
         Row(page, ref y, L.T("Исправлять опечатки", "Fix typos"),
-            L.T("Эксперимент: пирвет → привет, через проверку орфографии Windows.", "Experimental: recieve → receive, using Windows spell check."), tTypos = Toggle(Typos));
+            L.T("Эксперимент: пирвет → привет, через проверку орфографии Windows.", "Experimental: recieve → receive, using Windows spell check."), tTypos = Toggle(Typos),
+            Morph(L.Ru ? "пирвет" : "recieve", L.Ru ? "привет" : "receive"));
         Row(page, ref y, L.T("Молчать в играх и полноэкранных программах", "Stay quiet in games and full-screen apps"), null, tQuiet = Toggle(QuietFullscreen));
         Row(page, ref y, L.T("Ctrl+Z отменяет автоисправление", "Ctrl+Z undoes an auto-fix"),
             L.T("Сразу после исправления, как и Pause. Следующий Ctrl+Z работает в программе как обычно.",
-                "Right after the fix, like Pause. The next Ctrl+Z works in the app as usual."), tCtrlZ = Toggle(UndoCtrlZ));
+                "Right after the fix, like Pause. The next Ctrl+Z works in the app as usual."), tCtrlZ = Toggle(UndoCtrlZ),
+            Morph("привет", "ghbdtn"));
         Row(page, ref y, L.T("Цвет рыбки показывает раскладку", "Fish color shows the layout"),
-            L.T("Синяя — латиница, оранжевая — другой алфавит.", "Blue — Latin, orange — another alphabet."), tColor = Toggle(LayoutColor));
+            L.T("Синяя — латиница, оранжевая — другой алфавит.", "Blue — Latin, orange — another alphabet."), tColor = Toggle(LayoutColor),
+            Swap(Pictures.Fish(false), Pictures.Fish(true)));
+        Row(page, ref y, L.T("Буквы раскладки вместо рыбки", "Layout letters instead of the fish"),
+            L.T("В трее EN, RU и т. д. в кружке того же цвета. Пока KeyFish не исправляет, кружок серый.",
+                "The tray shows EN, RU and so on in a circle of the same color. While KeyFish isn't correcting, the circle is grey."),
+            tLetters = Toggle(TrayLetters), Swap(Pictures.Fish(false), Pictures.Letters("EN", false)));
         Row(page, ref y, L.T("Показывать раскладку у курсора", "Show the layout at the cursor"),
             L.T("Когда раскладка меняется, рядом с текстовым курсором на секунду появляется EN, RU и т. д. Если программа не сообщает, где курсор, — рядом с мышью.",
-                "When the layout changes, EN, RU and so on appear next to the text cursor for a second, or next to the mouse pointer if the app doesn't tell where its cursor is."), tBadge = Toggle(LayoutBadge));
+                "When the layout changes, EN, RU and so on appear next to the text cursor for a second, or next to the mouse pointer if the app doesn't tell where its cursor is."), tBadge = Toggle(LayoutBadge),
+            new FeaturePreview((g, r) => Pictures.Badge(g, r, 0), Pictures.Badge));
         Row(page, ref y, L.T("Последние исправления в меню рыбки", "Recent corrections in the fish menu"),
             L.T("Нажмите на исправление в меню, и KeyFish больше не будет так исправлять. Список хранится только в памяти.",
                 "Click a correction in the menu and KeyFish won't correct it again. The list is kept only in memory."), tRecent = Toggle(RecentMenu));
@@ -709,6 +740,7 @@ class SettingsForm : Form
             { "AutoCorrect", AutoCorrect ? 1 : 0 }, { "Typos", Typos ? 1 : 0 }, { "QuietFullscreen", QuietFullscreen ? 1 : 0 },
             { "UndoCtrlZ", UndoCtrlZ ? 1 : 0 }, { "LayoutColor", LayoutColor ? 1 : 0 }, { "CheckUpdates", CheckUpdates ? 1 : 0 },
             { "LayoutBadge", LayoutBadge ? 1 : 0 }, { "RecentMenu", RecentMenu ? 1 : 0 }, { "QuickKey", QuickKey }, { "Sound", Sound ? 1 : 0 },
+            { "TrayLetters", TrayLetters ? 1 : 0 },
             { "Language", Language }
         };
         for (int i = 0; i < Hotkeys.Length; i++) v["Hotkey" + (i + 1)] = (int)Hotkeys[i];
@@ -771,6 +803,7 @@ class SettingsForm : Form
         AutoCorrect = flag("AutoCorrect", AutoCorrect); Typos = flag("Typos", Typos); QuietFullscreen = flag("QuietFullscreen", QuietFullscreen);
         UndoCtrlZ = flag("UndoCtrlZ", UndoCtrlZ); LayoutColor = flag("LayoutColor", LayoutColor); CheckUpdates = flag("CheckUpdates", CheckUpdates);
         LayoutBadge = flag("LayoutBadge", LayoutBadge); RecentMenu = flag("RecentMenu", RecentMenu); Sound = flag("Sound", Sound);
+        TrayLetters = flag("TrayLetters", TrayLetters);
         int n;
         if (values.TryGetValue("QuickKey", out n)) QuickKey = Math.Max(0, Math.Min(n, 2));
         if (values.TryGetValue("Language", out n)) Language = Math.Max(0, n);
@@ -788,6 +821,7 @@ class SettingsForm : Form
         QuietFullscreen = tQuiet.Checked;
         UndoCtrlZ = tCtrlZ.Checked;
         LayoutColor = tColor.Checked;
+        TrayLetters = tLetters.Checked;
         Autostart = tAutostart.Checked;
         CheckUpdates = tUpdates.Checked;
         LayoutBadge = tBadge.Checked;
@@ -1145,7 +1179,7 @@ static class SettingsArchive
 {
     public static readonly string[] Values =
     {
-        "AutoCorrect", "Typos", "QuietFullscreen", "UndoCtrlZ", "LayoutColor", "CheckUpdates", "LayoutBadge", "RecentMenu", "QuickKey", "Sound",
+        "AutoCorrect", "Typos", "QuietFullscreen", "UndoCtrlZ", "LayoutColor", "CheckUpdates", "LayoutBadge", "RecentMenu", "QuickKey", "Sound", "TrayLetters",
         "Language", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5"
     };
     static readonly string[] FileNames = { "replacements.txt", "exclusions.txt", "ignored-words.txt", "learned-words.txt", "app-layouts.txt" };

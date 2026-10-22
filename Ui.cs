@@ -1103,3 +1103,184 @@ class ThemedMessage : Form
         Theme.ScaleWindow(this);
     }
 }
+
+// The layout's letters in a circle (EN, RU…): the tray icon when chosen in Settings instead of the fish
+static class LetterIcon
+{
+    public static readonly Color Latin = Color.FromArgb(40, 110, 220), Other = Color.FromArgb(232, 112, 30), Off = Color.FromArgb(150, 150, 150);
+
+    public static Bitmap Render(string text, Color fill, Color ink, int size)
+    {
+        var bmp = new Bitmap(size, size);
+        using (var g = Graphics.FromImage(bmp)) Draw(g, new RectangleF(0, 0, size, size), text, fill, ink);
+        return bmp;
+    }
+
+    public static void Draw(Graphics g, RectangleF r, string text, Color fill, Color ink)
+    {
+        var saved = g.Save();
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+        using (var b = new SolidBrush(fill)) g.FillEllipse(b, r.X + 0.5f, r.Y + 0.5f, r.Width - 1, r.Height - 1);
+        if (!string.IsNullOrEmpty(text))
+            // The letters as a shape, centered by their real outline: centered by the font's metrics they sit low
+            using (var path = new GraphicsPath())
+            using (var family = new FontFamily("Segoe UI"))
+            {
+                path.AddString(text, family, (int)FontStyle.Bold, 100, PointF.Empty, StringFormat.GenericTypographic);
+                var bounds = path.GetBounds();
+                float scale = Math.Min(r.Width * (text.Length > 2 ? 0.66f : 0.58f) / bounds.Width, r.Height * 0.40f / bounds.Height);
+                using (var m = new Matrix())
+                {
+                    m.Translate(-(bounds.X + bounds.Width / 2), -(bounds.Y + bounds.Height / 2), MatrixOrder.Append);
+                    m.Scale(scale, scale, MatrixOrder.Append);
+                    m.Translate(r.X + r.Width / 2, r.Y + r.Height / 2, MatrixOrder.Append);
+                    path.Transform(m);
+                }
+                using (var b = new SolidBrush(ink)) g.FillPath(b, path);
+            }
+        g.Restore(saved);
+    }
+}
+
+// A small "before → after" picture next to a setting: what the setting changes. It plays the change when the page
+// opens, when the mouse is over it and when the switch is flipped, and otherwise rests on the result
+class FeaturePreview : Control
+{
+    readonly Action<Graphics, RectangleF> before;
+    readonly Action<Graphics, RectangleF, float> after;   // t: 0 — just like before, 1 — the change is done
+    readonly Timer timer = new Timer { Interval = 33 };
+    float t = 1;
+    int started;
+    bool hover, played;
+
+    public FeaturePreview(Action<Graphics, RectangleF> before, Action<Graphics, RectangleF, float> after)
+    {
+        this.before = before;
+        this.after = after;
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint |
+                 ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
+        BackColor = Color.Transparent;
+        Size = new Size(150, 40);
+        AccessibleRole = AccessibleRole.Graphic;
+        timer.Tick += (s, e) => Step();
+        VisibleChanged += (s, e) => { if (Visible && !played) { played = true; Play(); } };
+    }
+
+    // Plays the change once from the start
+    public void Play()
+    {
+        started = Environment.TickCount;
+        t = 0;
+        timer.Start();
+        Invalidate();
+    }
+
+    void Step()
+    {
+        int ms = Environment.TickCount - started;
+        const int hold = 500, change = 900, rest = 1400;   // before, the change, after (then again while the mouse is over it)
+        t = ms < hold ? 0 : Math.Min(1, (ms - hold) / (float)change);
+        if (ms > hold + change + rest)
+        {
+            if (hover) started = Environment.TickCount;
+            else { timer.Stop(); t = 1; }
+        }
+        Invalidate();
+    }
+
+    protected override void OnMouseEnter(EventArgs e) { hover = true; if (!timer.Enabled) Play(); base.OnMouseEnter(e); }
+    protected override void OnMouseLeave(EventArgs e) { hover = false; base.OnMouseLeave(e); }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        float w = Width, h = Height, box = (w - Theme.S(22)) / 2;
+        before(g, new RectangleF(0, 0, box, h));
+        // the arrow between the two
+        float cx = w / 2, cy = h / 2, a = Theme.S(4);
+        using (var p = new Pen(Theme.SubText, Math.Max(1.2f, Theme.Scale * 1.3f)) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+        {
+            g.DrawLine(p, cx - a * 1.4f, cy, cx + a * 1.2f, cy);
+            g.DrawLines(p, new[] { new PointF(cx, cy - a), new PointF(cx + a * 1.2f, cy), new PointF(cx, cy + a) });
+        }
+        float ease = t < 0.5f ? 2 * t * t : 1 - (float)Math.Pow(-2 * t + 2, 2) / 2;
+        after(g, new RectangleF(w - box, 0, box, h), ease);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) timer.Dispose();
+        base.Dispose(disposing);
+    }
+}
+
+// What the pictures are made of: a small text field, tray icons, a caret with the layout badge
+static class Pictures
+{
+    static Font font;
+    static Font Font { get { return font ?? (font = new Font(Theme.Small.FontFamily, Theme.Small.Size * 0.95f)); } }
+
+    // A small text field with a word in it; a second word crossfades over the first as mix goes from 0 to 1
+    public static void Field(Graphics g, RectangleF r, string text, string next = null, float mix = 0, bool caret = false)
+    {
+        var box = new RectangleF(r.X + 0.5f, r.Y + r.Height * 0.18f, r.Width - 1, r.Height * 0.64f);
+        using (var path = Theme.Rounded(box, Theme.S(4)))
+        {
+            using (var b = new SolidBrush(Theme.Input)) g.FillPath(b, path);
+            using (var p = new Pen(Theme.InputBorder)) g.DrawPath(p, path);
+        }
+        var inner = new RectangleF(box.X + Theme.S(4), box.Y, box.Width - Theme.S(8), box.Height);
+        if (next == null || mix < 1) Text(g, text, inner, next == null ? 1 : 1 - mix, Theme.Text);
+        if (next != null && mix > 0) Text(g, next, inner, mix, mix < 1 ? Theme.AccentFill : Theme.Text);
+        if (caret)
+        {
+            var size = g.MeasureString(next != null && mix > 0.5f ? next : text, Font);
+            float x = Math.Min(inner.Right - 1, inner.X + size.Width - Theme.S(2));
+            using (var p = new Pen(Theme.Text, 1)) g.DrawLine(p, x, box.Y + box.Height * 0.25f, x, box.Bottom - box.Height * 0.25f);
+        }
+    }
+
+    static void Text(Graphics g, string text, RectangleF r, float alpha, Color color)
+    {
+        Theme.SmoothText(g, text, Font, r, Color.FromArgb((int)(255 * Math.Max(0, Math.Min(1, alpha))), color), false, false);
+    }
+
+    // A tray icon in the middle of the box, size in 96-DPI pixels
+    public static void Icon(Graphics g, RectangleF r, Image image, float alpha = 1)
+    {
+        float s = Theme.S(24);
+        var dest = new RectangleF(r.X + (r.Width - s) / 2, r.Y + (r.Height - s) / 2, s, s);
+        if (alpha >= 1) { g.DrawImage(image, dest); return; }
+        using (var attr = new System.Drawing.Imaging.ImageAttributes())
+        {
+            var cm = new System.Drawing.Imaging.ColorMatrix { Matrix33 = Math.Max(0, alpha) };
+            attr.SetColorMatrix(cm);
+            g.DrawImage(image, Rectangle.Round(dest), 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, attr);
+        }
+    }
+
+    public static Image Fish(bool other)
+    {
+        using (var s = typeof(Pictures).Assembly.GetManifestResourceStream(other ? "fish-ru.ico" : "fish.ico"))
+        using (var icon = new Icon(s, 32, 32))
+            return icon.ToBitmap();
+    }
+
+    public static Image Letters(string text, bool other) { return LetterIcon.Render(text, other ? LetterIcon.Other : LetterIcon.Latin, Color.White, 32); }
+
+    // The layout tag under a caret, grown by t (0…1)
+    public static void Badge(Graphics g, RectangleF r, float t)
+    {
+        Field(g, r, "привет", null, 0, true);
+        if (t <= 0) return;
+        float w = Theme.S(22) * t, h = Theme.S(13) * t;
+        var tag = new RectangleF(r.Right - w - Theme.S(2), r.Bottom - h - Theme.S(1), w, h);
+        using (var path = Theme.Rounded(tag, Math.Max(1, Theme.S(3) * t)))
+        using (var b = new SolidBrush(LetterIcon.Other)) g.FillPath(b, path);
+        if (t > 0.6f)
+            using (var f = new Font(Theme.Small.FontFamily, Math.Max(1, Theme.Small.Size * 0.72f), FontStyle.Bold))
+                Theme.SmoothText(g, "RU", f, tag, Color.White, true, false);
+    }
+}

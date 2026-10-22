@@ -215,6 +215,17 @@ class App : ApplicationContext
         }
 
         bool ru = showLayout && currentRu;
+        if (trayLetters && currentLayoutName.Length > 0)
+        {
+            // Letters in a circle: the layout's color, white while blinking after a fix, grey while not correcting
+            bool off = !watcher.Enabled || (watcher.Enabled && !watcher.GuardAnswering);
+            int kind = off ? 2 : blinkTicks > 0 && blinkTicks % 2 == 0 ? 1 : 0;
+            if (blinkTicks > 0) blinkTicks--;
+            var letters = LettersIcon(currentLayoutName, ru, kind);
+            if (tray.Icon != letters) tray.Icon = letters;
+            SetTrayText(corrections);
+            return;
+        }
         // The password-field check isn't answering (starting, restarting): KeyFish corrects nothing until it does,
         // so the fish is grey and says why, instead of looking as if all is well
         bool guardDown = watcher.Enabled && !watcher.GuardAnswering;
@@ -222,6 +233,12 @@ class App : ApplicationContext
         if (blinkTicks > 0) blinkTicks--;
         if (tray.Icon != want) tray.Icon = want;
 
+        SetTrayText(corrections);
+    }
+
+    void SetTrayText(int corrections)
+    {
+        bool guardDown = watcher.Enabled && !watcher.GuardAnswering;
         string text = "KeyFish " + Application.ProductVersion + (showLayout && currentLayoutName.Length > 0 ? " — " + currentLayoutName : "") +
                       "\n" + (guardDown ? L.T("Проверка полей паролей запускается…", "The password-field check is starting…")
                                : pausedUntil != DateTime.MinValue ? PausedText : StatsLine(statsBase + corrections));
@@ -230,7 +247,23 @@ class App : ApplicationContext
     }
 
     IntPtr lastHkl;
-    bool playSound;
+    bool playSound, trayLetters;
+
+    // Letter icons are made once per layout, color and state, and kept (a handful in all)
+    readonly Dictionary<string, Icon> letterIcons = new Dictionary<string, Icon>();
+    Icon LettersIcon(string text, bool other, int kind)
+    {
+        string key = text + "|" + other + "|" + kind;
+        Icon icon;
+        if (letterIcons.TryGetValue(key, out icon)) return icon;
+        int size = SystemInformation.SmallIconSize.Width;
+        Color tint = other ? LetterIcon.Other : LetterIcon.Latin;
+        Color fill = kind == 2 ? LetterIcon.Off : kind == 1 ? Color.White : tint;
+        Color ink = kind == 1 ? tint : Color.White;
+        using (var bmp = LetterIcon.Render(text, fill, ink, size)) icon = Icon.FromHandle(bmp.GetHicon());
+        letterIcons[key] = icon;
+        return icon;
+    }
     LayoutBadge badge;
     bool showBadge;
     Icon iconOff;                        // grey fish: auto-correction is off or paused
@@ -518,6 +551,7 @@ class App : ApplicationContext
         showLayout = GetSetting("LayoutColor", 1) != 0;
         showBadge = GetSetting("LayoutBadge", 0) != 0;
         playSound = GetSetting("Sound", 0) != 0;
+        trayLetters = GetSetting("TrayLetters", 0) != 0;
         // Double Shift or Caps Lock comes from the keyboard hook's thread: hand it to this one
         var ui = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
         watcher.QuickFix += () => ui.Post(_ =>
@@ -688,7 +722,7 @@ class App : ApplicationContext
         settingsForm = new SettingsForm
         {
             OpenAbout = owner => ShowAbout(owner), Updates = updates,
-            BackupDir = backupDir, AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, RecentMenu = watcher.KeepRecent, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
+            BackupDir = backupDir, TrayLetters = trayLetters, AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, RecentMenu = watcher.KeepRecent, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
             CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting,
             Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ignoredBefore, Learned = learnedBefore,
             AppLayouts = ReadText(appLayoutsPath), InstalledLayouts = new List<LayoutTable>(watcher.Layouts.All), Logo = FishLogo.Render(72)
@@ -707,6 +741,7 @@ class App : ApplicationContext
                 autoCorrect = f.AutoCorrect; ApplyEnabled(); SetSetting("AutoCorrect", f.AutoCorrect ? 1 : 0);
                 showBadge = f.LayoutBadge; SetSetting("LayoutBadge", f.LayoutBadge ? 1 : 0);
                 playSound = f.Sound; SetSetting("Sound", f.Sound ? 1 : 0);
+                trayLetters = f.TrayLetters; SetSetting("TrayLetters", f.TrayLetters ? 1 : 0);
                 watcher.KeepRecent = f.RecentMenu; SetSetting("RecentMenu", f.RecentMenu ? 1 : 0);
                 if (!f.RecentMenu) watcher.ClearRecent();
                 watcher.QuickKey = f.QuickKey; SetSetting("QuickKey", f.QuickKey);

@@ -125,3 +125,5 @@ Version {0} is out (you have {1})	Изашла је верзија {0} (имат
 Checked at {0}.	Проверено у {0}.
 Version {0}. Click Check to see whether a newer one is out.	Верзија {0}. Кликните „Провери“ да видите да ли постоји новија.
 Version {0} is out — update	Изашла је верзија {0} — ажурирај
+Layout letters instead of the fish	Слова распореда уместо рибице
+The tray shows EN, RU and so on in a circle of the same color. While KeyFish isn't correcting, the circle is grey.	У системској палети EN, SR итд. у кругу исте боје. Док KeyFish не исправља, круг је сив.

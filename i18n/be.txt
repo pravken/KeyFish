@@ -124,3 +124,5 @@ Version {0} is out (you have {1})	Выйшла версія {0} (у вас {1})
 Checked at {0}.	Праверана а {0}.
 Version {0}. Click Check to see whether a newer one is out.	Версія {0}. Націсніце «Праверыць», каб даведацца, ці не выйшла новая.
 Version {0} is out — update	Выйшла версія {0} — абнавіць
+Layout letters instead of the fish	Літары раскладкі замест рыбкі
+The tray shows EN, RU and so on in a circle of the same color. While KeyFish isn't correcting, the circle is grey.	У трэі EN, BE і г. д. у кружку таго ж колеру. Пакуль KeyFish не выпраўляе, кружок шэры.

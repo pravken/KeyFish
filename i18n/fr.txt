@@ -125,3 +125,5 @@ Version {0} is out (you have {1})	La version {0} est sortie (vous avez la {1})
 Checked at {0}.	Vérifié à {0}.
 Version {0}. Click Check to see whether a newer one is out.	Version {0}. Cliquez sur Vérifier pour voir si une plus récente est sortie.
 Version {0} is out — update	La version {0} est sortie — mettre à jour
+Layout letters instead of the fish	Lettres de la disposition au lieu du poisson
+The tray shows EN, RU and so on in a circle of the same color. While KeyFish isn't correcting, the circle is grey.	La zone de notification affiche EN, FR, etc. dans un cercle de la même couleur. Tant que KeyFish ne corrige pas, le cercle est gris.

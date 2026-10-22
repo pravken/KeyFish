@@ -68,7 +68,7 @@ static class Preview
                                   FakeUpdates(args));
         string outPath = args[args[0] == "settings" ? 2 : 1];
         int at = 3200; foreach (string a in args) if (a.StartsWith("at=")) at = int.Parse(a.Substring(3));   // aquarium: when to take the shot, ms
-        var timer = new Timer { Interval = args[0] == "aquarium" ? at : 700 };
+        var timer = new Timer { Interval = args[0] == "aquarium" || Array.Exists(args, x => x.StartsWith("at=")) ? at : 700 };
         form.Shown += (s, e) =>
         {
             // "menu": open the first drop-down of the page, to see the popup (captured from the screen)
@@ -86,7 +86,7 @@ static class Preview
                     {
                         var c = stack.Pop();
                         var sp = c as ScrollableControl;
-                        if (sp != null && sp.AutoScroll && c != form) { sp.AutoScrollPosition = new Point(0, int.Parse(arg.Substring(7))); break; }
+                        if (sp != null && sp.AutoScroll && c != form && c.Visible) { sp.AutoScrollPosition = new Point(0, int.Parse(arg.Substring(7))); break; }
                         foreach (Control child in c.Controls) stack.Push(child);
                     }
                 }
