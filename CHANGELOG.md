@@ -1,3 +1,8 @@
+2.0.3
+• Choose the theme in Settings: as in Windows, light or dark
+• Never correct and Always correct ignore punctuation around a word: "word," and "word" are now one entry, and entries saved with a comma or a period work again
+• Scrollbars of the lists follow the dark theme
+
 2.0.2
 • Check for updates right from Settings or About: the status shows whether your version is the latest
 • Optional: the tray shows the layout's letters (EN, RU…) in a circle instead of the fish
