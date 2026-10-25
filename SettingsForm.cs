@@ -803,14 +803,21 @@ class SettingsForm : Form
         card.Controls.AddRange(new Control[] { t, Theme.Framed(input, 14, 42, width - 14 - 14 - 100 - 8, 30), add, grid, del, import });   // as tall as Add
         page.Controls.Add(card);
 
-        foreach (string w in Lines(words)) grid.Rows.Add(w);
-        Action refresh = () => { add.Enabled = input.Text.Trim().Length > 0 && input.Text.Trim().IndexOf(' ') < 0; del.Enabled = grid.SelectedRows.Count > 0; };
+        // Words are kept without the punctuation around them, so "солвере," already in the list is "солвере"
+        Func<string, bool> addWord = word =>
+        {
+            string w = global::WordList.Normalize(word);
+            if (w.Length == 0 || grid.Rows.Cast<DataGridViewRow>().Any(r => (string)r.Cells[0].Value == w)) return false;
+            grid.Rows.Add(w);
+            return true;
+        };
+        foreach (string w in Lines(words)) addWord(w);
+        Func<bool> canAdd = () => { string w = global::WordList.Normalize(input.Text); return w.Length > 0 && w.IndexOf(' ') < 0; };
+        Action refresh = () => { add.Enabled = canAdd(); del.Enabled = grid.SelectedRows.Count > 0; };
         Action doAdd = () =>
         {
-            string w = input.Text.Trim();
-            if (w.Length == 0 || w.IndexOf(' ') >= 0) return;
-            if (!grid.Rows.Cast<DataGridViewRow>().Any(r => string.Equals((string)r.Cells[0].Value, w, StringComparison.OrdinalIgnoreCase)))
-                grid.Rows.Add(w);
+            if (!canAdd()) return;
+            addWord(input.Text);
             input.Text = "";
         };
         input.TextChanged += (s, e) => refresh();
@@ -825,11 +832,8 @@ class SettingsForm : Form
             if (path == null) return;
             int added = 0, had = 0;
             foreach (string w in Importer.Words(path))
-            {
-                if (grid.Rows.Cast<DataGridViewRow>().Any(r => string.Equals((string)r.Cells[0].Value, w, StringComparison.OrdinalIgnoreCase))) { had++; continue; }
-                grid.Rows.Add(w);
-                added++;
-            }
+                if (addWord(w)) added++;
+                else if (global::WordList.Normalize(w).Length > 0) had++;
             ImportResult(added, had);
             refresh();
         };

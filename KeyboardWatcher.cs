@@ -1371,7 +1371,8 @@ static class W
     }
 }
 
-// A word list in a text file next to the app: one word per line, case-insensitive.
+// A word list in a text file next to the app: one word per line, case-insensitive, without the punctuation around it
+// ("солвере," and "солвере" are one word).
 // The file is re-read when it changes in Settings or in Notepad. The keyboard hook only touches the set in memory;
 // the file is written on the file thread
 class WordList
@@ -1387,25 +1388,36 @@ class WordList
         ReloadIfChanged();
     }
 
-    public bool Contains(string word) { lock (gate) return words.Contains(word.ToLowerInvariant()); }
+    // The word as the list keeps it: lower case, without punctuation, quotes or brackets at its ends; "" if nothing is left
+    public static string Normalize(string word)
+    {
+        string w = (word ?? "").Trim();
+        int start = 0, end = w.Length;
+        while (start < end && !char.IsLetterOrDigit(w[start])) start++;
+        while (end > start && !char.IsLetterOrDigit(w[end - 1])) end--;
+        return w.Substring(start, end - start).ToLowerInvariant();
+    }
+
+    public bool Contains(string word) { string w = Normalize(word); lock (gate) return w.Length > 0 && words.Contains(w); }
 
     public void Add(string word)
     {
-        string w = word.ToLowerInvariant();
+        string w = Normalize(word);
+        if (w.Length == 0) return;
         lock (gate) if (!words.Add(w)) return;
         FileQueue.Run(() => { bool inSync = InSync(); File.AppendAllText(path, w + "\r\n", Encoding.UTF8); Written(inSync); });
     }
 
     public void Remove(string word)
     {
-        string w = word.ToLowerInvariant();
+        string w = Normalize(word);
         lock (gate) if (!words.Remove(w)) return;
         FileQueue.Run(() =>
         {
             if (!File.Exists(path)) return;
             var kept = new List<string>();
             foreach (string line in File.ReadAllLines(path, Encoding.UTF8))
-                if (!string.Equals(line.Trim(), w, StringComparison.OrdinalIgnoreCase)) kept.Add(line);
+                if (Normalize(line) != w) kept.Add(line);
             bool inSync = InSync();
             File.WriteAllLines(path, kept, Encoding.UTF8);
             Written(inSync);
@@ -1437,8 +1449,9 @@ class WordList
             if (File.Exists(path))
                 foreach (string line in File.ReadAllLines(path, Encoding.UTF8))
                 {
-                    string s = line.Trim();
-                    if (s.Length > 0 && !s.StartsWith("#")) set.Add(s.ToLowerInvariant());
+                    if (line.Trim().StartsWith("#")) continue;
+                    string s = Normalize(line);
+                    if (s.Length > 0) set.Add(s);
                 }
             lock (gate) { words = set; stamp = current; }
         }
