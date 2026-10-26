@@ -25,6 +25,7 @@ class PasswordGuardClient
     readonly EventWaitHandle signal;
     readonly object sync = new object();
     Process guard;
+    DateTime guardStarted;
     DateTime windowStart = DateTime.UtcNow;
     int restartsInWindow;
 
@@ -81,6 +82,7 @@ class PasswordGuardClient
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
+                guardStarted = DateTime.UtcNow;
                 guard = Process.Start(info);
                 guard.EnableRaisingEvents = true;
                 guard.Exited += (s, e) => Restart();
@@ -92,6 +94,14 @@ class PasswordGuardClient
     // While the guard is down no check is fresh, so KeyFish doesn't correct anything — the safe side
     void Restart()
     {
+        // It crashed (it leaves with 0 only together with KeyFish): Windows' record of it goes to crash.log once written
+        int code = 0;
+        try { code = guard.ExitCode; } catch { }
+        if (code != 0)
+        {
+            DateTime from = guardStarted;
+            ThreadPool.QueueUserWorkItem(_ => { Thread.Sleep(5000); CrashLog.FromWindows(from, DateTime.UtcNow, "the password check (exit code 0x" + code.ToString("X") + ")"); });
+        }
         lock (sync)
         {
             if (DateTime.UtcNow - windowStart > TimeSpan.FromMinutes(1)) { windowStart = DateTime.UtcNow; restartsInWindow = 0; }

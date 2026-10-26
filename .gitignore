@@ -15,4 +15,6 @@ tests/backup/
 # Compressed word lists made by build.bat
 obj/
 debug-log.txt
+crash.log
+~keyfish.running
 backups/
