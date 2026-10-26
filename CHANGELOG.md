@@ -1,3 +1,7 @@
+2.0.4
+• crash.log next to KeyFish: its own errors with the place in its code, and Windows' record of a crash, copied the next time KeyFish starts. No typed text, nothing is sent anywhere; attach it to an issue if KeyFish crashes
+• An unexpected error no longer shows .NET's error box: it goes to crash.log and KeyFish keeps working
+
 2.0.3
 • Choose the theme in Settings: as in Windows, light or dark
 • Never correct and Always correct ignore punctuation around a word: "word," and "word" are now one entry, and entries saved with a comma or a period work again
