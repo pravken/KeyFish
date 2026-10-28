@@ -143,3 +143,5 @@ KeyFish closed because of an error last time. Please send the report to the auth
 Open on GitHub	Abrir en GitHub
 Copy	Copiar
 No, thanks	No, gracias
+That word was typed in the wrong layout, so KeyFish fixed it. If it shouldn't have, press {0} right after: the word comes back, and KeyFish remembers it.	Esa palabra se escribió en la distribución equivocada y KeyFish la corrigió. Si no hacía falta, pulsa {0} justo después: la palabra vuelve y KeyFish la recuerda.
+ or Ctrl+Z	 o Ctrl+Z

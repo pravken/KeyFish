@@ -214,6 +214,7 @@ class App : ApplicationContext
             {
                 SetSetting("StatsTotal", statsBase + corrections);
                 savedCorrections = corrections;
+                FirstCorrectionsTip();
             }
         }
 
@@ -241,6 +242,20 @@ class App : ApplicationContext
         if (tray.Icon != want) tray.Icon = want;
 
         SetTrayText(corrections);
+    }
+
+    // The first two auto-fixes ever: say what happened and how to take one back. The word itself isn't shown:
+    // Windows keeps notifications in its notification center
+    void FirstCorrectionsTip()
+    {
+        int shown = GetSetting("CorrectionTips", 0);
+        if (shown >= 2) return;
+        SetSetting("CorrectionTips", shown + 1);
+        string undo = SettingsForm.Format(GetHotkey(0)) + (watcher.UndoWithCtrlZ ? L.T(" или Ctrl+Z", " or Ctrl+Z") : "");
+        tray.ShowBalloonTip(6000, "KeyFish",
+            L.F("Слово было набрано не в той раскладке — KeyFish его исправил. Если исправлять было не нужно, нажмите {0} сразу после: слово вернётся, и KeyFish его запомнит.",
+                "That word was typed in the wrong layout, so KeyFish fixed it. If it shouldn't have, press {0} right after: the word comes back, and KeyFish remembers it.", undo),
+            ToolTipIcon.Info);
     }
 
     void SetTrayText(int corrections)
