@@ -530,26 +530,6 @@ class KeyboardWatcher
         return true;
     }
 
-    // Links, paths and code are never changed: "://", "www." or a symbol inside the word that no layout makes a letter.
-    // Symbols at the end don't count: "ghbdtn/" is "привет." typed in the wrong layout
-    static bool LooksLikeCode(string typed)
-    {
-        if (typed.IndexOf("://", StringComparison.Ordinal) >= 0 || typed.StartsWith("www.", StringComparison.OrdinalIgnoreCase)) return true;
-        string inner = typed.Length > 2 ? typed.Substring(1, typed.Length - 2) : "";
-        return inner.IndexOfAny(new[] { '/', '\\', '=', '|', '$', '%', '&', '*', '+' }) >= 0;
-    }
-
-    // A dot between letters (file.txt, obj.method) or a capital after a small letter (camelCase) may be code;
-    // such a word is changed only into a dictionary word, never on letter statistics alone
-    static bool NeedsDictionary(string typed)
-    {
-        for (int i = 1; i + 1 < typed.Length; i++)
-            if (typed[i] == '.' && char.IsLetter(typed[i - 1]) && char.IsLetter(typed[i + 1])) return true;
-        for (int i = 1; i < typed.Length; i++)
-            if (char.IsLower(typed[i - 1]) && char.IsUpper(typed[i])) return true;
-        return false;
-    }
-
     bool IsIgnored(string s) { return ignored.Contains(s.ToLowerInvariant()); }
 
     // Settings were just saved: read the files again now, not on the next tick
@@ -834,14 +814,14 @@ class KeyboardWatcher
         // Numbers, e-mails, identifiers aren't words to fix (an abbreviation like "addr1" was expanded above)
         foreach (char c in typed)
             if (char.IsDigit(c) || c == '@' || c == '_') { Diagnose(hwnd, "digits or symbols"); history.Clear(); return false; }
-        if (LooksLikeCode(typed)) { Diagnose(hwnd, "link, path or code"); history.Clear(); return false; }
+        if (Detector.LooksLikeCode(typed)) { Diagnose(hwnd, "link, path or code"); history.Clear(); return false; }
 
         // Which layout did the user mean? A word they taught KeyFish goes to their usual other layout
         int chosen = -1;
         if (!IsIgnored(typed) && others.Count > 0)
             chosen = learned.Contains(typed) ? (preferred >= 0 ? preferred : 0)
                                              : Detector.Choose(typed, T, alts, altModels, context, preferred);
-        if (chosen >= 0 && NeedsDictionary(typed))
+        if (chosen >= 0 && Detector.NeedsDictionary(typed))
         {
             string altCore = Detector.Core(alts[chosen]);
             if (string.IsNullOrEmpty(altCore) || altModels[chosen].Count(altCore) == 0) { Diagnose(hwnd, "may be code, and the other layout gives no known word"); chosen = -1; }

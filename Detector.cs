@@ -179,12 +179,70 @@ public static class Detector
         return sb.ToString();
     }
 
+    // Links, paths and code are never changed: "://", "www." or a symbol inside the word that no layout makes a letter.
+    // Symbols at the end don't count: "ghbdtn/" is "привет." typed in the wrong layout
+    public static bool LooksLikeCode(string typed)
+    {
+        if (typed.IndexOf("://", StringComparison.Ordinal) >= 0 || typed.StartsWith("www.", StringComparison.OrdinalIgnoreCase)) return true;
+        string inner = typed.Length > 2 ? typed.Substring(1, typed.Length - 2) : "";
+        return inner.IndexOfAny(new[] { '/', '\\', '=', '|', '$', '%', '&', '*', '+' }) >= 0;
+    }
+
+    // A dot between letters (file.txt, obj.method) or a capital after a small letter (camelCase) may be code;
+    // such a word is changed only into a dictionary word, never on letter statistics alone
+    public static bool NeedsDictionary(string typed)
+    {
+        for (int i = 1; i + 1 < typed.Length; i++)
+            if (typed[i] == '.' && char.IsLetter(typed[i - 1]) && char.IsLetter(typed[i + 1])) return true;
+        for (int i = 1; i < typed.Length; i++)
+            if (char.IsLower(typed[i - 1]) && char.IsUpper(typed[i])) return true;
+        return false;
+    }
+
+    // The typed word without the characters that are punctuation around the other layout's word. The same keys can be
+    // a comma in one layout and a letter in the other ("a," is "фб"): the letter then isn't part of the word
+    static string TypedCore(string typed, string alt)
+    {
+        if (typed.Length != alt.Length) return Core(typed);
+        int a = 0, b = alt.Length;
+        while (a < b && LeadPunct.IndexOf(alt[a]) >= 0) a++;
+        while (b > a && TrailPunct.IndexOf(alt[b - 1]) >= 0) b--;
+        return a == b ? Core(typed) : Core(typed.Substring(a, b - a));
+    }
+
+    static bool HasInnerApostrophe(string s)
+    {
+        for (int i = 1; i + 1 < s.Length; i++)
+            if ((s[i] == '\'' || s[i] == '\u2019') && char.IsLetter(s[i - 1]) && char.IsLetter(s[i + 1])) return true;
+        return false;
+    }
+
+    // Two to five letters, all capitals: an abbreviation, not a word typed in the wrong layout
+    public static bool IsAbbreviation(string typed)
+    {
+        string core = Core(typed);
+        if (core == null || core.Length < 2 || core.Length > 5) return false;
+        int letters = 0;
+        foreach (char c in typed)
+            if (char.IsLetter(c)) { if (!char.IsUpper(c)) return false; letters++; }
+        return letters >= 2;
+    }
+
     // typed is the word as typed in a layout of language T; alt is the same keys in a layout of language A.
     // context: language of the previous word, or null if unknown
     public static bool ShouldConvert(string typed, string alt, LangModel T, LangModel A, string context = null)
     {
-        string t = Core(typed), a = Core(alt);
+        string t = TypedCore(typed, alt), a = Core(alt);
+        // An English contraction (don't, I'm, it's) is in the dictionary without its apostrophe
+        if (a == null && HasInnerApostrophe(alt))
+        {
+            string loose = Core(alt.Replace("'", "").Replace("\u2019", ""));
+            if (!string.IsNullOrEmpty(loose) && A.Count(loose) > 0) a = loose;
+        }
         if (string.IsNullOrEmpty(a)) return false;
+        // A known abbreviation in capitals (VS, PDF) is left as typed, even if the other layout makes a word of it
+        // (МЫ); one that means nothing as typed (ФЗШ) is still fixed (API). Pause converts either
+        if (IsAbbreviation(typed) && !string.IsNullOrEmpty(t) && T.Count(t) > 0) return false;
         bool ctxAlt = context != null && context == A.Lang;
         bool ctxSame = context != null && context == T.Lang;
 
@@ -220,7 +278,8 @@ public static class Detector
         if (ca > 0) return strict ? A.Score(a) > T.Score(t) + (ctxAlt ? 0 : 0.5) && !ctxSame
                                   : !ctxSame || A.Score(a) > T.Score(t) + 1;
 
-        if (a.Length < 3 || strict) return false;
+        // Neither is a known word: letter statistics decide, but not for words this short (wfh is not "царб")
+        if (a.Length < 4 || strict) return false;
         double th = ctxAlt ? Threshold - 0.5 : ctxSame ? Threshold + 0.5 : Threshold;
         return A.Score(a) - T.Score(t) > th;
     }

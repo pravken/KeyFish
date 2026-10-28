@@ -1,0 +1,68 @@
+# English text as people type it: chat, work, tech, short words, names, abbreviations, contractions.
+# Each word is "typed" in the English layout; a Cyrillic word inside would be typed in the Russian one.
+hi, how are you doing today?
+thanks a lot, see you tomorrow
+I don't know, maybe next week
+it's fine, we can do it later
+can you send me the link please
+let me check and get back to you
+sorry, I'm running a bit late
+where are we meeting tonight
+that sounds like a good plan
+what do you think about it
+ok, sounds good to me
+yeah, no worries at all
+lol, that's hilarious
+hmm, I'm not sure about that
+brb, grabbing coffee
+omg, did you see the news
+btw, the meeting moved to Friday
+fyi, the server is down again
+asap please, the client is waiting
+please review my pull request on GitHub
+the build failed on the CI pipeline
+merge the branch after the tests pass
+deploy the hotfix to production
+check the logs in Kibana and Grafana
+the API returns a JSON object
+update the README and the changelog
+run npm install and then npm start
+the Docker container keeps restarting
+we use Kubernetes on AWS
+open the config file in VS Code
+the bug is in the auth middleware
+refactor this function, it's too long
+add unit tests for the parser
+the CPU usage spiked at noon
+our SLA is four nines
+the PDF is attached to the email
+John, Mary, Alex and Kate are coming
+London, Paris, Berlin and New York
+Microsoft, Google, Apple and Amazon
+Slack, Zoom, Figma, Notion, Jira
+a, I, an, at, in, on, of, to, by, up
+is, it, as, so, no, do, go, me, we
+the, and, for, but, not, you, all
+yes, yep, nope, nah, sure, fine
+wow, oops, ugh, yay, meh, huh
+cat, dog, sun, sky, cup, pen, box
+quick, brown, fox, jumps, over, lazy
+just, very, really, quite, rather
+however, therefore, although, because
+schedule, receipt, rhythm, queue
+psychology, pneumonia, knight, gnome
+strengths, twelfths, crypts, rhythms
+synch, lynx, myth, gym, hymn
+Hello, World, Thanks, Regards
+URGENT, ASAP, NOTE, TODO, FIXME
+can't, won't, isn't, they're, we've
+I'll, you'd, he's, she'll, o'clock
+e-mail, follow-up, check-in, log-in
+etc, vs, eg, ie, aka, tbh, imo
+jk, idk, tbd, eta, wfh, ooo
+xkcd, xyz, qwerty, zzz
+the quick brown fox jumps over the lazy dog
+we're shipping the new version next sprint
+let's sync on this tomorrow morning
+could you share your screen please
+I'll be out of office until Monday
