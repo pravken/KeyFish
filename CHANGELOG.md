@@ -1,3 +1,12 @@
+2.0.5
+• Extended dictionary, downloaded on request
+• Optional typography: dash, ellipsis, © ® ™
+• More accurate detection: contractions, abbreviations, punctuation
+• Notice in apps run as administrator
+• Offer to report a crash on the next start
+• Tip on the first corrections
+• MIT license
+
 2.0.4
 • Crash log (crash.log)
 • Errors no longer interrupt work with a .NET error box
