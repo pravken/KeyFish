@@ -67,6 +67,8 @@ KeyFish writes what went wrong to `crash.log` next to `KeyFish.exe` (or in `%APP
 
 ## If KeyFish doesn't correct somewhere
 
+Apps run as administrator (and Task Manager, which always is) are off-limits to programs with fewer rights: Windows doesn't let KeyFish see what you type there or type into them. The fish turns grey in such an app, and a hotkey there explains why nothing happens. To make KeyFish work in them too, run KeyFish as administrator as well.
+
 Create an empty file `debug-log.txt` next to `KeyFish.exe` (or in `%APPDATA%\KeyFish`, if the settings files are there). Within a couple of seconds KeyFish starts writing a line for every word you finish: the app, what it decided and why (for example "excluded app" or "looks right as typed") and the word's length. The words themselves are never written. Delete the file to turn this off.
 
 ## Build

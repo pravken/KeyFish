@@ -188,7 +188,7 @@ class App : ApplicationContext
         {
             // The tray icon shows the alphabet of the layout: Latin or another one
             bool sameWindow = fg == lastForeground;
-            if (!sameWindow) { lastForeground = fg; ApplyAppLayout(fg, pid); }
+            if (!sameWindow) { lastForeground = fg; foregroundNoRights = W.HasMoreRights(fg); ApplyAppLayout(fg, pid); }
             IntPtr hkl = W.LayoutHkl(fg);
             var layout = watcher.Layouts.Get(hkl);
             if (layout != null) { currentRu = layout.Script != null && layout.Script != "Latin"; currentLayoutName = (layout.Name ?? "").Split('-')[0].ToUpperInvariant(); }
@@ -221,7 +221,7 @@ class App : ApplicationContext
         if (trayLetters && currentLayoutName.Length > 0)
         {
             // Letters in a circle: the layout's color, white while blinking after a fix, grey while not correcting
-            bool off = !watcher.Enabled || (watcher.Enabled && !watcher.GuardAnswering);
+            bool off = !watcher.Enabled || (watcher.Enabled && !watcher.GuardAnswering) || foregroundNoRights;
             int kind = off ? 2 : blinkTicks > 0 && blinkTicks % 2 == 0 ? 1 : 0;
             if (blinkTicks > 0) blinkTicks--;
             var letters = LettersIcon(currentLayoutName, TintFor(currentLayoutName, ru, showLayout), kind);
@@ -234,7 +234,7 @@ class App : ApplicationContext
         bool guardDown = watcher.Enabled && !watcher.GuardAnswering;
         bool blink = blinkTicks > 0 && blinkTicks % 2 == 0;
         Color custom;
-        Icon want = !watcher.Enabled || guardDown ? iconOff
+        Icon want = !watcher.Enabled || guardDown || foregroundNoRights ? iconOff
                   : showLayout && layoutColors.TryGetValue(currentLayoutName, out custom) ? FishIcon(custom, blink)
                   : blink ? (ru ? blinkRu : blinkEn) : (ru ? iconRu : iconEn);
         if (blinkTicks > 0) blinkTicks--;
@@ -248,6 +248,7 @@ class App : ApplicationContext
         bool guardDown = watcher.Enabled && !watcher.GuardAnswering;
         string text = "KeyFish " + Application.ProductVersion + (showLayout && currentLayoutName.Length > 0 ? " — " + currentLayoutName : "") +
                       "\n" + (guardDown ? L.T("Проверка полей паролей запускается…", "The password-field check is starting…")
+                               : foregroundNoRights ? L.T("Не работает в программе от администратора", "Can't work in an app run as admin")
                                : pausedUntil != DateTime.MinValue ? PausedText : StatsLine(statsBase + corrections));
         if (text.Length > 63) text = text.Substring(0, 63);
         if (tray.Text != text) tray.Text = text;
@@ -255,6 +256,7 @@ class App : ApplicationContext
 
     IntPtr lastHkl;
     bool playSound, trayLetters;
+    bool foregroundNoRights;   // the window in front runs as administrator: KeyFish can't work in it (the fish is grey)
 
     // Letter icons are made once per layout, color and state, and kept (a handful in all)
     readonly Dictionary<string, Icon> letterIcons = new Dictionary<string, Icon>();
@@ -895,6 +897,7 @@ class App : ApplicationContext
         hotkeyWindow = Native.GetForegroundWindow();
         try
         {
+            if (W.HasMoreRights(hotkeyWindow)) { NoRightsHere(hotkeyWindow); return; }
             if (id == HkLayout && watcher.Undo()) return;
             if (!watcher.HotkeyAllowed(hotkeyWindow)) return;   // an excluded app or a password field
             if (!Native.WaitModifiersReleased()) return;      // keys still held: Ctrl+C would become Ctrl+Shift+C
@@ -905,6 +908,19 @@ class App : ApplicationContext
         }
         catch { }
         finally { busy = false; }
+    }
+
+    // A hotkey in an app run as administrator: Windows won't let KeyFish copy or type there, so say why nothing happens
+    // (once per app while KeyFish runs) instead of leaving the user guessing
+    readonly HashSet<string> toldNoRights = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    void NoRightsHere(IntPtr hwnd)
+    {
+        string app = W.ProcessName(hwnd);
+        if (!toldNoRights.Add(app)) return;
+        tray.ShowBalloonTip(8000, "KeyFish",
+            L.F("{0} запущена от имени администратора, и Windows не даёт KeyFish видеть и менять в ней текст. Чтобы KeyFish работал и там, запустите его тоже от имени администратора.",
+                "{0} runs as administrator, and Windows doesn't let KeyFish see or change text in it. To make KeyFish work there too, run KeyFish as administrator as well.",
+                app.Length > 0 ? app : L.T("Эта программа", "This app")), ToolTipIcon.Info);
     }
 
     // The window the hotkey was pressed in. Hotkeys work through Ctrl+C, Ctrl+V and selecting text; if the user switches

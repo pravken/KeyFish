@@ -710,6 +710,7 @@ class KeyboardWatcher
         }
         string skip = wasPartial ? "edited mid-word" : word.Count >= 40 || overflow ? "too long" : password ? "password field" :
                       !verified ? "focus not checked yet" : IsOwnWindow(hwnd) ? "KeyFish window" : IsExcluded(hwnd) ? "excluded app" :
+                      W.HasMoreRights(hwnd) ? "app run as administrator" :
                       IsPasswordField(hwnd) ? "password field (Win32)" : QuietFullscreen && IsFullscreen(hwnd) ? "full screen" : null;
         if (skip != null) { Diagnose(hwnd, skip); history.Clear(); return false; }
 
@@ -1238,6 +1239,53 @@ static class W
     }
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string cls, string title);
+
+    [DllImport("advapi32.dll", SetLastError = true)] static extern bool OpenProcessToken(IntPtr process, uint access, out IntPtr token);
+    [DllImport("advapi32.dll", SetLastError = true)] static extern bool GetTokenInformation(IntPtr token, int cls, IntPtr info, int length, out int returned);
+    [DllImport("advapi32.dll")] static extern IntPtr GetSidSubAuthorityCount(IntPtr sid);
+    [DllImport("advapi32.dll")] static extern IntPtr GetSidSubAuthority(IntPtr sid, uint index);
+    [DllImport("kernel32.dll")] static extern IntPtr GetCurrentProcess();
+
+    static int ownIntegrity = -1;
+
+    // The window belongs to an app with more rights than KeyFish (run as administrator, or a system window such as
+    // Task Manager): Windows doesn't let a program with fewer rights see the keys typed there or type into it.
+    // True also when the app's rights can't be read at all — that happens to exactly such apps
+    public static bool HasMoreRights(IntPtr hwnd)
+    {
+        if (ownIntegrity < 0) ownIntegrity = Math.Max(0, Integrity(GetCurrentProcess()));
+        uint pid;
+        GetWindowThreadProcessId(hwnd, out pid);
+        if (pid == 0) return false;
+        IntPtr h = OpenProcess(0x1000, false, pid);   // PROCESS_QUERY_LIMITED_INFORMATION
+        if (h == IntPtr.Zero) return true;
+        try { int level = Integrity(h); return level < 0 || level > ownIntegrity; }
+        finally { CloseHandle(h); }
+    }
+
+    // The process's integrity level (0x2000 a normal app, 0x3000 run as administrator, 0x4000 system); -1 if unreadable
+    static int Integrity(IntPtr process)
+    {
+        IntPtr token;
+        if (!OpenProcessToken(process, 0x0008, out token)) return -1;   // TOKEN_QUERY
+        IntPtr buffer = IntPtr.Zero;
+        try
+        {
+            int size;
+            GetTokenInformation(token, 25, IntPtr.Zero, 0, out size);   // TokenIntegrityLevel
+            if (size <= 0) return -1;
+            buffer = Marshal.AllocHGlobal(size);
+            if (!GetTokenInformation(token, 25, buffer, size, out size)) return -1;
+            IntPtr sid = Marshal.ReadIntPtr(buffer);   // TOKEN_MANDATORY_LABEL.Label.Sid
+            int count = Marshal.ReadByte(GetSidSubAuthorityCount(sid));
+            return count == 0 ? -1 : Marshal.ReadInt32(GetSidSubAuthority(sid, (uint)(count - 1)));
+        }
+        finally
+        {
+            if (buffer != IntPtr.Zero) Marshal.FreeHGlobal(buffer);
+            CloseHandle(token);
+        }
+    }
 
     static string ImageName(IntPtr hwnd)
     {
