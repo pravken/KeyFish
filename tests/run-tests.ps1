@@ -20,7 +20,7 @@ Copy-Item "$PSScriptRoot\pw.html", "$PSScriptRoot\tx.html" $bin -Force
 # so a run that was cut short (window closed, power lost) is undone by the next run before it starts.
 # "complete" is written last: without it the copy is unfinished, and the user's own files were never touched
 $files = 'replacements.txt', 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt'
-$regNames = 'Typos', 'StatsTotal', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect', 'QuickKey', 'CorrectionTips'
+$regNames = 'Typos', 'StatsTotal', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect', 'QuickKey', 'CorrectionTips', 'Typography'
 $backupDir = Join-Path $PSScriptRoot 'backup'
 
 function Restore-Backup {
@@ -47,7 +47,7 @@ Set-Content (Join-Path $backupDir 'complete') 'ok' -Encoding ascii
 
 [IO.File]::WriteAllText((Join-Path $data 'replacements.txt'), "спс = спасибо`r`nсув = С уважением,\nТест`r`nln2 = C:\\new`r`n", (New-Object Text.UTF8Encoding $false))
 foreach ($f in 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt') { $p = Join-Path $data $f; if (Test-Path $p) { Remove-Item $p } }
-foreach ($n in 'Typos', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect', 'QuickKey') { Set-ItemProperty $key -Name $n -Value 1 -Type DWord }   # QuickKey 1: double Shift
+foreach ($n in 'Typos', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect', 'QuickKey', 'Typography') { Set-ItemProperty $key -Name $n -Value 1 -Type DWord }   # QuickKey 1: double Shift
 Set-ItemProperty $key -Name 'CorrectionTips' -Value 2 -Type DWord   # no first-fix tips over the test windows
 Get-Process KeyFish -ErrorAction SilentlyContinue | Stop-Process; Start-Sleep -Milliseconds 800
 explorer.exe $app; Start-Sleep 5
@@ -74,7 +74,8 @@ $tests = @(
   @('Ctrl+Z then a letter',   'hello ~~ljvf ~~~~%z~~~~b~~~~',             'hello ljvf b', ''),
   @('hold Ctrl, Z, release',  'hello ~~dtxth ~~~~[z~~~~]~~b~~~~',         'hello dtxth b', ''),
   @('double Shift fixes word', "hello ~~ghjcnj~~!~!$w",                   'hello просто', ''),
-  @('double Shift undoes fix', "hello ~~rfrfz ~~~~!~!$w",               'hello rfrfz ', '')   # a word no earlier test sends to Never correct
+  @('double Shift undoes fix', "hello ~~rfrfz ~~~~!~!$w",               'hello rfrfz ', ''),   # a word no earlier test sends to Never correct
+  @('typography',             'one ~~- ~~two... ~~^9c^0 ~~~~',            'one — two… © ', '')
 )
 $pass = 0; $total = 0
 foreach ($t in $tests) {

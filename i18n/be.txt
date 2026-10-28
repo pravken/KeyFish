@@ -144,3 +144,5 @@ Copy	Скапіяваць
 No, thanks	Не трэба
 That word was typed in the wrong layout, so KeyFish fixed it. If it shouldn't have, press {0} right after: the word comes back, and KeyFish remembers it.	Слова набралі не ў той раскладцы — KeyFish яго выправіў. Калі выпраўляць не трэба было, націсніце {0} адразу пасля: слова вернецца, і KeyFish яго запомніць.
  or Ctrl+Z	 або Ctrl+Z
+Typography	Тыпаграфіка
+A hyphen between words becomes a dash, three dots an ellipsis, (c) (r) (tm) become © ® ™.	Злучок паміж словамі становіцца працяжнікам, тры кропкі — шматкроп'ем, (c) (r) (tm) — © ® ™.

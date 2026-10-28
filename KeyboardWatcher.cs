@@ -579,6 +579,24 @@ class KeyboardWatcher
         learned.ReloadIfChanged();
     }
 
+    public bool Typography;   // optional: a dash between words, an ellipsis, © ® ™
+
+    // The typographic mark for a token typed on its own before a space, or null: "-" or "--" between words is a dash
+    // (not at the start of a line, where it begins a list), (c) (r) (tm) are © ® ™
+    string Typographic(string token, int terminatorVk)
+    {
+        if (!Typography || terminatorVk != 0x20) return null;
+        if (token == "-" || token == "--")
+            return history.Count > 0 && history[history.Count - 1].TerminatorVk == 0x20 ? "\u2014" : null;
+        switch (token.ToLowerInvariant())
+        {
+            case "(c)": case "(с)": return "\u00A9";
+            case "(r)": return "\u00AE";
+            case "(tm)": return "\u2122";
+        }
+        return null;
+    }
+
     string FindReplacement(string token)
     {
         string value;
@@ -785,7 +803,7 @@ class KeyboardWatcher
 
         // Replacement: an abbreviation from replacements.txt, typed in any layout
         LayoutTable via = null;
-        string expansion = FindReplacement(typed);
+        string expansion = FindReplacement(typed) ?? Typographic(typed, terminatorVk);
         for (int i = 0; expansion == null && i < others.Count; i++)
         {
             expansion = FindReplacement(alts[i]);
@@ -835,6 +853,13 @@ class KeyboardWatcher
         bool capsMistake;
         string fixedCase = FixCase(result, out capsMistake);
         if (!convert && IsIgnored(fixedCase)) fixedCase = result;
+        // Three dots at the end of the word become an ellipsis; alone that's typography, not a caught mistake
+        bool onlyTypography = false;
+        if (Typography && terminatorVk == 0x20 && fixedCase.EndsWith("...") && !fixedCase.EndsWith("....") && fixedCase.Length > 3)
+        {
+            onlyTypography = !convert && fixedCase == result;
+            fixedCase = fixedCase.Substring(0, fixedCase.Length - 3) + "\u2026";
+        }
 
         string core = Detector.Core(result);
         if (convert || (!string.IsNullOrEmpty(core) && targetModel.Count(core) > 0))
@@ -889,15 +914,17 @@ class KeyboardWatcher
         rec.Changed = true;
         PushHistory(rec);
 
-        Diagnose(hwnd, convert ? "corrected: layout" : "corrected: case");
+        Diagnose(hwnd, convert ? "corrected: layout" : onlyTypography ? "typography" : "corrected: case");
         last = new Correction
         {
-            Original = original.ToString(), Replaced = replaced.ToString(), OriginalWords = originalWords,
+            // Undoing an ellipsis doesn't teach KeyFish to leave the word alone
+            Original = original.ToString(), Replaced = replaced.ToString(), OriginalWords = onlyTypography ? new List<string>() : originalWords,
             LastWordLength = fixedCase.Length, TerminatorVk = terminatorVk, OriginalLayout = current.Hkl, Hwnd = hwnd,
-            Recent = Remember(original.ToString(), replaced.ToString(), originalWords)
+            Recent = onlyTypography ? null : Remember(original.ToString(), replaced.ToString(), originalWords)
         };
         SetPending();
-        Interlocked.Increment(ref correctionCount);
+        if (onlyTypography) Interlocked.Increment(ref expansionCount);
+        else Interlocked.Increment(ref correctionCount);
         jobs.Add(new Job
         {
             Backspaces = backspaces,

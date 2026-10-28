@@ -145,3 +145,5 @@ Copy	Kopieren
 No, thanks	Nein, danke
 That word was typed in the wrong layout, so KeyFish fixed it. If it shouldn't have, press {0} right after: the word comes back, and KeyFish remembers it.	Das Wort wurde im falschen Layout getippt, KeyFish hat es korrigiert. Falls das nicht gewollt war, drücken Sie gleich danach {0}: Das Wort kommt zurück, und KeyFish merkt es sich.
  or Ctrl+Z	 oder Strg+Z
+Typography	Typografie
+A hyphen between words becomes a dash, three dots an ellipsis, (c) (r) (tm) become © ® ™.	Ein Bindestrich zwischen Wörtern wird zum Gedankenstrich, drei Punkte zu Auslassungspunkten, (c) (r) (tm) zu © ® ™.

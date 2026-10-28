@@ -609,6 +609,7 @@ class App : ApplicationContext
             QuietFullscreen = GetSetting("QuietFullscreen", 1) != 0,
             UndoWithCtrlZ = GetSetting("UndoCtrlZ", 1) != 0,
             KeepRecent = GetSetting("RecentMenu", 1) != 0,
+            Typography = GetSetting("Typography", 0) != 0,
             QuickKey = GetSetting("QuickKey", 0)
         };
         autoCorrect = GetSetting("AutoCorrect", 1) != 0;
@@ -825,7 +826,7 @@ class App : ApplicationContext
         settingsForm = new SettingsForm
         {
             OpenAbout = owner => ShowAbout(owner), Updates = updates,
-            BackupDir = backupDir, TrayLetters = trayLetters, LayoutColors = new Dictionary<string, Color>(layoutColors, StringComparer.OrdinalIgnoreCase), AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, RecentMenu = watcher.KeepRecent, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
+            BackupDir = backupDir, TrayLetters = trayLetters, LayoutColors = new Dictionary<string, Color>(layoutColors, StringComparer.OrdinalIgnoreCase), AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, RecentMenu = watcher.KeepRecent, Typography = watcher.Typography, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
             CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting, ThemeMode = Theme.Mode,
             Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ignoredBefore, Learned = learnedBefore,
             AppLayouts = ReadText(appLayoutsPath), InstalledLayouts = new List<LayoutTable>(watcher.Layouts.All)
@@ -847,6 +848,7 @@ class App : ApplicationContext
                 trayLetters = f.TrayLetters; SetSetting("TrayLetters", f.TrayLetters ? 1 : 0);
                 layoutColors = f.LayoutColors; SetText("LayoutColors", LayoutColors.Format(f.LayoutColors));
                 watcher.KeepRecent = f.RecentMenu; SetSetting("RecentMenu", f.RecentMenu ? 1 : 0);
+                watcher.Typography = f.Typography; SetSetting("Typography", f.Typography ? 1 : 0);
                 if (!f.RecentMenu) watcher.ClearRecent();
                 watcher.QuickKey = f.QuickKey; SetSetting("QuickKey", f.QuickKey);
                 watcher.FixTypos = f.Typos; SetSetting("Typos", f.Typos ? 1 : 0);

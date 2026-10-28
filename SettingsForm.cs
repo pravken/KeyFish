@@ -11,7 +11,7 @@ using System.Windows.Forms;
 // that used to be plain text files (replacements, apps, words)
 class SettingsForm : Form
 {
-    public bool AutoCorrect, Typos, QuietFullscreen, UndoCtrlZ, LayoutColor, Autostart, CheckUpdates, LayoutBadge, RecentMenu, Sound, TrayLetters;
+    public bool AutoCorrect, Typos, QuietFullscreen, UndoCtrlZ, LayoutColor, Autostart, CheckUpdates, LayoutBadge, RecentMenu, Sound, TrayLetters, Typography;
     public string BackupDir;             // where KeyFish keeps copies of the settings made before each save
     public Action<IWin32Window> OpenAbout;   // the About window, which otherwise opens only from the tray menu
     public UpdateInfo Updates;               // the update status and how to check or install
@@ -24,7 +24,7 @@ class SettingsForm : Form
     public Dictionary<string, Color> LayoutColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);   // "EN" → color
     public int StartPage { get; set; }   // the section to open with (tests\Preview opens any)
 
-    ToggleSwitch tAuto, tTypos, tQuiet, tCtrlZ, tColor, tAutostart, tUpdates, tBadge, tRecent, tSound, tLetters;
+    ToggleSwitch tAuto, tTypos, tQuiet, tCtrlZ, tColor, tAutostart, tUpdates, tBadge, tRecent, tSound, tLetters, tTypography;
     DropDown cbLanguage, cbTheme, cbQuickKey;
     HotkeyBox[] hotkeyBoxes;
     DataGridView gridReplacements, gridApps, gridIgnored, gridLearned;
@@ -370,6 +370,10 @@ class SettingsForm : Form
         Row(page, ref y, L.T("Исправлять опечатки", "Fix typos"),
             L.T("Эксперимент: пирвет → привет, через проверку орфографии Windows.", "Experimental: recieve → receive, using Windows spell check."), tTypos = Toggle(Typos),
             Typing(SampleTypo(), sampleWord));
+        Row(page, ref y, L.T("Типографика", "Typography"),
+            L.T("Дефис между словами становится тире, три точки — многоточием, (c) (r) (tm) — © ® ™.",
+                "A hyphen between words becomes a dash, three dots an ellipsis, (c) (r) (tm) become © ® ™."), tTypography = Toggle(Typography),
+            Typing("(c)", "\u00A9"));
         Row(page, ref y, L.T("Молчать в играх и полноэкранных программах", "Stay quiet in games and full-screen apps"), null, tQuiet = Toggle(QuietFullscreen));
         Row(page, ref y, L.T("Ctrl+Z отменяет автоисправление", "Ctrl+Z undoes an auto-fix"),
             L.T("Сразу после исправления, как и Pause. Следующий Ctrl+Z работает в программе как обычно.",
@@ -865,7 +869,7 @@ class SettingsForm : Form
         {
             { "AutoCorrect", AutoCorrect ? 1 : 0 }, { "Typos", Typos ? 1 : 0 }, { "QuietFullscreen", QuietFullscreen ? 1 : 0 },
             { "UndoCtrlZ", UndoCtrlZ ? 1 : 0 }, { "LayoutColor", LayoutColor ? 1 : 0 }, { "CheckUpdates", CheckUpdates ? 1 : 0 },
-            { "LayoutBadge", LayoutBadge ? 1 : 0 }, { "RecentMenu", RecentMenu ? 1 : 0 }, { "QuickKey", QuickKey }, { "Sound", Sound ? 1 : 0 },
+            { "LayoutBadge", LayoutBadge ? 1 : 0 }, { "RecentMenu", RecentMenu ? 1 : 0 }, { "QuickKey", QuickKey }, { "Sound", Sound ? 1 : 0 }, { "Typography", Typography ? 1 : 0 },
             { "TrayLetters", TrayLetters ? 1 : 0 },
             { "Language", Language }, { "Theme", ThemeMode }
         };
@@ -930,7 +934,7 @@ class SettingsForm : Form
         Func<string, bool, bool> flag = (name, current) => { int v; return values.TryGetValue(name, out v) ? v != 0 : current; };
         AutoCorrect = flag("AutoCorrect", AutoCorrect); Typos = flag("Typos", Typos); QuietFullscreen = flag("QuietFullscreen", QuietFullscreen);
         UndoCtrlZ = flag("UndoCtrlZ", UndoCtrlZ); LayoutColor = flag("LayoutColor", LayoutColor); CheckUpdates = flag("CheckUpdates", CheckUpdates);
-        LayoutBadge = flag("LayoutBadge", LayoutBadge); RecentMenu = flag("RecentMenu", RecentMenu); Sound = flag("Sound", Sound);
+        LayoutBadge = flag("LayoutBadge", LayoutBadge); RecentMenu = flag("RecentMenu", RecentMenu); Sound = flag("Sound", Sound); Typography = flag("Typography", Typography);
         TrayLetters = flag("TrayLetters", TrayLetters);
         int n;
         if (values.TryGetValue("QuickKey", out n)) QuickKey = Math.Max(0, Math.Min(n, 2));
@@ -956,6 +960,7 @@ class SettingsForm : Form
         LayoutBadge = tBadge.Checked;
         Sound = tSound.Checked;
         RecentMenu = tRecent.Checked;
+        Typography = tTypography.Checked;
         QuickKey = cbQuickKey.SelectedIndex;
         Language = cbLanguage.SelectedIndex;
         ThemeMode = cbTheme.SelectedIndex;
@@ -1309,7 +1314,7 @@ static class SettingsArchive
 {
     public static readonly string[] Values =
     {
-        "AutoCorrect", "Typos", "QuietFullscreen", "UndoCtrlZ", "LayoutColor", "CheckUpdates", "LayoutBadge", "RecentMenu", "QuickKey", "Sound", "TrayLetters",
+        "AutoCorrect", "Typos", "QuietFullscreen", "UndoCtrlZ", "LayoutColor", "CheckUpdates", "LayoutBadge", "RecentMenu", "QuickKey", "Sound", "TrayLetters", "Typography",
         "Language", "Theme", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5"
     };
     static readonly string[] FileNames = { "replacements.txt", "exclusions.txt", "ignored-words.txt", "learned-words.txt", "app-layouts.txt", "layout-colors.txt" };

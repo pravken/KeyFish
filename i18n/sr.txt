@@ -145,3 +145,5 @@ Copy	Копирај
 No, thanks	Не, хвала
 That word was typed in the wrong layout, so KeyFish fixed it. If it shouldn't have, press {0} right after: the word comes back, and KeyFish remembers it.	Реч је откуцана у погрешном распореду — KeyFish ју је исправио. Ако није требало, притисните {0} одмах после: реч ће се вратити, и KeyFish ће је запамтити.
  or Ctrl+Z	 или Ctrl+Z
+Typography	Типографија
+A hyphen between words becomes a dash, three dots an ellipsis, (c) (r) (tm) become © ® ™.	Цртица између речи постаје црта, три тачке — три тачке као један знак, (c) (r) (tm) — © ® ™.
