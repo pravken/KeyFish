@@ -1,33 +1,30 @@
 2.0.4
-• crash.log next to KeyFish: its own errors with the place in its code, and Windows' record of a crash, copied the next time KeyFish starts. No typed text, nothing is sent anywhere; attach it to an issue if KeyFish crashes
-• An unexpected error no longer shows .NET's error box: it goes to crash.log and KeyFish keeps working
+• Crash log (crash.log)
+• Errors no longer interrupt work with a .NET error box
 
 2.0.3
-• Choose the theme in Settings: as in Windows, light or dark
-• Never correct and Always correct ignore punctuation around a word: "word," and "word" are now one entry, and entries saved with a comma or a period work again
-• Scrollbars of the lists follow the dark theme
+• Theme choice: system, light or dark
+• Word lists ignore punctuation
+• Dark scrollbars in the dark theme
 
 2.0.2
-• Check for updates right from Settings or About: the status shows whether your version is the latest
-• Optional: the tray shows the layout's letters (EN, RU…) in a circle instead of the fish
-• A color of your own for each layout: the fish, the letters and the tag at the cursor use it; on a light color the letters turn dark
-• Settings show small looping pictures of what each option does, with your own layouts, colors and a word of your language
-• Text and hotkey fields are rounded like the buttons; the interface language is near the top of Settings; layout colors go into the settings export
-• What's new shows ⇄ and 🐟 instead of empty squares
+• Update check in Settings and About
+• Optional layout letters in the tray instead of the fish
+• Custom layout colors
+• Illustrations for settings
+• Minor interface improvements
 
 2.0.1
-• Password fields: the check could count as done before it had answered (on a PC running for 25 days or more, or while the check was still starting). Fixed, and checks are now timed more strictly
-• Hotkeys (Pause, double Shift, Alt+Pause and the others) don't work in password fields and in excluded apps: in a terminal they used to send Ctrl+C and stop the running command
-• Settings, About and messages scale properly on 125–200 % screens, and the Settings window fits on small screens
-• A line break in a replacement is typed as Shift+Enter, so a chat doesn't send the message halfway
-• Undoing a fix made with Enter puts the original back in the input box instead of sending it again
-• Typos are checked without holding up your typing; spell checkers load in advance for all your languages
-• Store apps (Mail, WhatsApp and others) can be excluded and get a layout of their own
-• Fixed: the right Ctrl could stay pressed after undoing with Ctrl+Z; words over 40 letters were fixed wrongly; holding a modifier for a second made KeyFish release it; in slow apps a hotkey could paste the old clipboard instead of the fix
-• While the password-field check is starting, the fish is grey and says so; the tray menu follows a change of the Windows theme
-• KeyFish's messages match its windows, menu text is smoothed like the rest, and Narrator reads the settings switches, sections and lists
-• Safer: Windows DLLs are loaded only from the system folder; after an update the previous version is kept for a minute in case the new one fails to start
-• The logo's bubbles rise and pop in a smooth loop; an About button in Settings; Support with a red heart
+• Fixed the password-field check
+• Hotkeys are off in password fields and excluded apps
+• Proper scaling on 125–200 % screens
+• Line breaks in replacements are typed as Shift+Enter
+• Undoing a fix made with Enter doesn't send the text again
+• Typo checks no longer delay typing
+• Microsoft Store apps in exclusions and per-app layouts
+• Fixed a stuck Ctrl key, long words and pasting an old clipboard
+• Narrator support
+• Windows DLLs are loaded only from the system folder
 
 2.0.0
 • 19 languages: English, German, Polish, French, Spanish, Italian, Portuguese, Czech, Turkish, Serbian Latin ⇄ Russian, Ukrainian, Belarusian, Bulgarian, Macedonian, Serbian Cyrillic, Greek, Hebrew, Georgian. KeyFish uses the layouts installed in Windows and fixes words typed in a layout of another alphabet

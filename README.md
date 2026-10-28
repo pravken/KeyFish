@@ -6,7 +6,7 @@
 
 A tiny Windows tray app that fixes text typed in the wrong keyboard layout — for everyone who types in two alphabets.
 
-> 🔒 **Your typing stays on your computer.** KeyFish sends nothing anywhere and keeps no log of what you type: it only looks at the word you are typing right now. Its single network request is asking GitHub whether a new version is out — with no data about you. On disk there is only what you see in its Settings. [Details](#privacy)
+> 🔒 **Your typing stays on your computer.** KeyFish sends nothing anywhere and keeps no log of what you type: it only looks at the word you are typing right now. It goes online only to ask GitHub whether a new version is out, and to download the extended dictionary if you click for it — with no data about you. On disk there is only what you see in its Settings. [Details](#privacy)
 
 **Languages:** English, German, Polish, French, Spanish, Italian, Portuguese, Czech, Turkish, Serbian Latin ⇄ Russian, Ukrainian, Belarusian, Bulgarian, Macedonian, Serbian Cyrillic, Greek, Hebrew, Georgian. KeyFish uses the layouts installed in Windows; with several layouts it picks the language from the word and the words before it.
 
@@ -54,7 +54,7 @@ If you'd rather not trust a downloaded exe at all, build it yourself from the so
 KeyFish has to see your keystrokes to fix them, so here is exactly what it does with them:
 
 - **Nothing is logged.** Only the word you're typing and the last few words are kept in memory, and they're dropped when you click, move the cursor or switch windows.
-- **Nothing about your typing leaves your computer.** The only network request is the update check: KeyFish asks GitHub for the latest release of this repository. Spell checking uses the one built into Windows.
+- **Nothing about your typing leaves your computer.** KeyFish goes online only to check for updates (it asks GitHub for the latest release of this repository) and, if you click Download in Settings, to fetch the extended dictionary from this repository's releases; the files are checked against the published SHA-256 checksums. Spell checking uses the one built into Windows.
 - **Password fields are off-limits.** In a password field — in browsers and in apps that tell Windows a field is a password field, which most do — KeyFish doesn't correct or remember anything, and its hotkeys don't work there either. Until the check has answered, nothing is corrected at all. The check runs in a small separate process, so Task Manager shows two `KeyFish.exe`: the second one (`--password-guard`) only asks Windows UI Automation whether the focused field is a password field, and it closes together with KeyFish. Some apps with their own interface (games and launchers, some Java or Qt apps) don't report password fields; add such an app in Settings → Apps with correction turned off.
 - **Terminals, SSH clients, virtual machines and remote desktops are excluded by default.** A password prompt in a terminal isn't a password field Windows can recognize, and a remote computer types with its own layout. You can change the list in Settings → Apps.
 - **What's stored on disk** is only what you can see and edit in Settings: your replacements, excluded apps, layouts per app and the two word lists. KeyFish adds a word to "Never correct" when you undo or erase its correction, and to "Always correct" when you fix a word yourself — single words, never sentences or anything typed around them. Before each save in Settings a copy of the previous settings goes to the `backups` folder (the last 10). All of this lives next to `KeyFish.exe` (or in `%APPDATA%\KeyFish` if that folder is read-only); settings and the mistake counter are in the registry under `HKCU\Software\KeyFish`. The diagnostic log is written only if you create `debug-log.txt` yourself, and it never contains the words. `crash.log` holds only errors and crash records, see [If KeyFish crashes](#if-keyfish-crashes).
@@ -81,6 +81,10 @@ build.bat
 
 The icons are drawn by `tools\make-icon.ps1`. The version lives in `Version.cs`, the history in `CHANGELOG.md` (English) and `CHANGELOG.ru.md` (Russian).
 
+## License
+
+The code is under the [MIT License](LICENSE). The word lists in `data/` and the extended dictionaries are under CC BY-SA 4.0 (see below).
+
 ## Credits
 
-The frequency dictionaries in `data/` are built from [FrequencyWords](https://github.com/hermitdave/FrequencyWords) by Hermit Dave; the Belarusian word list comes from the [Belarusian AOSP dictionary](https://codeberg.org/Anibyl/Belarusian-AOSP-dictionary) by Anibyl. Both are licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), and the files in `data/` are distributed under the same terms. `tools/build-dictionaries.ps1` rebuilds them from the sources.
+The frequency dictionaries in `data/` are built from [FrequencyWords](https://github.com/hermitdave/FrequencyWords) by Hermit Dave; the Belarusian word list comes from the [Belarusian AOSP dictionary](https://codeberg.org/Anibyl/Belarusian-AOSP-dictionary) by Anibyl. Both are licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), and the files in `data/` are distributed under the same terms. `tools/build-dictionaries.ps1` rebuilds them from the sources. The extended dictionaries (Settings → Extended dictionary) are the words of the full FrequencyWords lists seen at least 20 times that `data/` doesn't have; `tools/build-dictionaries.ps1 -Extended` builds them, and `.github/workflows/dictionaries.yml` publishes them as the `dictionaries-N` release, under the same license.

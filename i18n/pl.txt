@@ -147,3 +147,10 @@ That word was typed in the wrong layout, so KeyFish fixed it. If it shouldn't ha
  or Ctrl+Z	 lub Ctrl+Z
 Typography	Typografia
 A hyphen between words becomes a dash, three dots an ellipsis, (c) (r) (tm) become © ® ™.	Łącznik między słowami staje się myślnikiem, trzy kropki wielokropkiem, (c) (r) (tm) — © ® ™.
+Extended dictionary	Rozszerzony słownik
+Download	Pobierz
+Downloading…	Pobieram…
+Remove	Usuń
+About 100,000 more words for each language of your layouts ({0}): rare words, names, slang, so KeyFish understands better what you typed. Downloaded from GitHub when you click, about 1 MB; about 10 MB of memory per language.	Około 100 tysięcy dodatkowych słów dla każdego języka twoich układów ({0}): rzadkie słowa, imiona, slang — KeyFish lepiej rozumie, co wpisałeś. Pobierany z GitHuba po kliknięciu, około 1 MB; około 10 MB pamięci na język.
+The downloaded dictionary doesn't match its checksum, so it wasn't installed.	Pobrany słownik nie zgadza się z sumą kontrolną — nie został zainstalowany.
+Couldn't download the dictionary: 	Nie udało się pobrać słownika: 

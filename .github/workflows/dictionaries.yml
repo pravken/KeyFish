@@ -1,0 +1,42 @@
+# Builds the extended dictionaries and publishes them as a release when a tag like dictionaries-1 is pushed.
+# KeyFish downloads them from that release when asked to in Settings (Dictionaries.Tag says which one)
+name: Dictionaries
+
+on:
+  push:
+    tags: ['dictionaries-*']
+
+permissions:
+  contents: write
+  id-token: write       # for the build attestation below
+  attestations: write
+
+jobs:
+  dictionaries:
+    runs-on: windows-latest
+    environment: release
+    steps:
+      # Pinned to an exact commit, not a tag, so a moved tag can't get into the build
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build
+        shell: pwsh
+        run: ./tools/build-dictionaries.ps1 -Extended
+
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/dictionaries/*.txt.gz
+
+      # Not marked as the latest release: KeyFish looks for its own updates in the latest one
+      - name: Publish the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $notes = "Extended dictionaries for KeyFish: the words of the full FrequencyWords lists (by Hermit Dave, CC BY-SA 4.0) " +
+                   "that the built-in ones don't have. KeyFish downloads them when you ask in Settings and checks them against dictionaries.sha256.`n`n" +
+                   "Расширенные словари для KeyFish. KeyFish скачивает их по кнопке в настройках и сверяет с dictionaries.sha256.`n`n" +
+                   "Built by GitHub Actions from commit ${{ github.sha }}."
+          gh release create "${{ github.ref_name }}" (Get-ChildItem dist/dictionaries/*).FullName --title "${{ github.ref_name }}" --notes $notes --latest=false

@@ -585,6 +585,8 @@ class App : ApplicationContext
         statsBase = GetSetting("StatsTotal", 0);
         if (GetSetting("StatsSince", 0) == 0) SetSetting("StatsSince", int.Parse(DateTime.Today.ToString("yyyyMMdd")));
         string dir = DataDir();
+        Dictionaries.Dir = Path.Combine(dir, "dictionaries");
+        Detector.Extra = Dictionaries.Lines;
         exclusionsPath = Path.Combine(dir, "exclusions.txt");
         ignoredPath = Path.Combine(dir, "ignored-words.txt");
         learnedPath = Path.Combine(dir, "learned-words.txt");

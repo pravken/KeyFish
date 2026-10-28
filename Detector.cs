@@ -119,8 +119,27 @@ public static class Detector
     static readonly Dictionary<string, LangModel> models = new Dictionary<string, LangModel>();
     static readonly object sync = new object();
 
-    // Where word lists come from: embedded resources "<lang>.txt.gz"; tests can swap in their own source
-    public static Func<string, IEnumerable<string>> Source = lang => ReadResource(lang + ".txt.gz");
+    // Where word lists come from: embedded resources "<lang>.txt.gz", then the extended dictionary if the user installed
+    // one (Extra); tests can swap in their own source
+    public static Func<string, IEnumerable<string>> Source = lang => Concat(ReadResource(lang + ".txt.gz"), Extra(lang));
+    public static Func<string, IEnumerable<string>> Extra = lang => new string[0];
+
+    static IEnumerable<string> Concat(IEnumerable<string> a, IEnumerable<string> b)
+    {
+        foreach (string s in a) yield return s;
+        foreach (string s in b) yield return s;
+    }
+
+    // Builds the model again (an extended dictionary was installed or removed) and puts it in place of the old one.
+    // Only languages already in use; call it off the keyboard hook
+    public static void Reload(string lang)
+    {
+        if (Loaded(lang) == null) return;
+        var m = new LangModel(Source(lang), Alphabets[lang]) { Lang = lang };
+        string[] singles;
+        if (SingleLetterWords.TryGetValue(lang, out singles)) m.Singles = new HashSet<string>(singles);
+        lock (sync) models[lang] = m;
+    }
 
     // A model that is already loaded, or null. Never loads: safe to call from the keyboard hook
     public static LangModel Loaded(string lang)

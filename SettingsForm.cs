@@ -234,6 +234,45 @@ class SettingsForm : Form
                 "Click a circle to choose its color: the tray fish, the letters and the tag at the cursor will use it."), holder);
     }
 
+    // The extended dictionaries of the installed layouts' languages: downloaded or removed at once, not on Save
+    void DictionaryRow(Panel page, ref int y)
+    {
+        var layouts = InstalledLayouts.Where(t => t.Lang != null && Dictionaries.Available.Contains(t.Lang)).ToList();
+        var langs = layouts.Select(t => t.Lang).Distinct().ToList();
+        string tags = string.Join(", ", layouts.Select(TagOf).Where(s => s.Length > 0).Distinct());
+        var button = new RoundButton { Size = new Size(170, 34), Enabled = langs.Count > 0 };
+        Func<bool> installed = () => langs.Count > 0 && langs.All(Dictionaries.Installed);
+        Action show = () => button.Text = installed() ? L.T("Удалить", "Remove") : L.T("Скачать", "Download");
+        show();
+        button.Click += (s, e) =>
+        {
+            bool remove = installed();
+            button.Enabled = false;
+            if (!remove) button.Text = L.T("Скачиваю…", "Downloading…");
+            System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+            {
+                string error = null;
+                if (remove) Dictionaries.Remove(langs);
+                else error = Dictionaries.Download(langs);
+                foreach (string lang in langs) try { Detector.Reload(lang); } catch { }   // KeyFish uses the new words at once
+                try
+                {
+                    BeginInvoke(new Action(() =>
+                    {
+                        button.Enabled = true;
+                        show();
+                        if (error != null) ThemedMessage.Show(this, error, L.T("Расширенный словарь", "Extended dictionary"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }));
+                }
+                catch (InvalidOperationException) { }   // Settings was closed meanwhile
+            });
+        };
+        Row(page, ref y, L.T("Расширенный словарь", "Extended dictionary"),
+            L.F("Ещё около 100 тысяч слов для каждого языка ваших раскладок ({0}): редкие слова, имена, жаргон — KeyFish точнее понимает, что вы набрали. Скачивается с GitHub по кнопке, около 1 МБ; в памяти около 10 МБ на язык.",
+                "About 100,000 more words for each language of your layouts ({0}): rare words, names, slang, so KeyFish understands better what you typed. Downloaded from GitHub when you click, about 1 MB; about 10 MB of memory per language.",
+                tags), button);
+    }
+
     // A word typed with a mistake and what KeyFish makes of it (undo: then Ctrl+Z puts the typed word back)
     static FeaturePreview Typing(string typed, string fixedWord, bool undo = false)
     {
@@ -367,6 +406,7 @@ class SettingsForm : Form
             L.T("ghbdtn → привет, руддщ → hello. Автозамены тоже работают, только когда это включено.",
                 "ghbdtn → привет, руддщ → hello. Replacements also work only while this is on."), tAuto = Toggle(AutoCorrect),
             Typing(sampleTyped, sampleWord));
+        DictionaryRow(page, ref y);
         Row(page, ref y, L.T("Исправлять опечатки", "Fix typos"),
             L.T("Эксперимент: пирвет → привет, через проверку орфографии Windows.", "Experimental: recieve → receive, using Windows spell check."), tTypos = Toggle(Typos),
             Typing(SampleTypo(), sampleWord));
