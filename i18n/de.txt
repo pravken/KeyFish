@@ -136,3 +136,6 @@ Theme	Design
 Takes effect after saving.	Wird nach dem Speichern übernommen.
 Light	Hell
 Dark	Dunkel
+{0} runs as administrator, and Windows doesn't let KeyFish see or change text in it. To make KeyFish work there too, run KeyFish as administrator as well.	{0} läuft als Administrator, und Windows lässt KeyFish darin keinen Text sehen oder ändern. Damit KeyFish auch dort funktioniert, starten Sie KeyFish ebenfalls als Administrator.
+This app	Diese App
+Can't work in an app run as admin	Geht nicht in einer Admin-App

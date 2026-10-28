@@ -136,3 +136,6 @@ Theme	Motyw
 Takes effect after saving.	Zadziała po zapisaniu.
 Light	Jasny
 Dark	Ciemny
+{0} runs as administrator, and Windows doesn't let KeyFish see or change text in it. To make KeyFish work there too, run KeyFish as administrator as well.	{0} działa jako administrator i Windows nie pozwala KeyFish widzieć ani zmieniać w niej tekstu. Aby KeyFish działał także tam, uruchom go również jako administrator.
+This app	Ten program
+Can't work in an app run as admin	Nie działa w programie administratora

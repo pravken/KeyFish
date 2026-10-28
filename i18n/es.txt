@@ -136,3 +136,6 @@ Theme	Tema
 Takes effect after saving.	Se aplica al guardar.
 Light	Claro
 Dark	Oscuro
+{0} runs as administrator, and Windows doesn't let KeyFish see or change text in it. To make KeyFish work there too, run KeyFish as administrator as well.	{0} se ejecuta como administrador, y Windows no deja que KeyFish vea ni cambie el texto en ella. Para que KeyFish funcione también ahí, ejecútalo también como administrador.
+This app	Esta aplicación
+Can't work in an app run as admin	No funciona en apps de administrador

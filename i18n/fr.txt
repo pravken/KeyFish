@@ -136,3 +136,6 @@ Theme	Thème
 Takes effect after saving.	S'applique après l'enregistrement.
 Light	Clair
 Dark	Sombre
+{0} runs as administrator, and Windows doesn't let KeyFish see or change text in it. To make KeyFish work there too, run KeyFish as administrator as well.	{0} s'exécute en tant qu'administrateur, et Windows empêche KeyFish d'y voir ou d'y modifier le texte. Pour que KeyFish y fonctionne aussi, exécutez-le également en tant qu'administrateur.
+This app	Cette application
+Can't work in an app run as admin	Inactif dans une appli admin

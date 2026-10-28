@@ -135,3 +135,6 @@ Theme	Тэма
 Takes effect after saving.	Ужыецца пасля захавання.
 Light	Светлая
 Dark	Цёмная
+{0} runs as administrator, and Windows doesn't let KeyFish see or change text in it. To make KeyFish work there too, run KeyFish as administrator as well.	{0} запушчана ад імя адміністратара, і Windows не дае KeyFish бачыць і мяняць у ёй тэкст. Каб KeyFish працаваў і там, запусціце яго таксама ад імя адміністратара.
+This app	Гэтая праграма
+Can't work in an app run as admin	Не працуе ў праграме ад адміністратара
