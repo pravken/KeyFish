@@ -9,7 +9,6 @@ $app = Join-Path $PSScriptRoot 'bin\KeyFish.exe'
 $data = Join-Path $PSScriptRoot 'bin'
 if (-not (Test-Path $app)) { throw "Build tests\bin\KeyFish.exe first: set OUT=tests\bin\KeyFish.exe and run build.bat" }
 $bin = Join-Path $PSScriptRoot 'bin'
-$key = 'HKCU:\Software\KeyFish'
 $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 New-Item -ItemType Directory -Force $bin | Out-Null
 & $csc /nologo /codepage:65001 /target:winexe /out:"$bin\Typer.exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll "$PSScriptRoot\Typer.cs"
@@ -23,16 +22,41 @@ $files = 'replacements.txt', 'ignored-words.txt', 'learned-words.txt', 'app-layo
 $regNames = 'Typos', 'StatsTotal', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect', 'QuickKey', 'CorrectionTips', 'Typography'
 $backupDir = Join-Path $PSScriptRoot 'backup'
 
+# KeyFish's settings in the registry go through reg.exe in a .cmd started by Explorer: when this script runs inside a
+# sandboxed app (an MSIX-packaged terminal or assistant), its own registry writes stay in the sandbox and KeyFish,
+# started by Explorer too, would never see them
+function Real-Reg($lines) {
+  $done = Join-Path $bin 'reg.done'
+  Remove-Item $done -ErrorAction SilentlyContinue
+  $script = @('@echo off') + $lines + ('echo done> "' + $done + '"')
+  [IO.File]::WriteAllLines((Join-Path $bin 'reg.cmd'), [string[]]$script, (New-Object Text.UTF8Encoding $false))
+  explorer.exe (Join-Path $bin 'reg.cmd')
+  for ($i = 0; $i -lt 100 -and -not (Test-Path $done); $i++) { Start-Sleep -Milliseconds 100 }
+  if (-not (Test-Path $done)) { throw 'reg.cmd did not run' }
+}
+function Set-Real($values) {
+  Real-Reg ($values.GetEnumerator() | ForEach-Object {
+    if ("$($_.Value)" -ne '') { "reg add HKCU\Software\KeyFish /v $($_.Key) /t REG_DWORD /d $($_.Value) /f >nul" }
+    else { "reg delete HKCU\Software\KeyFish /v $($_.Key) /f >nul 2>nul" } })
+}
+# name=value for each, nothing after = where the value isn't set
+function Get-Real($names) {
+  $out = Join-Path $bin 'reg.txt'
+  Real-Reg (@('type nul > "' + $out + '"') + ($names | ForEach-Object { '(reg query HKCU\Software\KeyFish /v ' + $_ + ' 2>nul | find "REG_DWORD") >> "' + $out + '"' }))
+  $found = @{}
+  foreach ($l in Get-Content $out) { if ($l -match '^\s*(\S+)\s+REG_DWORD\s+0x([0-9a-fA-F]+)') { $found[$Matches[1]] = [Convert]::ToInt32($Matches[2], 16) } }
+  $names | ForEach-Object { "$_=" + $(if ($found.ContainsKey($_)) { $found[$_] } else { '' }) }
+}
+
 function Restore-Backup {
   Get-Process KeyFish -ErrorAction SilentlyContinue | Stop-Process; Start-Sleep -Milliseconds 800
   foreach ($f in $files) {
     $p = Join-Path $data $f; $saved = Join-Path $backupDir $f
     if (Test-Path $saved) { Copy-Item $saved $p -Force } elseif (Test-Path $p) { Remove-Item $p }
   }
-  foreach ($line in Get-Content (Join-Path $backupDir 'registry.txt')) {
-    $n, $v = $line -split '=', 2
-    if ($v -ne '') { Set-ItemProperty $key -Name $n -Value ([int]$v) -Type DWord } else { Remove-ItemProperty $key -Name $n -ErrorAction SilentlyContinue }
-  }
+  $values = [ordered]@{}
+  foreach ($line in Get-Content (Join-Path $backupDir 'registry.txt')) { $n, $v = $line -split '=', 2; $values[$n] = $v }
+  Set-Real $values
   Remove-Item $backupDir -Recurse -Force
 }
 
@@ -41,14 +65,13 @@ elseif (Test-Path $backupDir) { Remove-Item $backupDir -Recurse -Force }
 
 New-Item -ItemType Directory -Force $backupDir | Out-Null
 foreach ($f in $files) { $p = Join-Path $data $f; if (Test-Path $p) { Copy-Item $p (Join-Path $backupDir $f) } }
-if (-not (Test-Path $key)) { New-Item $key | Out-Null }
-$regNames | ForEach-Object { "$_=" + (Get-ItemProperty $key -Name $_ -ErrorAction SilentlyContinue).$_ } | Set-Content (Join-Path $backupDir 'registry.txt') -Encoding ascii
+Get-Real $regNames | Set-Content (Join-Path $backupDir 'registry.txt') -Encoding ascii
 Set-Content (Join-Path $backupDir 'complete') 'ok' -Encoding ascii
 
 [IO.File]::WriteAllText((Join-Path $data 'replacements.txt'), "спс = спасибо`r`nсув = С уважением,\nТест`r`nln2 = C:\\new`r`n", (New-Object Text.UTF8Encoding $false))
 foreach ($f in 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt') { $p = Join-Path $data $f; if (Test-Path $p) { Remove-Item $p } }
-foreach ($n in 'Typos', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect', 'QuickKey', 'Typography') { Set-ItemProperty $key -Name $n -Value 1 -Type DWord }   # QuickKey 1: double Shift
-Set-ItemProperty $key -Name 'CorrectionTips' -Value 2 -Type DWord   # no first-fix tips over the test windows
+# QuickKey 1: double Shift; CorrectionTips 2: no first-fix tips over the test windows
+Set-Real ([ordered]@{ Typos = 1; UndoCtrlZ = 1; QuietFullscreen = 1; AutoCorrect = 1; QuickKey = 1; Typography = 1; CorrectionTips = 2 })
 Get-Process KeyFish -ErrorAction SilentlyContinue | Stop-Process; Start-Sleep -Milliseconds 800
 explorer.exe $app; Start-Sleep 5
 
