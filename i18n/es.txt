@@ -139,3 +139,7 @@ Dark	Oscuro
 {0} runs as administrator, and Windows doesn't let KeyFish see or change text in it. To make KeyFish work there too, run KeyFish as administrator as well.	{0} se ejecuta como administrador, y Windows no deja que KeyFish vea ni cambie el texto en ella. Para que KeyFish funcione también ahí, ejecútalo también como administrador.
 This app	Esta aplicación
 Can't work in an app run as admin	No funciona en apps de administrador
+KeyFish closed because of an error last time. Please send the report to the author: it helps fix it. It holds only Windows' description of the error, no typed text, and on GitHub you see it before sending.	La última vez KeyFish se cerró por un error. Envía el informe al autor: ayuda a corregirlo. Solo contiene la descripción del error de Windows, sin texto escrito, y en GitHub lo verás antes de enviarlo.
+Open on GitHub	Abrir en GitHub
+Copy	Copiar
+No, thanks	No, gracias

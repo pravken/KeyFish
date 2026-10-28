@@ -139,3 +139,7 @@ Dark	Темна
 {0} runs as administrator, and Windows doesn't let KeyFish see or change text in it. To make KeyFish work there too, run KeyFish as administrator as well.	{0} запущена від імені адміністратора, і Windows не дає KeyFish бачити й змінювати в ній текст. Щоб KeyFish працював і там, запустіть його теж від імені адміністратора.
 This app	Ця програма
 Can't work in an app run as admin	Не працює в програмі від адміністратора
+KeyFish closed because of an error last time. Please send the report to the author: it helps fix it. It holds only Windows' description of the error, no typed text, and on GitHub you see it before sending.	Минулого разу KeyFish закрився через помилку. Надішліть звіт авторові — це допоможе її виправити. У ньому лише опис помилки від Windows, без набраного тексту; на GitHub ви побачите його перед надсиланням.
+Open on GitHub	Відкрити на GitHub
+Copy	Скопіювати
+No, thanks	Не треба

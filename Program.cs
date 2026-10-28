@@ -648,11 +648,48 @@ class App : ApplicationContext
         };
         updateTimer.Start();
 
+        // The last run ended in a crash: once Windows' record of it is read, offer to report it (a few seconds after
+        // start, so the tray icon is there and KeyFish is running again before anything asks for attention)
+        var crashOffer = new System.Windows.Forms.Timer { Interval = 8000 };
+        crashOffer.Tick += (s, e) => { crashOffer.Stop(); crashOffer.Dispose(); if (CrashLog.LastCrash != null) OfferCrashReport(CrashLog.LastCrash); };
+        crashOffer.Start();
+
         // The copy left by an update is removed after a minute of normal work, not at once: if the new version
         // failed to start, KeyFish.old.exe would still be there to go back to
         var cleanup = new System.Windows.Forms.Timer { Interval = 60 * 1000 };
         cleanup.Tick += (s, e) => { cleanup.Stop(); cleanup.Dispose(); Updater.CleanUp(); };
         cleanup.Start();
+    }
+
+    // Nothing is sent by KeyFish itself: the report opens as a new GitHub issue for the user to read and submit,
+    // or goes to the clipboard to send any other way
+    void OfferCrashReport(string record)
+    {
+        string report = "KeyFish " + Application.ProductVersion + "\r\n\r\n" + record;
+        int choice = ThemedMessage.Choose(
+            L.T("В прошлый раз KeyFish закрылся из-за ошибки. Отправьте отчёт автору — это поможет её исправить. В нём только описание ошибки от Windows, без набранного текста; на GitHub вы увидите его перед отправкой.",
+                "KeyFish closed because of an error last time. Please send the report to the author: it helps fix it. It holds only Windows' description of the error, no typed text, and on GitHub you see it before sending."),
+            "KeyFish", MessageBoxIcon.Warning,
+            L.T("Открыть на GitHub", "Open on GitHub"), L.T("Скопировать", "Copy"), L.T("Не надо", "No, thanks"));
+        try
+        {
+            if (choice == 0) Process.Start(IssueUrl(report));
+            else if (choice == 1) Clipboard.SetText(report);
+        }
+        catch { }
+    }
+
+    // A new issue with the report filled in; long reports are cut so the address stays within what browsers take
+    static string IssueUrl(string report)
+    {
+        string title = Uri.EscapeDataString("Crash in KeyFish " + Application.ProductVersion);
+        for (int keep = report.Length; ; keep = keep * 3 / 4)
+        {
+            string body = "What I was doing when it closed (which app, which key):\n\n\n```\n" +
+                          (keep < report.Length ? report.Substring(0, keep) + "\n…" : report) + "\n```";
+            string url = "https://github.com/" + Updater.Repo + "/issues/new?title=" + title + "&body=" + Uri.EscapeDataString(body);
+            if (url.Length <= 7500 || keep < 200) return url;
+        }
     }
 
     readonly System.Windows.Forms.Timer updateTimer = new System.Windows.Forms.Timer();
@@ -1429,6 +1466,17 @@ static class CrashLog
 
     public static string Path { get { return path; } }
 
+    // Windows' record of the crash that ended the last run, once found (KeyFish then offers to report it)
+    public static volatile string LastCrash;
+
+    // The user's own folder (and so their Windows user name) never goes into the log
+    static string Private(string text)
+    {
+        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        return string.IsNullOrEmpty(home) ? text : System.Text.RegularExpressions.Regex.Replace(text,
+            System.Text.RegularExpressions.Regex.Escape(home), "%USERPROFILE%", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    }
+
     // At the very start of a process. guard: the password-guard process, which only writes its own errors
     public static void Start(string dir, bool guard)
     {
@@ -1487,7 +1535,9 @@ static class CrashLog
                         count++;
                     }
             }
-            if (count > 0) Append("Windows recorded a crash during " + which, found.ToString().TrimEnd());
+            if (count == 0) return;
+            Append("Windows recorded a crash during " + which, found.ToString().TrimEnd());
+            if (which == "the last run") LastCrash = Private(found.ToString().TrimEnd());
         }
         catch (Exception ex) { Append("couldn't read Windows' event log", ex.Message); }
     }
@@ -1513,7 +1563,7 @@ static class CrashLog
         {
             string entry = "=== " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "  KeyFish " + Application.ProductVersion +
                            "  " + WindowsVersion() + (Environment.Is64BitProcess ? " x64" : " x86") + "\r\n" +
-                           what + "\r\n" + details + "\r\n\r\n";
+                           what + "\r\n" + Private(details) + "\r\n\r\n";
             lock (gate)
             {
                 var info = new FileInfo(path);

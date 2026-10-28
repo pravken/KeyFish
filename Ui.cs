@@ -1104,14 +1104,28 @@ class ThemedMessage : Form
 
     public static DialogResult Show(IWin32Window owner, string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon)
     {
-        using (var m = new ThemedMessage(text, caption, buttons, icon))
+        using (var m = new ThemedMessage(text, caption, buttons, icon, null))
         {
             if (owner == null) { m.TopMost = true; m.StartPosition = FormStartPosition.CenterScreen; }
             return m.ShowDialog(owner);
         }
     }
 
-    ThemedMessage(string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon)
+    // A message with buttons of its own; returns the index of the one clicked, the last one for Esc or closing
+    public static int Choose(string text, string caption, MessageBoxIcon icon, params string[] buttons)
+    {
+        using (var m = new ThemedMessage(text, caption, MessageBoxButtons.OK, icon, buttons))
+        {
+            m.TopMost = true;
+            m.StartPosition = FormStartPosition.CenterScreen;
+            m.ShowDialog();
+            return m.chosen < 0 ? buttons.Length - 1 : m.chosen;
+        }
+    }
+
+    int chosen = -1;
+
+    ThemedMessage(string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon, string[] own)
     {
         Text = caption;
         StartPosition = FormStartPosition.CenterParent;
@@ -1135,7 +1149,9 @@ class ThemedMessage : Form
         Controls.Add(message);
 
         var choices = new System.Collections.Generic.List<Tuple<string, DialogResult>>();
-        if (buttons == MessageBoxButtons.YesNo || buttons == MessageBoxButtons.YesNoCancel)
+        if (own != null)
+            foreach (string label in own) choices.Add(Tuple.Create(label, (DialogResult)(100 + choices.Count)));
+        else if (buttons == MessageBoxButtons.YesNo || buttons == MessageBoxButtons.YesNoCancel)
         {
             choices.Add(Tuple.Create(L.T("Да", "Yes"), DialogResult.Yes));
             choices.Add(Tuple.Create(L.T("Нет", "No"), DialogResult.No));
@@ -1148,12 +1164,14 @@ class ThemedMessage : Form
         for (int i = choices.Count - 1; i >= 0; i--)
         {
             var c = choices[i];
-            var b = new RoundButton { Text = c.Item1, AccentStyle = i == 0, Size = new Size(104, 34) };
+            int w = Math.Max(104, TextRenderer.MeasureText(c.Item1, Theme.Body).Width + 28);
+            var b = new RoundButton { Text = c.Item1, AccentStyle = i == 0, Size = new Size(w, 34) };
             x -= b.Width;
             b.Location = new Point(x, y);
             x -= 8;
             var result = c.Item2;
-            b.Click += (s, e) => { DialogResult = result; Close(); };
+            int index = i;
+            b.Click += (s, e) => { chosen = own != null ? index : -1; DialogResult = result; Close(); };
             Controls.Add(b);
             if (i == 0) ActiveControl = b;
         }
