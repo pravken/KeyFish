@@ -322,6 +322,7 @@ class KeyboardWatcher
             {
                 vkCode = (uint)Marshal.ReadInt32(lParam, 0),
                 scanCode = (uint)Marshal.ReadInt32(lParam, 4),
+                flags = (uint)Marshal.ReadInt32(lParam, 8),
                 dwExtraInfo = IntPtr.Size == 8 ? new UIntPtr((ulong)Marshal.ReadInt64(lParam, 16)) : new UIntPtr((uint)Marshal.ReadInt32(lParam, 16))
             };
             int msg = wParam.ToInt32();
@@ -344,7 +345,7 @@ class KeyboardWatcher
             if (down && k.dwExtraInfo != W.Marker)
             {
                 bool swallow;
-                try { swallow = OnKey((int)k.vkCode, (int)k.scanCode); }
+                try { swallow = OnKey((int)k.vkCode, (int)k.scanCode, (k.flags & 1) != 0); }   // LLKHF_EXTENDED
                 catch { swallow = false; }
                 if (swallow) return (IntPtr)1;
             }
@@ -359,7 +360,8 @@ class KeyboardWatcher
 
     static bool Down(int vk) { return (W.GetAsyncKeyState(vk) & 0x8000) != 0; }
 
-    bool OnKey(int vk, int scan)
+    // extended: an extended key (the arrows and Insert/Delete/Home/End beside the letters, not on the numpad)
+    bool OnKey(int vk, int scan, bool extended = false)
     {
         lock (sync)
         {
@@ -391,7 +393,7 @@ class KeyboardWatcher
             {
                 // While a correction is being typed, hold keystrokes back and replay them afterwards,
                 // with the modifiers held right now: by the replay the user may have let go of Shift
-                heldDuringPending.Add(new HeldKey { Vk = vk, Shift = Down(0x10), Ctrl = Down(0x11), Alt = Down(0x12), Win = Down(0x5B) || Down(0x5C) });
+                heldDuringPending.Add(new HeldKey { Vk = vk, Scan = scan, Extended = extended, Shift = Down(0x10), Ctrl = Down(0x11), Alt = Down(0x12), Win = Down(0x5B) || Down(0x5C) });
                 return true;
             }
 
@@ -1208,7 +1210,9 @@ class KeyboardWatcher
 }
 
 // A keystroke held back while a correction was typed, with the modifiers that were down
-struct HeldKey { public int Vk; public bool Shift, Ctrl, Alt, Win; }
+// A key held back while a correction is typed, replayed as it came: with its scan code and extended flag, so an arrow
+// stays an arrow for apps that read those (games, remote desktops), not a numpad key
+struct HeldKey { public int Vk, Scan; public bool Extended, Shift, Ctrl, Alt, Win; }
 
 static class W
 {
@@ -1420,8 +1424,9 @@ static class W
             Modifier(list, undo, k.Ctrl, 0xA2, 0xA3);
             Modifier(list, undo, k.Alt, 0xA4, 0xA5);
             Modifier(list, undo, k.Win, 0x5B, 0x5C);
-            var down = Key((ushort)k.Vk, 0, 0);
-            var up = Key((ushort)k.Vk, 0, 2);
+            uint ext = k.Extended ? 1u : 0;   // KEYEVENTF_EXTENDEDKEY
+            var down = Key((ushort)k.Vk, (ushort)k.Scan, ext);
+            var up = Key((ushort)k.Vk, (ushort)k.Scan, ext | 2);
             down.u.ki.dwExtraInfo = up.u.ki.dwExtraInfo = UIntPtr.Zero;
             list.Add(down);
             list.Add(up);

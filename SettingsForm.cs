@@ -55,6 +55,11 @@ class SettingsForm : Form
         int chrome = Height - ClientSize.Height;
         int room = (int)((Screen.FromPoint(Cursor.Position).WorkingArea.Height - chrome - 8) / Theme.Scale);
         if (room < ClientSize.Height) ClientSize = new Size(ClientSize.Width, Math.Max(480, room));
+        // The same across: a narrow screen at a large scale (1366 px at 150 %) gets a narrower window, and the pages
+        // scroll sideways instead of the window running off the screen
+        int chromeW = Width - ClientSize.Width;
+        int roomW = (int)((Screen.FromPoint(Cursor.Position).WorkingArea.Width - chromeW - 8) / Theme.Scale);
+        if (roomW < ClientSize.Width) ClientSize = new Size(Math.Max(SideWidth + 400, roomW), ClientSize.Height);
         // Sidebar: the fish, the name and the sections
         var side = new Panel { Location = new Point(0, 0), Size = new Size(SideWidth, ClientSize.Height), BackColor = Theme.Back };
         var fish = new FishView { Location = new Point(20, 18), Size = new Size(36, 36) };
@@ -706,7 +711,13 @@ class SettingsForm : Form
         var lFix = Theme.Label(L.T("Исправлять", "Correct"), Theme.Small, Theme.SubText); lFix.Location = new Point(424, 10);
         var app = new DropDown(true, L.T("Выберите или введите", "Pick or type"));
         app.Location = new Point(16, 30); app.Width = 204;
-        app.Items.AddRange(RunningApps());
+        // Going through every process takes a moment on a busy computer: the list fills in after the window is shown
+        System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+        {
+            var apps = RunningApps();
+            try { BeginInvoke(new Action(() => app.Items.AddRange(apps))); }
+            catch (InvalidOperationException) { }   // Settings was closed meanwhile
+        });
         var lay = new DropDown();
         lay.Location = new Point(236, 30); lay.Width = 172;
         lay.Items.AddRange(layoutNames);

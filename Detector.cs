@@ -247,9 +247,11 @@ public static class Detector
     const string LeadPunct = "([{\"«„";
     const string TrailPunct = ".,!?:;)]}\"»“";
 
-    // The word without surrounding punctuation; null if it has non-letters inside (so it isn't a word)
-    public static string Core(string s)
+    // The word without surrounding punctuation; null if it has non-letters inside (so it isn't a word).
+    // lang: the word's language where lower case depends on it — Turkish capital I is ı, and İ is i
+    public static string Core(string s, string lang = null)
     {
+        bool turkish = lang == "tr";
         int a = 0, b = s.Length;
         while (a < b && LeadPunct.IndexOf(s[a]) >= 0) a++;
         while (b > a && TrailPunct.IndexOf(s[b - 1]) >= 0) b--;
@@ -258,7 +260,9 @@ public static class Detector
         for (int i = a; i < b; i++)
         {
             char c = s[i];
-            if (char.IsLetter(c)) sb.Append(char.ToLowerInvariant(c));
+            if (turkish && c == 'I') sb.Append('ı');
+            else if (turkish && c == '\u0130') sb.Append('i');
+            else if (char.IsLetter(c)) sb.Append(char.ToLowerInvariant(c));
             else if (c == '-' && i > a && i < b - 1) sb.Append(c);
             else return null;
         }
@@ -287,13 +291,13 @@ public static class Detector
 
     // The typed word without the characters that are punctuation around the other layout's word. The same keys can be
     // a comma in one layout and a letter in the other ("a," is "фб"): the letter then isn't part of the word
-    static string TypedCore(string typed, string alt)
+    static string TypedCore(string typed, string alt, string lang)
     {
-        if (typed.Length != alt.Length) return Core(typed);
+        if (typed.Length != alt.Length) return Core(typed, lang);
         int a = 0, b = alt.Length;
         while (a < b && LeadPunct.IndexOf(alt[a]) >= 0) a++;
         while (b > a && TrailPunct.IndexOf(alt[b - 1]) >= 0) b--;
-        return a == b ? Core(typed) : Core(typed.Substring(a, b - a));
+        return a == b ? Core(typed, lang) : Core(typed.Substring(a, b - a), lang);
     }
 
     static bool HasInnerApostrophe(string s)
@@ -318,7 +322,7 @@ public static class Detector
     // context: language of the previous word, or null if unknown
     public static bool ShouldConvert(string typed, string alt, LangModel T, LangModel A, string context = null)
     {
-        string t = TypedCore(typed, alt), a = Core(alt);
+        string t = TypedCore(typed, alt, T.Lang), a = Core(alt, A.Lang);
         // An English contraction (don't, I'm, it's) is in the dictionary without its apostrophe
         if (a == null && HasInnerApostrophe(alt))
         {
@@ -380,7 +384,7 @@ public static class Detector
         {
             var A = altModels[i];
             if (A == null || !ShouldConvert(typed, alts[i], T, A, context)) continue;
-            string core = Core(alts[i]);
+            string core = Core(alts[i], A.Lang);
             double score = (string.IsNullOrEmpty(core) ? -10 : A.Score(core))
                          + (core != null && A.Count(core) > 0 ? 2 : 0)
                          + (context == A.Lang ? 1.5 : 0)

@@ -115,15 +115,24 @@ class App : ApplicationContext
         catch { }
     }
 
-    // Settings files live next to the exe, so KeyFish stays portable. If that folder is read-only
-    // (Program Files, say), they go to %APPDATA%\KeyFish instead of KeyFish failing to start
+    // Settings files live next to the exe, so KeyFish stays portable — when that folder is the user's own: inside their
+    // profile (Downloads, Desktop), already holding KeyFish's files, or marked with an empty portable.txt. A shared
+    // folder (C:\Tools, a network drive) would mix several people's word lists, so then, and when the folder is
+    // read-only (Program Files), they go to %APPDATA%\KeyFish
     public static string DataDir()
     {
         string exeDir = Path.GetDirectoryName(Application.ExecutablePath);
         try
         {
-            using (new FileStream(Path.Combine(exeDir, "~keyfish-write-test.tmp"), FileMode.Create, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose)) { }
-            return exeDir;
+            string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            bool own = (profile.Length > 0 && exeDir.StartsWith(profile.TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase)) ||
+                       File.Exists(Path.Combine(exeDir, "portable.txt")) || File.Exists(Path.Combine(exeDir, "replacements.txt")) ||
+                       File.Exists(Path.Combine(exeDir, "exclusions.txt"));
+            if (own)
+            {
+                using (new FileStream(Path.Combine(exeDir, "~keyfish-write-test.tmp"), FileMode.Create, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose)) { }
+                return exeDir;
+            }
         }
         catch { }
         string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "KeyFish");
@@ -183,8 +192,25 @@ class App : ApplicationContext
         long hkl;
         if (!appLayouts.TryGetValue(W.ProcessName(hwnd), out hkl)) return;
         var target = new IntPtr(hkl);
-        if (W.LayoutHkl(hwnd) == target || watcher.Layouts.Get(target) == null) return;
+        if (watcher.Layouts.Get(target) == null) target = SameLayout(hkl);
+        if (target == IntPtr.Zero || W.LayoutHkl(hwnd) == target) return;
         W.SwitchLayout(hwnd, target);
+    }
+
+    // A layout saved for an app that isn't installed under that handle any more: custom layouts (made with MSKLC, an
+    // IME) get a new upper half after a restart. The one installed layout of the same language and kind stands in
+    IntPtr SameLayout(long hkl)
+    {
+        IntPtr found = IntPtr.Zero;
+        foreach (var t in watcher.Layouts.All)
+        {
+            long h = t.Hkl.ToInt64();
+            bool sameKind = ((h >> 28) & 0xF) == ((hkl >> 28) & 0xF);   // 0xF…: a custom layout
+            if ((h & 0xFFFF) != (hkl & 0xFFFF) || !sameKind) continue;
+            if (found != IntPtr.Zero) return IntPtr.Zero;   // two candidates: don't guess
+            found = t.Hkl;
+        }
+        return found;
     }
 
     void LoadAppLayouts() { appLayouts = SettingsForm.ParseAppLayouts(ReadText(appLayoutsPath)); }

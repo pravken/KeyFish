@@ -40,7 +40,11 @@ class PasswordGuardClient
     // The last verdict and when the focus was read for it (0: never)
     public void Read(out bool password, out int checkedAt)
     {
+        // One 8-byte read is atomic in a 64-bit process; a 32-bit one reads it in two halves, so it reads until two
+        // reads agree, and a verdict is never paired with another check's time
         long v = view.ReadInt64(0);
+        if (IntPtr.Size == 4)
+            for (long again = view.ReadInt64(0); again != v; again = view.ReadInt64(0)) v = again;
         password = (v & 1) != 0;
         checkedAt = (int)(v >> 32);
     }

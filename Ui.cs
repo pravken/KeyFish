@@ -1012,10 +1012,17 @@ class LayoutBadge : Form
         }
         // Browsers and Electron apps (Chrome, Edge, Telegram, VS Code…) draw their own caret and don't show the one above,
         // but they report it to accessibility tools. Not asked of a hung window: the question would wait for its answer
-        Rectangle caret;
+        // The question goes to the app itself, so it is asked from a helper thread: an app busy for a while (not yet hung)
+        // would hold KeyFish's window thread — its hotkeys and tray — for as long. No answer in 150 ms: the mouse it is
         IntPtr target = info.hwndFocus != IntPtr.Zero ? info.hwndFocus : fg;
-        if (fg != IntPtr.Zero && !Native.IsHungAppWindow(fg) && AccessibleCaret(target, out caret))
-            return Fit(new Point(caret.Left, caret.Bottom + 3), size);
+        if (fg != IntPtr.Zero && !Native.IsHungAppWindow(fg))
+        {
+            Rectangle found = Rectangle.Empty;
+            var ask = new System.Threading.Thread(() => { Rectangle r; if (AccessibleCaret(target, out r)) found = r; }) { IsBackground = true };
+            ask.SetApartmentState(System.Threading.ApartmentState.MTA);
+            ask.Start();
+            if (ask.Join(150) && !found.IsEmpty) return Fit(new Point(found.Left, found.Bottom + 3), size);
+        }
         var c = Cursor.Position;
         return Fit(new Point(c.X + 14, c.Y + 20), size);
     }
