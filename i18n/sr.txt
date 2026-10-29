@@ -103,8 +103,6 @@ Replacements (txt, csv, AutoHotkey, Espanso)	Замене (txt, csv, AutoHotkey,
 All files	Све датотеке
 Word lists (txt, csv)	Листе речи (txt, csv)
 Switch layout of the whole line before the cursor	Распоред целог реда пре курсора
-A soft sound on each correction	Тих звук при свакој исправци
-A short "bloop" so you hear when KeyFish changes something.	Кратко „буљ“, да чујете кад KeyFish нешто промени.
 Export…	Извоз…
 Export	Извоз
 All settings in one file	Сва подешавања у једној датотеци
@@ -180,8 +178,6 @@ this week	ове недеље
 this month	овог месеца
 ≈{0} min	≈{0} мин
 saved	уштеђено
-Holiday look	Празнични изглед
-For Halloween (October 24 to November 2): pumpkin colors, a hat on the fish, bats. Takes effect after saving.	За Ноћ вештица (24. октобар — 2. новембар): боје бундеве, шешир на рибици, слепи мишеви. Примениће се након чувања.
 The word is now in "Never correct".	Реч је додата у „Не исправљај“.
 Why wasn't it corrected?	Зашто није исправљено?
 Nothing left alone yet	Засад је све исправљено
@@ -201,3 +197,39 @@ Take it out of Never correct	Уклони из „Не исправљај“
 Correct this word	Исправљај ову реч
 Pause corrections for an hour / resume	Пауза исправки на сат / настави
 Correcting again.	Исправљање је поново укључено.
+Clear the formatting of selected text: bold, italics, links, 𝐬𝐭𝐲𝐥𝐞𝐝 letters	Уклони форматирање изабраног текста: подебљано, курзив, линкови, 𝐬𝐭𝐲𝐥𝐞𝐝 слова
+Sounds	Звуци
+KeyFish plays a sound when it fixes or changes text. Pick a sound for each event or turn it off. You can add your own sounds: .wav files in the sounds folder.	KeyFish пушта звук када исправи или промени текст. За сваки догађај можете изабрати звук или га искључити. Своје звуке додајте као .wav датотеке у фасциклу звукова.
+Listen: {0}	Преслушај: {0}
+Sounds folder	Фасцикла звукова
+Look	Изглед
+Light or dark, window colors, the fish, the icons and the sound. Takes effect after saving.	Светло или тамно, боје прозора, рибица, иконе и звук. Примениће се након чувања.
+How it will look	Како ће изгледати
+High contrast is on: KeyFish's windows use the Windows colors, and no look applies.	Укључен је висок контраст: прозори KeyFish-а су у бојама Windows-а, изглед се не примењује.
+The fish in the look's style	Рибица у стилу изгледа
+The logo, the tray icon and the aquarium.	Лого, икона у системској палети и акваријум.
+The look's sound	Звук изгледа
+The correction sound.	Звук исправке.
+Listen	Преслушај
+Switch to a holiday look automatically	Аутоматски укључи празнични изглед
+Layout fix	Исправка распореда
+Typo fix	Исправка словне грешке
+Replacement and typography	Аутозамена и типографија
+Undoing a fix	Поништавање исправке
+Hotkey	Пречица
+Pause and resume	Пауза и наставак
+No sound	Без звука
+Bloop	Буљ
+Ooo	У-у-у
+Drop	Кап
+Click	Клик
+Chime	Звонце
+Bloop down	Буљ наниже
+Fixing as you type is off in Settings, so there is nothing to pause.	Исправљање током куцања је искључено у подешавањима, па нема шта да се паузира.
+the word isn't a known word in any layout	реч није позната ни у једном распореду
+Choose	Изабери
+On now	Сада
+Classic	Класичан
+Halloween	Ноћ вештица
+October 24 to November 2	24. октобар — 2. новембар
+Oct 24 – Nov 2	24.10. — 2.11.

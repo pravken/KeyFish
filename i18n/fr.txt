@@ -103,8 +103,6 @@ Replacements (txt, csv, AutoHotkey, Espanso)	Remplacements (txt, csv, AutoHotkey
 All files	Tous les fichiers
 Word lists (txt, csv)	Listes de mots (txt, csv)
 Switch layout of the whole line before the cursor	Changer la disposition de toute la ligne avant le curseur
-A soft sound on each correction	Un son discret à chaque correction
-A short "bloop" so you hear when KeyFish changes something.	Un petit « bloup » pour entendre quand KeyFish change quelque chose.
 Export…	Exporter…
 Export	Exporter
 All settings in one file	Tous les paramètres dans un fichier
@@ -180,8 +178,6 @@ this week	cette semaine
 this month	ce mois-ci
 ≈{0} min	≈{0} min
 saved	gagnées
-Holiday look	Décor de fête
-For Halloween (October 24 to November 2): pumpkin colors, a hat on the fish, bats. Takes effect after saving.	Pour Halloween (du 24 octobre au 2 novembre) : couleurs citrouille, un chapeau pour le poisson, des chauves-souris. S'applique après l'enregistrement.
 The word is now in "Never correct".	Le mot est maintenant dans « Ne jamais corriger ».
 Why wasn't it corrected?	Pourquoi pas de correction ?
 Nothing left alone yet	Tout a été corrigé jusqu'ici
@@ -201,3 +197,39 @@ Take it out of Never correct	Retirer de « Ne jamais corriger »
 Correct this word	Corriger ce mot
 Pause corrections for an hour / resume	Mettre les corrections en pause une heure / reprendre
 Correcting again.	Les corrections reprennent.
+Clear the formatting of selected text: bold, italics, links, 𝐬𝐭𝐲𝐥𝐞𝐝 letters	Effacer la mise en forme du texte sélectionné : gras, italique, liens, lettres 𝐬𝐭𝐲𝐥𝐞𝐝
+Sounds	Sons
+KeyFish plays a sound when it fixes or changes text. Pick a sound for each event or turn it off. You can add your own sounds: .wav files in the sounds folder.	KeyFish joue un son quand il corrige ou modifie du texte. Choisissez un son pour chaque événement ou coupez-le. Vos propres sons : des fichiers .wav dans le dossier des sons.
+Listen: {0}	Écouter : {0}
+Sounds folder	Dossier des sons
+Look	Apparence
+Light or dark, window colors, the fish, the icons and the sound. Takes effect after saving.	Clair ou sombre, couleurs des fenêtres, le poisson, les icônes et le son. S'applique après l'enregistrement.
+How it will look	Aperçu
+High contrast is on: KeyFish's windows use the Windows colors, and no look applies.	Le contraste élevé est activé : les fenêtres de KeyFish prennent les couleurs de Windows, aucune apparence ne s'applique.
+The fish in the look's style	Le poisson au style de l'apparence
+The logo, the tray icon and the aquarium.	Le logo, l'icône de la zone de notification et l'aquarium.
+The look's sound	Son de l'apparence
+The correction sound.	Le son des corrections.
+Listen	Écouter
+Switch to a holiday look automatically	Activer automatiquement le décor de fête
+Layout fix	Correction de disposition
+Typo fix	Correction de faute de frappe
+Replacement and typography	Remplacement et typographie
+Undoing a fix	Annulation d'une correction
+Hotkey	Raccourci
+Pause and resume	Pause et reprise
+No sound	Aucun son
+Bloop	Bloup
+Ooo	Hououu
+Drop	Goutte
+Click	Clic
+Chime	Clochette
+Bloop down	Bloup descendant
+Fixing as you type is off in Settings, so there is nothing to pause.	La correction pendant la frappe est désactivée dans les réglages : il n'y a rien à mettre en pause.
+the word isn't a known word in any layout	le mot n'est un mot connu dans aucune disposition
+Choose	Choisir
+On now	En cours
+Classic	Classique
+Halloween	Halloween
+October 24 to November 2	24 octobre — 2 novembre
+Oct 24 – Nov 2	24/10 – 2/11

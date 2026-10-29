@@ -102,8 +102,6 @@ Replacements (txt, csv, AutoHotkey, Espanso)	Аўтазамены (txt, csv, Aut
 All files	Усе файлы
 Word lists (txt, csv)	Спісы слоў (txt, csv)
 Switch layout of the whole line before the cursor	Раскладка ўсяго радка да курсора
-A soft sound on each correction	Ціхі гук пры выпраўленні
-A short "bloop" so you hear when KeyFish changes something.	Кароткае «буль», каб чуць, што KeyFish нешта змяніў.
 Export…	Экспарт…
 Export	Экспарт
 All settings in one file	Усе налады адным файлам
@@ -179,8 +177,6 @@ this week	за тыдзень
 this month	за месяц
 ≈{0} min	≈{0} хв
 saved	зэканомлена
-Holiday look	Святочнае афармленне
-For Halloween (October 24 to November 2): pumpkin colors, a hat on the fish, bats. Takes effect after saving.	На Хэлоўін (24 кастрычніка — 2 лістапада): гарбузовыя колеры, капялюш у рыбкі, кажаны. Ужыецца пасля захавання.
 The word is now in "Never correct".	Слова дададзена ў «Не выпраўляць».
 Why wasn't it corrected?	Чаму не выправілася?
 Nothing left alone yet	Пакуль усё выпраўлялася як трэба
@@ -200,3 +196,40 @@ Take it out of Never correct	Прыбраць з «Не выпраўляць»
 Correct this word	Выпраўляць гэтае слова
 Pause corrections for an hour / resume	Паўза выпраўленняў на гадзіну / зняць паўзу
 Correcting again.	Выпраўленне зноў уключана.
+Clear the formatting of selected text: bold, italics, links, 𝐬𝐭𝐲𝐥𝐞𝐝 letters	Прыбраць фарматаванне вылучанага тэксту: тоўсты, курсіў, спасылкі, 𝐬𝐭𝐲𝐥𝐞𝐝 літары
+Sounds	Гукі
+KeyFish plays a sound when it fixes or changes text. Pick a sound for each event or turn it off. You can add your own sounds: .wav files in the sounds folder.	KeyFish падае гук, калі выпраўляе або змяняе тэкст. Для кожнай падзеі можна выбраць свой гук або выключыць яго. Можна дадаць свае гукі — файлы .wav у папцы гукаў.
+Listen: {0}	Праслухаць: {0}
+Sounds folder	Папка гукаў
+Look	Афармленне
+Light or dark, window colors, the fish, the icons and the sound. Takes effect after saving.	Светлае ці цёмнае, колеры вокнаў, рыбка, значкі і гук. Ужыецца пасля захавання.
+How it will look	Як гэта будзе выглядаць
+High contrast is on: KeyFish's windows use the Windows colors, and no look applies.	Уключана высокая кантраснасць: вокны KeyFish у колерах Windows, афармленне не ўжываецца.
+The fish in the look's style	Рыбка ў стылі афармлення
+The logo, the tray icon and the aquarium.	Лагатып, значок у трэі і акварыум.
+The look's sound	Гук афармлення
+The correction sound.	Гук выпраўлення.
+Listen	Праслухаць
+Switch to a holiday look automatically	Аўтаматычна ўключаць святочнае афармленне
+Layout fix	Выпраўленне раскладкі
+Typo fix	Выпраўленне памылкі друку
+Replacement and typography	Аўтазамена і тыпаграфіка
+Undoing a fix	Адмена выпраўлення
+Hotkey	Гарачая клавіша
+Pause and resume	Паўза і працяг
+No sound	Без гуку
+Bloop	Бульк
+Ooo	У-у-у
+Drop	Кропля
+Click	Пстрычка
+Chime	Званочак
+Bloop down	Бульк уніз
+Fixing as you type is off in Settings, so there is nothing to pause.	Выпраўленне падчас набору выключана ў наладах — ставіць на паўзу няма чаго.
+the word isn't a known word in any layout	слова не чытаецца як вядомае ні ў адной раскладцы
+Choose	Выбраць
+On now	Цяпер
+Classic	Класічнае
+Halloween	Хэлоўін
+October 24 to November 2	24 кастрычніка — 2 лістапада
+Oct 24 – Nov 2	24.10 — 2.11
+thx	дзяк

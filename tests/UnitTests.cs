@@ -41,6 +41,7 @@ static class UnitTests
         Run("Looks", () => SkinTests());
         Run("Sounds", () => SoundTests());
         Run("Plain text", () => PlainTests());
+        if (Directory.Exists("i18n")) Run("Translations", () => TranslationTests());
 
         Console.WriteLine("{0} passed, {1} failed", passed, failed);
         return failed;
@@ -194,6 +195,30 @@ static class UnitTests
             Is("a word list", Importer.Words(words).Count, 2);
         }
         finally { try { Directory.Delete(dir, true); } catch { } }
+    }
+
+    // Every English text of the interface (the second string of L.T and L.F, and the looks' names) is in each
+    // i18n\*.txt: otherwise that language shows it in English. Lines written into files ("# …") stay English
+    static void TranslationTests()
+    {
+        const string lit = "\"((?:[^\"\\\\]|\\\\.)*)\"";
+        var call = new System.Text.RegularExpressions.Regex(@"L\.[TF]\(\s*" + lit + @"\s*,\s*" + lit);
+        var skin = new System.Text.RegularExpressions.Regex(@"(?:NameEn|SeasonEn|ShortEn) = " + lit);
+        var keys = new List<string>();
+        foreach (string file in Directory.GetFiles(".", "*.cs"))
+        {
+            string src = string.Join("\n", File.ReadAllLines(file, Encoding.UTF8).Where(l => !l.TrimStart().StartsWith("//")));
+            foreach (System.Text.RegularExpressions.Match m in call.Matches(src)) keys.Add(m.Groups[2].Value);
+            foreach (System.Text.RegularExpressions.Match m in skin.Matches(src)) keys.Add(m.Groups[1].Value);
+        }
+        keys = keys.Select(k => k.Replace("\\\"", "\"").Replace("\\\\", "\\")).Where(k => !k.StartsWith("#")).Distinct().ToList();
+        True("texts found", keys.Count > 100);
+        foreach (string path in Directory.GetFiles("i18n", "*.txt"))
+        {
+            var have = new HashSet<string>(File.ReadAllLines(path, Encoding.UTF8).Where(l => !l.StartsWith("#") && l.Contains('\t')).Select(l => l.Split('\t')[0]));
+            var missing = keys.Where(k => !have.Contains(k)).ToList();
+            Is(Path.GetFileName(path) + " missing " + string.Join(" | ", missing.Take(5)), missing.Count, 0);
+        }
     }
 
     static void PlainTests()

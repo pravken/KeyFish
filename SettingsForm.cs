@@ -355,7 +355,7 @@ class SettingsForm : Form
         card.Controls.Add(listen);
         cy = listen.Bottom + 12;
         var seasons = Skin.All.Where(k => k.Season != null).Select(k => k.Name + ": " + k.SeasonText);
-        line(L.T("Автоматически включать праздничное оформление", "Switch to a holiday look automatically"), string.Join(L.T("; ", "; "), seasons) + ".", tHoliday);
+        line(L.T("Автоматически включать праздничное оформление", "Switch to a holiday look automatically"), string.Join("; ", seasons) + ".", tHoliday);
         card.Height = Math.Max(big.Bottom, cy - 12) + 16;
         page.Controls.Add(card);
         y += card.Height + 4;
