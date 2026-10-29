@@ -96,6 +96,7 @@ $tests = @(
   @('transliteration',        "hello ~~privet~~^|$w",                     'hello привет', ''),
   @('learn from Pause',       "hello ~~ye~~|$w",                          'hello ну', ''),
   @('learned word',           'hello ~~ye ~~~~',                          'hello ну ', ''),
+  @('Pause twice keeps word',  "hello ~~world~~|$w|$w ~~world ~~~~",    'hello world world ', ''),   # back to the start: nothing learned
   @('quiet in full screen',   'ghbdtn ~~~~',                              'ghbdtn ', 'full'),
   @('undo with Ctrl+Z',       'hello ~~cjkywt ~~~~%z~~~~~~',              'hello cjkywt ', ''),
   @('Ctrl+Z then a letter',   'hello ~~ljvf ~~~~%z~~~~b~~~~',             'hello ljvf b', ''),

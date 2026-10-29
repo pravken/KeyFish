@@ -40,6 +40,7 @@ static class UnitTests
         Run("Import", () => ImportTests());
         Run("Looks", () => SkinTests());
         Run("Sounds", () => SoundTests());
+        Run("Plain text", () => PlainTests());
 
         Console.WriteLine("{0} passed, {1} failed", passed, failed);
         return failed;
@@ -193,6 +194,18 @@ static class UnitTests
             Is("a word list", Importer.Words(words).Count, 2);
         }
         finally { try { Directory.Delete(dir, true); } catch { } }
+    }
+
+    static void PlainTests()
+    {
+        Is("math bold", PlainText.Clean("\U0001D41B\U0001D428\U0001D425\U0001D41D"), "bold");
+        Is("math italic sans", PlainText.Clean("\U0001D62A\U0001D635\U0001D622\U0001D62D"), "ital");
+        Is("full width", PlainText.Clean("\uFF46\uFF55\uFF4C\uFF4C\u3000\uFF11"), "full 1");
+        Is("circled", PlainText.Clean("\u24B6\u24D1"), "Ab");
+        Is("strike-through", PlainText.Clean("s\u0336t\u0336"), "st");
+        Is("invisible", PlainText.Clean("a\u200Bb\u00ADc\uFEFF"), "abc");
+        Is("Cyrillic and emoji stay", PlainText.Clean("привет 👨\u200D👩 é"), "привет 👨\u200D👩 é");
+        Is("ordinary text unchanged", PlainText.Clean("Hello, мир! 1+1=2…"), "Hello, мир! 1+1=2…");
     }
 
     static void SoundTests()

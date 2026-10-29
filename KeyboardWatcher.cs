@@ -37,12 +37,22 @@ class KeyboardWatcher
 
     public void ClearRecent() { lock (sync) recent.Clear(); }
 
-    // Why words were left alone, for "Why wasn't it corrected?" in the tray menu: the last five, in memory only.
-    // Ordinary words typed right aren't kept, and a word is kept only where it helps put things right
-    // (it is in Never correct, or KeyFish wasn't sure about it); never in a password field
+    // Why words were left alone, for "Why wasn't it corrected?" in the tray menu: the last five of the last
+    // 15 minutes, in memory only. Ordinary words typed right aren't kept, and a word is kept only where it helps put
+    // things right (it is in Never correct, or in another layout it reads as a real word); never in a password field
     public class Verdict { public DateTime At; public string App, Word, Reason; }
     readonly List<Verdict> verdicts = new List<Verdict>();
-    public List<Verdict> Verdicts { get { lock (verdicts) return new List<Verdict>(verdicts); } }
+    public List<Verdict> Verdicts
+    {
+        get
+        {
+            lock (verdicts)
+            {
+                verdicts.RemoveAll(v => DateTime.Now - v.At > TimeSpan.FromMinutes(15));
+                return new List<Verdict>(verdicts);
+            }
+        }
+    }
 
     void Explain(IntPtr hwnd, string reason, string word = null)
     {
@@ -67,6 +77,7 @@ class KeyboardWatcher
     // From "Why wasn't it corrected?": take a word out of Never correct, or teach KeyFish to correct it
     public void Unignore(string word) { lock (sync) ignored.Remove(word); }
     public void LearnWord(string word) { lock (sync) { learned.Add(word); ignored.Remove(word); } }
+    public void Unlearn(string word) { lock (sync) learned.Remove(word.Trim()); }
 
     // The user picked a fix in the tray menu: its words are never corrected again
     public void NeverCorrect(RecentFix fix)
@@ -965,7 +976,19 @@ class KeyboardWatcher
             Diagnose(hwnd, IsIgnored(typed) ? "in Never correct" : "looks right as typed");
             string typedCore = Detector.Core(typed, current.Lang);
             if (IsIgnored(typed)) Explain(hwnd, "ignored", typed);
-            else if (!string.IsNullOrEmpty(typedCore) && T.Count(typedCore) == 0 && others.Count > 0) Explain(hwnd, "unsure", typed);   // not a word KeyFish knows
+            else if (!string.IsNullOrEmpty(typedCore) && T.Count(typedCore) == 0 && others.Count > 0)
+            {
+                // Not a word KeyFish knows. The word itself is kept only when another layout makes a real word of it:
+                // otherwise it may as well be a password typed where KeyFish can't tell
+                bool readsAsWord = false;
+                for (int i = 0; i < alts.Count && !readsAsWord; i++)
+                {
+                    string altCore = Detector.Core(alts[i], others[i].Lang);
+                    readsAsWord = !string.IsNullOrEmpty(altCore) && altModels[i].Count(altCore) > 0;
+                }
+                if (readsAsWord) Explain(hwnd, "unsure", typed);
+                else Explain(hwnd, "unknown");
+            }
             PushHistory(rec);
             // Typos are checked after the space without holding it; Enter may already have sent a message
             // The spell check can take a while (Windows loads the dictionary on first use), so typing isn't held

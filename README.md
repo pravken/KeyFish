@@ -23,6 +23,8 @@ A tiny Windows tray app that fixes text typed in the wrong keyboard layout — f
 - The fish menu: **pause for an hour**, and **recent corrections** — click one and KeyFish won't correct it that way again
 - **Import** replacements and word lists from other programs: plain text, CSV/TSV, AutoHotkey hotstrings, Espanso; all settings export to one file, and a copy is kept before every save
 - **Alt+Pause** — switch the layout of the whole line before the cursor
+- **Shift+F2** — clear the formatting of selected text: bold, italics, links, 𝐬𝐭𝐲𝐥𝐞𝐝 letters
+- **Looks** with a preview before applying (classic and holiday ones) and **sounds** of your choice for each event, your own .wav files too
 
 If you erase a correction with Backspace, KeyFish remembers the word and never touches it again; if you fix a word yourself — with Pause, or by erasing it and typing it again in the other layout — it learns to fix it next time. Links, paths and code are left alone. It stays quiet in games and full-screen apps. All hotkeys can be changed in Settings (double-click the fish). KeyFish updates itself in one click. The interface is in English, Russian, Ukrainian, Belarusian, German, Polish, Serbian, French and Spanish; the light or dark theme follows Windows, or you choose it in Settings.
 

@@ -1735,6 +1735,8 @@ class SkinGallery : Control
         if (i < 0 || i >= Skin.All.Length || i == selected) return;
         selected = i;
         AccessibilityNotifyClients(AccessibleEvents.NameChange, -1);
+        AccessibilityNotifyClients(AccessibleEvents.Selection, i);
+        AccessibilityNotifyClients(AccessibleEvents.Focus, i);
         Invalidate();
         if (SelectedChanged != null) SelectedChanged(this, EventArgs.Empty);
     }
@@ -1756,11 +1758,50 @@ class SkinGallery : Control
     {
         if (e.KeyCode == Keys.Left || e.KeyCode == Keys.Up) Choose(selected - 1);
         if (e.KeyCode == Keys.Right || e.KeyCode == Keys.Down) Choose(selected + 1);
+        if (e.KeyCode == Keys.Home) Choose(0);
+        if (e.KeyCode == Keys.End) Choose(Skin.All.Length - 1);
         base.OnKeyDown(e);
     }
 
-    // Narrator reads the chosen look
+    // Narrator reads the chosen look, and each look as an item of the list
     public override string Text { get { return Skin.All[selected].Name; } set { } }
+
+    protected override AccessibleObject CreateAccessibilityInstance() { return new ListAccessible(this); }
+
+    class ListAccessible : ControlAccessibleObject
+    {
+        readonly SkinGallery owner;
+        public ListAccessible(SkinGallery owner) : base(owner) { this.owner = owner; }
+        public override AccessibleRole Role { get { return AccessibleRole.List; } }
+        public override int GetChildCount() { return Skin.All.Length; }
+        public override AccessibleObject GetChild(int index) { return index >= 0 && index < Skin.All.Length ? new ItemAccessible(owner, this, index) : null; }
+        public override AccessibleObject GetFocused() { return owner.Focused ? GetChild(owner.selected) : null; }
+        public override AccessibleObject GetSelected() { return GetChild(owner.selected); }
+    }
+
+    class ItemAccessible : AccessibleObject
+    {
+        readonly SkinGallery owner;
+        readonly AccessibleObject parent;
+        readonly int index;
+        public ItemAccessible(SkinGallery owner, AccessibleObject parent, int index) { this.owner = owner; this.parent = parent; this.index = index; }
+        public override string Name { get { var s = Skin.All[index]; return s.SeasonText == null ? s.Name : s.Name + ", " + s.SeasonText; } }
+        public override AccessibleRole Role { get { return AccessibleRole.ListItem; } }
+        public override AccessibleObject Parent { get { return parent; } }
+        public override Rectangle Bounds { get { return owner.RectangleToScreen(Rectangle.Round(owner.CardRect(index))); } }
+        public override string DefaultAction { get { return L.T("Выбрать", "Choose"); } }
+        public override void DoDefaultAction() { owner.Choose(index); }
+        public override AccessibleStates State
+        {
+            get
+            {
+                var s = AccessibleStates.Selectable | AccessibleStates.Focusable;
+                if (index == owner.selected) s |= AccessibleStates.Selected | (owner.Focused ? AccessibleStates.Focused : 0);
+                if (!owner.Enabled) s |= AccessibleStates.Unavailable;
+                return s;
+            }
+        }
+    }
 
     protected override void OnPaint(PaintEventArgs e)
     {

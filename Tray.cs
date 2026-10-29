@@ -190,7 +190,13 @@ partial class App
     // An hour without corrections, or back to correcting; from the hotkey it says which, since nothing else shows it
     void TogglePause(bool tell)
     {
-        if (!autoCorrect) return;
+        if (!autoCorrect)
+        {
+            // From the hotkey: say why nothing happens
+            if (tell) tray.ShowBalloonTip(2500, "KeyFish", L.T("Исправление при наборе выключено в настройках — ставить на паузу нечего.",
+                                                                "Fixing as you type is off in Settings, so there is nothing to pause."), ToolTipIcon.Info);
+            return;
+        }
         pausedUntil = pausedUntil == DateTime.MinValue ? DateTime.Now.AddHours(1) : DateTime.MinValue;
         ApplyEnabled();
         if (playSound) Sounds.Play(Sounds.Pause);
@@ -409,6 +415,7 @@ partial class App
                 case "no-model": reason = L.T("для этой раскладки нет словаря", "no dictionary for this layout"); break;
                 case "symbols": reason = L.T("в слове цифры или символы", "digits or symbols in the word"); break;
                 case "code": reason = L.T("похоже на ссылку, путь или код", "looks like a link, a path or code"); break;
+                case "unknown": reason = L.T("слово не читается как известное ни в одной раскладке", "the word isn't a known word in any layout"); break;
                 case "ignored":
                     reason = L.F("«{0}» в списке «Не исправлять»", "\"{0}\" is in Never correct", v.Word);
                     action = L.T("Убрать из «Не исправлять»", "Take it out of Never correct");
@@ -502,7 +509,7 @@ partial class App
     void OnSessionSwitch(object sender, SessionSwitchEventArgs e)
     {
         if (e.Reason == SessionSwitchReason.SessionLock || e.Reason == SessionSwitchReason.ConsoleDisconnect || e.Reason == SessionSwitchReason.RemoteDisconnect)
-            try { watcher.ClearMemory(); } catch { }
+            try { watcher.ClearMemory(); cycle = null; } catch { }
     }
 
     static Icon MakeIcon(string name)
@@ -518,13 +525,19 @@ partial class App
     // The grey icon with a pause sign (two bars) in the lower right corner
     static Icon Paused(Icon icon)
     {
-        using (var grey = Grey(icon))
-        using (var bmp = grey.ToBitmap())
+        var grey = Grey(icon);
+        try
         {
-            using (var g = Graphics.FromImage(bmp)) PauseSign(g, bmp.Width);
-            return Icon.FromHandle(bmp.GetHicon());
+            using (var bmp = grey.ToBitmap())
+            {
+                using (var g = Graphics.FromImage(bmp)) PauseSign(g, bmp.Width);
+                return Icon.FromHandle(bmp.GetHicon());
+            }
         }
+        finally { DestroyIcon(grey.Handle); grey.Dispose(); }   // only a step on the way: its handle isn't kept
     }
+
+    [DllImport("user32.dll")] static extern bool DestroyIcon(IntPtr icon);
 
     static void PauseSign(Graphics g, int size)
     {

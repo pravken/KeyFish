@@ -209,8 +209,8 @@ class SettingsForm : Form
         int textW = ContentWidth - pad * 3 - tSound.Width;
         var t = Theme.Wrapped(title, textW);
         t.Location = new Point(pad, 14);
-        var d = Theme.Wrapped(L.T("Тихий звук, чтобы слышать, что KeyFish что-то сделал. Свои звуки — файлы .wav в папке звуков.",
-                                  "A soft sound so you hear when KeyFish does something. Your own sounds: .wav files in the sounds folder."), textW, Theme.Small, Theme.SubText);
+        var d = Theme.Wrapped(L.T("KeyFish подаёт звук, когда исправляет или меняет текст. Для каждого события можно выбрать свой звук или выключить его. Можно добавить свои звуки — файлы .wav в папке звуков.",
+                                  "KeyFish plays a sound when it fixes or changes text. Pick a sound for each event or turn it off. You can add your own sounds: .wav files in the sounds folder."), textW, Theme.Small, Theme.SubText);
         d.Location = new Point(pad, t.Bottom + 1);
         tSound.AccessibleName = title;
         tSound.Location = new Point(ContentWidth - pad - tSound.Width, 18);
@@ -312,6 +312,18 @@ class SettingsForm : Form
         { Size = new Size(bigW, bigH), Location = new Point(pad, top), AccessibleName = L.T("Как это будет выглядеть", "How it will look") };
         card.Controls.Add(big);
         gallery.SelectedChanged += (s, e) => big.Invalidate();
+        // In high contrast the windows take the system's colors and no look applies: say so instead of offering one
+        if (Theme.Contrast)
+        {
+            var note = Theme.Wrapped(L.T("Включена высокая контрастность: окна KeyFish в цветах Windows, оформление не применяется.",
+                                         "High contrast is on: KeyFish's windows use the Windows colors, and no look applies."), ContentWidth - pad * 2, Theme.Small, Theme.Text);
+            note.Location = new Point(pad, gallery.Top);
+            card.Controls.Add(note);
+            gallery.Top = note.Bottom + 10;
+            big.Top = gallery.Bottom + 18;
+            top = big.Top;
+            gallery.Enabled = tSkinLogo.Enabled = tSkinSound.Enabled = tHoliday.Enabled = false;
+        }
         cbTheme.SelectedIndexChanged += (s, e) => { gallery.Dark = dark(); big.Invalidate(); };
         tSkinLogo.CheckedChanged += (s, e) => { gallery.Logo = tSkinLogo.Checked; big.Invalidate(); };
 
@@ -1565,7 +1577,7 @@ static class SettingsArchive
     public static readonly string[] Values =
     {
         "AutoCorrect", "Typos", "QuietFullscreen", "UndoCtrlZ", "LayoutColor", "CheckUpdates", "LayoutBadge", "RecentMenu", "QuickKey", "Sound", "TrayLetters", "Typography",
-        "Language", "Theme", "Holiday", "Skin", "SkinLogo", "SkinSound", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5", "Hotkey6", "Hotkey7"
+        "Language", "Theme", "Holiday", "Skin", "SkinLogo", "SkinSound", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5", "Hotkey6", "Hotkey7", "Hotkey8"
     };
     static readonly string[] FileNames = { "replacements.txt", "exclusions.txt", "ignored-words.txt", "learned-words.txt", "app-layouts.txt", "layout-colors.txt", "sounds.txt" };
 

@@ -27,7 +27,9 @@ partial class App
                 L.T("Транслитерация (привет ⇄ privet)", "Transliterate (привет ⇄ privet)"),
                 L.T("Раскладка всей строки до курсора", "Switch layout of the whole line before the cursor"),
                 L.T("Раскладка текста в буфере обмена (скопируйте, нажмите, вставьте)", "Switch layout of the text in the clipboard (copy, press, paste)"),
-                L.T("Пауза исправлений на час / снять паузу", "Pause corrections for an hour / resume")
+                L.T("Пауза исправлений на час / снять паузу", "Pause corrections for an hour / resume"),
+                L.T("Убрать форматирование выделенного текста: жирный, курсив, ссылки, 𝐬𝐭𝐲𝐥𝐞𝐝 буквы",
+                    "Clear the formatting of selected text: bold, italics, links, 𝐬𝐭𝐲𝐥𝐞𝐝 letters")
             };
         }
     }
@@ -36,10 +38,11 @@ partial class App
     {
         Keys.Pause, Keys.Control | Keys.Shift | Keys.Space, Keys.Shift | Keys.F3, Keys.Shift | Keys.Pause, Keys.Alt | Keys.Pause,
         Keys.None,   // the clipboard: off until the user picks keys for it
-        Keys.None    // pause: the same
+        Keys.None,   // pause: the same
+        Keys.Shift | Keys.F2
     };
 
-    const int HkLayout = 1, HkLayoutAlt = 2, HkCase = 3, HkTranslit = 4, HkLine = 5, HkClipboard = 6, HkPause = 7;
+    const int HkLayout = 1, HkLayoutAlt = 2, HkCase = 3, HkTranslit = 4, HkLine = 5, HkClipboard = 6, HkPause = 7, HkPlain = 8;
 
     static Keys GetHotkey(int i) { return (Keys)GetSetting("Hotkey" + (i + 1), (int)HotkeyDefaults[i]); }
 
@@ -84,6 +87,7 @@ partial class App
             if (id == HkCase) ChangeCase();
             else if (id == HkTranslit) { string lang = TranslitLanguage(); TransformSelection(s => Transliterator.Convert(s, lang)); }
             else if (id == HkLine) ConvertLine();
+            else if (id == HkPlain) PlainSelection();
             else ConvertSelection();
         }
         catch { }
@@ -139,6 +143,15 @@ partial class App
             string result = transform(text);
             if (result != text) Paste(result);
         }
+        RestoreClipboard(saved);
+    }
+
+    // The selection pasted back as plain text (PlainText), even when its letters stay the same
+    void PlainSelection()
+    {
+        IDataObject saved = SaveClipboard();
+        string text = GetSelectionOrLastWord();
+        if (!string.IsNullOrEmpty(text)) Paste(PlainText.Clean(text));
         RestoreClipboard(saved);
     }
 
@@ -279,12 +292,14 @@ partial class App
             if (result != null && Paste(result))
             {
                 W.SwitchLayout(target, layout.Hkl);
-                watcher.Learn(text, result, layout.Lang);
                 if (c == null) cycle = new LayoutCycle { Hwnd = target, Source = source, Original = text };
                 cycle.Result = result;
                 cycle.At = Environment.TickCount;
                 cycle.Tried.Add(layout.Hkl);
-                if (layout.Hkl == cycle.Source.Hkl) cycle = null;   // back to the start: the round is over
+                // Back to the start: the round is over, and the word was right as typed — nothing to learn from it,
+                // and what an earlier step of the round taught is taken back
+                if (layout.Hkl == cycle.Source.Hkl) { cycle = null; watcher.Unlearn(text); }
+                else watcher.Learn(text, result, layout.Lang);
             }
         }
 
