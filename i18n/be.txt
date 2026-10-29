@@ -153,3 +153,6 @@ Remove	Выдаліць
 About 100,000 more words for each language of your layouts ({0}): rare words, names, slang, so KeyFish understands better what you typed. Downloaded from GitHub when you click, about 1 MB; about 3 MB of memory per language.	Яшчэ каля 100 тысяч слоў для кожнай мовы вашых раскладак ({0}): рэдкія словы, імёны, жаргон — KeyFish дакладней разумее, што вы набралі. Спампоўваецца з GitHub па кнопцы, каля 1 МБ; у памяці каля 3 МБ на мову.
 The downloaded dictionary doesn't match its checksum, so it wasn't installed.	Спампаваны слоўнік не супаў з кантрольнай сумай — ён не ўсталяваны.
 Couldn't download the dictionary: 	Не ўдалося спампаваць слоўнік: 
+Correction	Выпраўленне
+Icon and cues	Значок і падказкі
+System	Сістэма

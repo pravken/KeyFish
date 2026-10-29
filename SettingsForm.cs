@@ -184,6 +184,16 @@ class SettingsForm : Form
 
     static ToggleSwitch Toggle(bool value) { return new ToggleSwitch { Checked = value }; }
 
+    // A heading over a group of settings, like in Windows Settings
+    static void Group(Control page, ref int y, string title)
+    {
+        y += 14;
+        var l = Theme.Label(title, Theme.Strong);
+        l.Location = new Point(18, y);
+        page.Controls.Add(l);
+        y += l.Height + 8;
+    }
+
     // The pictures of the page now shown start one after another, top to bottom, and keep looping
     void PlayPictures()
     {
@@ -401,7 +411,7 @@ class SettingsForm : Form
         cbTheme.Items.AddRange(new[] { L.T("Как в Windows", "Same as Windows"), L.T("Светлая", "Light"), L.T("Тёмная", "Dark") });
         cbTheme.SelectedIndex = Math.Max(0, Math.Min(ThemeMode, 2));
         Row(page, ref y, L.T("Тема", "Theme"), L.T("Применится после сохранения.", "Takes effect after saving."), cbTheme);
-        y += 8;
+        Group(page, ref y, L.T("Исправление", "Correction"));
         Row(page, ref y, L.T("Исправлять раскладку при наборе", "Fix the keyboard layout as you type"),
             L.T("ghbdtn → привет, руддщ → hello. Автозамены тоже работают, только когда это включено.",
                 "ghbdtn → привет, руддщ → hello. Replacements also work only while this is on."), tAuto = Toggle(AutoCorrect),
@@ -414,11 +424,12 @@ class SettingsForm : Form
             L.T("Дефис между словами становится тире, три точки — многоточием, (c) (r) (tm) — © ® ™.",
                 "A hyphen between words becomes a dash, three dots an ellipsis, (c) (r) (tm) become © ® ™."), tTypography = Toggle(Typography),
             Typing("(c)", "\u00A9"));
-        Row(page, ref y, L.T("Молчать в играх и полноэкранных программах", "Stay quiet in games and full-screen apps"), null, tQuiet = Toggle(QuietFullscreen));
         Row(page, ref y, L.T("Ctrl+Z отменяет автоисправление", "Ctrl+Z undoes an auto-fix"),
             L.T("Сразу после исправления, как и Pause. Следующий Ctrl+Z работает в программе как обычно.",
                 "Right after the fix, like Pause. The next Ctrl+Z works in the app as usual."), tCtrlZ = Toggle(UndoCtrlZ),
             Typing(sampleTyped, sampleWord, true));
+        Row(page, ref y, L.T("Молчать в играх и полноэкранных программах", "Stay quiet in games and full-screen apps"), null, tQuiet = Toggle(QuietFullscreen));
+        Group(page, ref y, L.T("Значок и подсказки", "Icon and cues"));
         Row(page, ref y, L.T("Цвет рыбки показывает раскладку", "Fish color shows the layout"),
             L.T("Синяя — латиница, оранжевая — другой алфавит.", "Blue — Latin, orange — another alphabet."), tColor = Toggle(LayoutColor),
             Switching(SampleIcon(false, false), SampleIcon(false, true)));
@@ -437,6 +448,7 @@ class SettingsForm : Form
                 "Click a correction in the menu and KeyFish won't correct it again. The list is kept only in memory."), tRecent = Toggle(RecentMenu));
         Row(page, ref y, L.T("Тихий звук при исправлении", "A soft sound on each correction"),
             L.T("Короткий «бульк», чтобы слышать, что KeyFish что-то поменял.", "A short \"bloop\" so you hear when KeyFish changes something."), tSound = Toggle(Sound));
+        Group(page, ref y, L.T("Система", "System"));
         Row(page, ref y, L.T("Запускать вместе с Windows", "Start with Windows"), null, tAutostart = Toggle(Autostart));
         Row(page, ref y, L.T("Проверять обновления", "Check for updates"),
             L.T("Раз в день KeyFish спрашивает у GitHub, вышла ли новая версия. Больше ничего не отправляется.",

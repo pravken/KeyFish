@@ -154,3 +154,6 @@ Remove	Quitar
 About 100,000 more words for each language of your layouts ({0}): rare words, names, slang, so KeyFish understands better what you typed. Downloaded from GitHub when you click, about 1 MB; about 3 MB of memory per language.	Unas 100 000 palabras más para cada idioma de tus distribuciones ({0}): palabras raras, nombres, jerga, para que KeyFish entienda mejor lo que escribiste. Se descarga de GitHub al hacer clic, alrededor de 1 MB; unos 3 MB de memoria por idioma.
 The downloaded dictionary doesn't match its checksum, so it wasn't installed.	El diccionario descargado no coincide con su suma de comprobación, así que no se instaló.
 Couldn't download the dictionary: 	No se pudo descargar el diccionario: 
+Correction	Corrección
+Icon and cues	Icono e indicaciones
+System	Sistema
