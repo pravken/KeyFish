@@ -38,6 +38,7 @@ static class UnitTests
         Run("Hotkeys", () => HotkeyTests());
         Run("Settings archive", () => ArchiveTests());
         Run("Import", () => ImportTests());
+        Run("Looks", () => SkinTests());
 
         Console.WriteLine("{0} passed, {1} failed", passed, failed);
         return failed;
@@ -191,5 +192,20 @@ static class UnitTests
             Is("a word list", Importer.Words(words).Count, 2);
         }
         finally { try { Directory.Delete(dir, true); } catch { } }
+    }
+
+    static void SkinTests()
+    {
+        var halloween = new DateTime(2026, 10, 31);
+        var summer = new DateTime(2026, 7, 1);
+        Is("Halloween comes by itself", Skin.For(0, true, halloween, false), Skin.Halloween);
+        Is("not when switched off", Skin.For(0, false, halloween, false), Skin.Classic);
+        Is("and leaves after", Skin.For(0, true, summer, false), Skin.Classic);
+        Is("chosen, it stays all year", Skin.For(1, true, summer, false), Skin.Halloween);
+        Is("none in high contrast", Skin.For(1, true, halloween, true), Skin.Classic);
+        Is("an unknown number is Classic", Skin.Find(99), Skin.Classic);
+        Is("the days: Oct 24", Skin.Halloween.Season(new DateTime(2026, 10, 24)), true);
+        Is("the days: Nov 3", Skin.Halloween.Season(new DateTime(2026, 11, 3)), false);
+        True("numbers are unique", Skin.All.Select(k => k.Number).Distinct().Count() == Skin.All.Length);
     }
 }

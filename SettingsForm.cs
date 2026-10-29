@@ -18,7 +18,9 @@ class SettingsForm : Form
     public int QuickKey;                 // 0 — off, 1 — double Shift, 2 — Caps Lock
     public int Language;                 // see L.Choices
     public int ThemeMode;                // see Theme.Mode
-    public bool Holiday = true;          // the holiday look while a holiday lasts
+    public int SkinNumber;               // the look chosen (Skin.Number)
+    public bool Holiday = true;          // a holiday's own look while the holiday lasts
+    public bool SkinLogo = true, SkinSound = true;   // the look changes the fish and the sound too
     public Keys[] Hotkeys;
     public string Replacements, Exclusions, Ignored, Learned, AppLayouts;
     public IList<LayoutTable> InstalledLayouts = new List<LayoutTable>();
@@ -27,7 +29,8 @@ class SettingsForm : Form
 
     ToggleSwitch tAuto, tTypos, tQuiet, tCtrlZ, tColor, tAutostart, tUpdates, tBadge, tRecent, tSound, tLetters, tTypography;
     DropDown cbLanguage, cbTheme, cbQuickKey;
-    ToggleSwitch tHoliday;
+    ToggleSwitch tHoliday, tSkinLogo, tSkinSound;
+    SkinGallery gallery;
     HotkeyBox[] hotkeyBoxes;
     DataGridView gridReplacements, gridApps, gridIgnored, gridLearned;
 
@@ -190,6 +193,78 @@ class SettingsForm : Form
     }
 
     static ToggleSwitch Toggle(bool value) { return new ToggleSwitch { Checked = value }; }
+
+    // The look: light or dark, the gallery of looks, a big moving picture of the chosen one as it will be, and what it
+    // changes besides the colors. The pictures follow the choices at once, and the sound can be listened to before saving
+    void LooksCard(Control page, ref int y)
+    {
+        const int pad = 18, bigW = 260, bigH = 156;
+        var card = new Card { Location = new Point(16, y), Width = ContentWidth };
+        cbTheme = new DropDown { Size = new Size(170, 34) };
+        cbTheme.Items.AddRange(new[] { L.T("Как в Windows", "Same as Windows"), L.T("Светлая", "Light"), L.T("Тёмная", "Dark") });
+        cbTheme.SelectedIndex = Math.Max(0, Math.Min(ThemeMode, 2));
+        cbTheme.AccessibleName = L.T("Тема", "Theme");
+        cbTheme.Location = new Point(ContentWidth - pad - cbTheme.Width, 16);
+        string title = L.T("Оформление", "Look");
+        int textW = ContentWidth - pad * 3 - cbTheme.Width;
+        var t = Theme.Wrapped(title, textW);
+        t.Location = new Point(pad, 14);
+        var d = Theme.Wrapped(L.T("Светлое или тёмное, цвета окон, рыбка, значки и звук. Применится после сохранения.",
+                                  "Light or dark, window colors, the fish, the icons and the sound. Takes effect after saving."), textW, Theme.Small, Theme.SubText);
+        d.Location = new Point(pad, t.Bottom + 1);
+        card.Controls.Add(t);
+        card.Controls.Add(d);
+        card.Controls.Add(cbTheme);
+        // The pictures in the light or dark theme as chosen here: as in Windows, light, dark
+        Func<bool> dark = () => cbTheme.SelectedIndex == 0 ? Theme.WindowsDark() : cbTheme.SelectedIndex == 2;
+        gallery = new SkinGallery(ContentWidth - pad * 2) { Location = new Point(pad, Math.Max(d.Bottom, cbTheme.Bottom) + 12), Selected = SkinNumber, Logo = SkinLogo, Dark = dark(), AccessibleName = title };
+        card.Controls.Add(gallery);
+        int top = gallery.Bottom + 18;
+        tSkinLogo = Toggle(SkinLogo);
+        tSkinSound = Toggle(SkinSound);
+        tHoliday = Toggle(Holiday);
+        var big = new FeaturePreview((g, r, ms) =>
+            SkinGallery.Draw(g, new RectangleF(r.X + 2, r.Y + 2, r.Width - 4, r.Height - 4), gallery.SelectedSkin, gallery.Dark, tSkinLogo.Checked,
+                             (float)Math.Sin(ms / 1000.0 * 5) * 0.7f, ms % 3000 / 3000f), 6000)
+        { Size = new Size(bigW, bigH), Location = new Point(pad, top), AccessibleName = L.T("Как это будет выглядеть", "How it will look") };
+        card.Controls.Add(big);
+        gallery.SelectedChanged += (s, e) => big.Invalidate();
+        cbTheme.SelectedIndexChanged += (s, e) => { gallery.Dark = dark(); big.Invalidate(); };
+        tSkinLogo.CheckedChanged += (s, e) => { gallery.Logo = tSkinLogo.Checked; big.Invalidate(); };
+
+        // Beside the picture: what the look changes, one switch each
+        int x = pad + bigW + 20, w = ContentWidth - pad - x, cy = top;
+        Action<string, string, ToggleSwitch> line = (name, about, toggle) =>
+        {
+            int lineW = w - toggle.Width - 12;
+            var n = Theme.Wrapped(name, lineW);
+            n.Location = new Point(x, cy);
+            card.Controls.Add(n);
+            int bottom = n.Bottom;
+            if (about != null)
+            {
+                var a = Theme.Wrapped(about, lineW, Theme.Small, Theme.SubText);
+                a.Location = new Point(x, n.Bottom + 1);
+                card.Controls.Add(a);
+                bottom = a.Bottom;
+            }
+            toggle.AccessibleName = name;
+            toggle.Location = new Point(x + w - toggle.Width, cy + 2);
+            card.Controls.Add(toggle);
+            cy = bottom + 12;
+        };
+        line(L.T("Рыбка в стиле оформления", "The fish in the look's style"), L.T("Логотип, значок в трее и аквариум.", "The logo, the tray icon and the aquarium."), tSkinLogo);
+        line(L.T("Звук оформления", "The look's sound"), L.T("Звук исправления.", "The correction sound."), tSkinSound);
+        var listen = new RoundButton { Text = L.T("Послушать", "Listen"), Glyph = "\uE768", Size = new Size(130, 30), Location = new Point(x, cy - 6) };
+        listen.Click += (s, e) => Bubble.Play(tSkinSound.Checked ? gallery.SelectedSkin : Skin.Classic);
+        card.Controls.Add(listen);
+        cy = listen.Bottom + 12;
+        var seasons = Skin.All.Where(k => k.Season != null).Select(k => k.Name + ": " + k.SeasonText);
+        line(L.T("Автоматически включать праздничное оформление", "Switch to a holiday look automatically"), string.Join(L.T("; ", "; "), seasons) + ".", tHoliday);
+        card.Height = Math.Max(big.Bottom, cy - 12) + 16;
+        page.Controls.Add(card);
+        y += card.Height + 4;
+    }
 
     // A heading over a group of settings, like in Windows Settings
     static void Group(Control page, ref int y, string title)
@@ -422,13 +497,7 @@ class SettingsForm : Form
         cbLanguage.Items.AddRange(L.Choices);
         cbLanguage.SelectedIndex = Math.Max(0, Math.Min(Language, cbLanguage.Items.Count - 1));
         Row(page, ref y, L.T("Язык интерфейса", "Interface language"), null, cbLanguage);
-        cbTheme = new DropDown { Size = new Size(170, 34) };
-        cbTheme.Items.AddRange(new[] { L.T("Как в Windows", "Same as Windows"), L.T("Светлая", "Light"), L.T("Тёмная", "Dark") });
-        cbTheme.SelectedIndex = Math.Max(0, Math.Min(ThemeMode, 2));
-        Row(page, ref y, L.T("Тема", "Theme"), L.T("Применится после сохранения.", "Takes effect after saving."), cbTheme);
-        Row(page, ref y, L.T("Праздничное оформление", "Holiday look"),
-            L.T("На Хэллоуин (24 октября — 2 ноября): тыквенные цвета, шляпа у рыбки, летучие мыши. Применится после сохранения.",
-                "For Halloween (October 24 to November 2): pumpkin colors, a hat on the fish, bats. Takes effect after saving."), tHoliday = Toggle(Holiday));
+        LooksCard(page, ref y);
         Group(page, ref y, L.T("Исправление", "Correction"));
         Row(page, ref y, L.T("Исправлять раскладку при наборе", "Fix the keyboard layout as you type"),
             L.T("ghbdtn → привет, руддщ → hello. Автозамены тоже работают, только когда это включено.",
@@ -947,7 +1016,8 @@ class SettingsForm : Form
             { "UndoCtrlZ", UndoCtrlZ ? 1 : 0 }, { "LayoutColor", LayoutColor ? 1 : 0 }, { "CheckUpdates", CheckUpdates ? 1 : 0 },
             { "LayoutBadge", LayoutBadge ? 1 : 0 }, { "RecentMenu", RecentMenu ? 1 : 0 }, { "QuickKey", QuickKey }, { "Sound", Sound ? 1 : 0 }, { "Typography", Typography ? 1 : 0 },
             { "TrayLetters", TrayLetters ? 1 : 0 },
-            { "Language", Language }, { "Theme", ThemeMode }, { "Holiday", Holiday ? 1 : 0 }
+            { "Language", Language }, { "Theme", ThemeMode }, { "Holiday", Holiday ? 1 : 0 },
+            { "Skin", SkinNumber }, { "SkinLogo", SkinLogo ? 1 : 0 }, { "SkinSound", SkinSound ? 1 : 0 }
         };
         for (int i = 0; i < Hotkeys.Length; i++) v["Hotkey" + (i + 1)] = (int)Hotkeys[i];
         return v;
@@ -1017,6 +1087,9 @@ class SettingsForm : Form
         if (values.TryGetValue("Language", out n)) Language = Math.Max(0, n);
         if (values.TryGetValue("Theme", out n)) ThemeMode = Math.Max(0, Math.Min(n, 2));
         if (values.TryGetValue("Holiday", out n)) Holiday = n != 0;
+        if (values.TryGetValue("Skin", out n)) SkinNumber = Skin.Find(n).Number;
+        if (values.TryGetValue("SkinLogo", out n)) SkinLogo = n != 0;
+        if (values.TryGetValue("SkinSound", out n)) SkinSound = n != 0;
         for (int i = 0; i < Hotkeys.Length; i++)
             if (values.TryGetValue("Hotkey" + (i + 1), out n) && (n == 0 || HotkeyBox.Allowed((Keys)n))) Hotkeys[i] = (Keys)n;
         DialogResult = DialogResult.OK;
@@ -1043,6 +1116,9 @@ class SettingsForm : Form
         Language = cbLanguage.SelectedIndex;
         ThemeMode = cbTheme.SelectedIndex;
         Holiday = tHoliday.Checked;
+        SkinNumber = gallery.Selected;
+        SkinLogo = tSkinLogo.Checked;
+        SkinSound = tSkinSound.Checked;
         for (int i = 0; i < Hotkeys.Length; i++) Hotkeys[i] = hotkeyBoxes[i].Value;
 
         gridApps.EndEdit();
@@ -1403,7 +1479,7 @@ static class SettingsArchive
     public static readonly string[] Values =
     {
         "AutoCorrect", "Typos", "QuietFullscreen", "UndoCtrlZ", "LayoutColor", "CheckUpdates", "LayoutBadge", "RecentMenu", "QuickKey", "Sound", "TrayLetters", "Typography",
-        "Language", "Theme", "Holiday", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5", "Hotkey6", "Hotkey7"
+        "Language", "Theme", "Holiday", "Skin", "SkinLogo", "SkinSound", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5", "Hotkey6", "Hotkey7"
     };
     static readonly string[] FileNames = { "replacements.txt", "exclusions.txt", "ignored-words.txt", "learned-words.txt", "app-layouts.txt", "layout-colors.txt" };
 

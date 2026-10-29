@@ -32,6 +32,50 @@ static class Preview
         return u;
     }
 
+    // icons <out.png>: the tray icons of the look at 16, 20, 24 and 32 pixels on a dark and a light taskbar — the fish
+    // (Latin, another alphabet, blinking) and the letters
+    static void Icons(string outPath)
+    {
+        int[] sizes = { 16, 20, 24, 32 };
+        const int cell = 44, label = 40;
+        using (var bmp = new Bitmap(label + cell * 5, cell * sizes.Length * 2))
+        using (var g = Graphics.FromImage(bmp))
+        using (var font = new Font("Segoe UI", 8f))
+        {
+            for (int half = 0; half < 2; half++)
+            {
+                bool dark = half == 0;
+                var bar = new Rectangle(0, half * cell * sizes.Length, bmp.Width, cell * sizes.Length);
+                using (var b = new SolidBrush(dark ? Color.FromArgb(28, 28, 28) : Color.FromArgb(238, 238, 238))) g.FillRectangle(b, bar);
+                for (int i = 0; i < sizes.Length; i++)
+                {
+                    int n = sizes[i], y = bar.Y + i * cell + (cell - n) / 2;
+                    using (var b = new SolidBrush(dark ? Color.Silver : Color.DimGray)) g.DrawString(n + " px", font, b, 4, bar.Y + i * cell + 14);
+                    var size = new Size(n, n);
+                    var pictures = new List<Image>();
+                    if (Theme.LogoSkin.TintTray)
+                    {
+                        pictures.Add(App.FishBitmap(LetterIcon.Latin, false, size));
+                        pictures.Add(App.FishBitmap(LetterIcon.Other, false, size));
+                        pictures.Add(App.FishBitmap(LetterIcon.Latin, true, size));
+                    }
+                    else
+                        foreach (string name in new[] { "fish.ico", "fish-ru.ico", "fish-blink.ico" })
+                            using (var s = typeof(App).Assembly.GetManifestResourceStream(name))
+                            using (var icon = new Icon(s, size)) pictures.Add(icon.ToBitmap());
+                    pictures.Add(LetterIcon.Render("EN", LetterIcon.Latin, LetterIcon.InkOn(LetterIcon.Latin), n));
+                    pictures.Add(LetterIcon.Render("RU", LetterIcon.Other, LetterIcon.InkOn(LetterIcon.Other), n));
+                    for (int k = 0; k < pictures.Count; k++)
+                    {
+                        g.DrawImage(pictures[k], new Rectangle(label + k * cell + (cell - n) / 2, y, n, n));
+                        pictures[k].Dispose();
+                    }
+                }
+            }
+            bmp.Save(outPath, ImageFormat.Png);
+        }
+    }
+
     [STAThread]
     static void Main(string[] args)
     {
@@ -39,8 +83,16 @@ static class Preview
         // settings <page> <out> [theme] [lang]; about|aquarium <out> [theme] [lang]
         int ta = args[0] == "settings" ? 3 : 2;
         if (args.Length > ta) typeof(Theme).GetField("Dark").SetValue(null, args[ta] == "dark");
-        // "halloween": the holiday look, whatever the date
-        if (Array.IndexOf(args, "halloween") >= 0) { Theme.Holiday = true; Theme.Accent = Color.FromArgb(232, 110, 20); }
+        // "skin=N": that look (Skin.Number), whatever the date; "halloween" is skin=1
+        foreach (string a in args)
+            if (a.StartsWith("skin=") || a == "halloween")
+            {
+                Theme.Skin = Skin.Find(a == "halloween" ? 1 : int.Parse(a.Substring(5)));
+                if (!Theme.Skin.Accent.IsEmpty) Theme.Accent = Theme.Skin.Accent;
+            }
+        // "nologo": the look without its fish (Settings → The fish in the look's style off)
+        if (Array.IndexOf(args, "nologo") >= 0) Theme.SkinLogo = false;
+        if (args[0] == "icons") { Icons(args[1]); return; }
         // "contrast": the high-contrast colors path, with whatever system colors this computer has
         if (Array.IndexOf(args, "contrast") >= 0) { Theme.Contrast = true; Theme.Dark = false; }
         L.Setting = args.Length > ta + 1 ? Array.IndexOf(L.Codes, args[ta + 1]) + 1 : 1;
@@ -70,6 +122,7 @@ static class Preview
             {
                 AutoCorrect = true, QuietFullscreen = true, UndoCtrlZ = true, LayoutColor = true, Autostart = true, CheckUpdates = true, RecentMenu = true, QuickKey = 1,
                 Hotkeys = (Keys[])App.HotkeyDefaults.Clone(), Language = 0, StartPage = page,
+                ThemeMode = args.Length > 3 ? (args[3] == "dark" ? 2 : 1) : 0,   // the theme asked for, not the one Windows has
                 Replacements = "спс = спасибо\nсув = С уважением,\\nМаксим\nthx = thank you\n",
                 Exclusions = Array.IndexOf(args, "long") >= 0   // "long": enough apps for the list to scroll
                     ? "Code\ndevenv\ncmd\npowershell\npwsh\nWindowsTerminal\nidea64\npycharm64\nrider64\nKeePass\nKeePassXC\n1Password\nmstsc\n"

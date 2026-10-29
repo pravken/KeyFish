@@ -13,39 +13,48 @@ static class Theme
     // High contrast is on in Windows: the windows take its colors instead of KeyFish's own (read before Dark)
     public static bool Contrast = ReadContrast();
     public static bool Dark = ReadDark();
+    // The look in use (Skins.cs), picked by Refresh from the settings: Chosen — the one chosen in Settings,
+    // Holidays — a holiday's own look comes by itself on its days (read before Accent)
+    public static Skin Skin = Skin.Classic;
+    public static int Chosen;
+    public static bool Holidays = true;
+    // The skin also changes the fish (the logo, the tray fish, the aquarium) and the correction sound; either can be
+    // switched off in Settings, and those keep the classic ones
+    public static bool SkinLogo = true, SkinSound = true;
+    public static Skin LogoSkin { get { return SkinLogo ? Skin : Skin.Classic; } }
+    public static Skin SoundSkin { get { return SkinSound ? Skin : Skin.Classic; } }
     public static Color Accent = ReadAccent();
     public static int Mode;   // the theme chosen in Settings: 0 — as in Windows, 1 — light, 2 — dark
-    // The holiday look (Halloween: a pumpkin accent, a night-purple dark theme, the fish in a witch's hat), set at start
-    // and when Settings are saved: on during the holiday unless switched off in Settings
-    public static bool Holiday;
 
-    public static bool IsHalloween(DateTime day) { return (day.Month == 10 && day.Day >= 24) || (day.Month == 11 && day.Day <= 2); }
-
-    // Windows switched to the dark or light theme, the accent color changed or another theme was chosen in Settings:
-    // read them again. True if anything changed
+    // Windows switched to the dark or light theme, the accent color changed, another theme or look was chosen in
+    // Settings, or a holiday came: read them again. True if anything changed
     public static bool Refresh()
     {
         bool contrast = ReadContrast();
-        bool changed = contrast != Contrast;
+        var skin = Skin.For(Chosen, Holidays, DateTime.Today, contrast);
+        bool changed = contrast != Contrast || skin != Skin;
         Contrast = contrast;
+        Skin = skin;
         bool dark = ReadDark();
         Color accent = ReadAccent();
+        systemAccent = Color.Empty;
         if (!changed && dark == Dark && accent == Accent) return false;
         Dark = dark;
         Accent = accent;
         return true;
     }
 
-    // On Halloween the dark theme leans to night purple. In high contrast: the system's own colors, with clear borders
-    public static Color Back { get { return Contrast ? SystemColors.Window : Dark ? (Holiday ? Color.FromArgb(31, 26, 38) : Color.FromArgb(32, 32, 32)) : Color.FromArgb(243, 243, 243); } }
-    public static Color Card { get { return Contrast ? SystemColors.Window : Dark ? (Holiday ? Color.FromArgb(43, 36, 52) : Color.FromArgb(43, 43, 43)) : Color.FromArgb(251, 251, 251); } }
-    public static Color CardBorder { get { return Contrast ? SystemColors.WindowText : Dark ? (Holiday ? Color.FromArgb(27, 22, 34) : Color.FromArgb(29, 29, 29)) : Color.FromArgb(229, 229, 229); } }
+    // The skin's colors for the light or dark theme. In high contrast: the system's own colors, with clear borders
+    static Palette Pal { get { return Dark ? Skin.Dark : Skin.Light; } }
+    public static Color Back { get { return Contrast ? SystemColors.Window : Pal.Back; } }
+    public static Color Card { get { return Contrast ? SystemColors.Window : Pal.Card; } }
+    public static Color CardBorder { get { return Contrast ? SystemColors.WindowText : Pal.CardBorder; } }
     public static Color Text { get { return Contrast ? SystemColors.WindowText : Dark ? Color.White : Color.FromArgb(27, 27, 27); } }
     public static Color SubText { get { return Contrast ? SystemColors.WindowText : Dark ? Color.FromArgb(200, 200, 200) : Color.FromArgb(96, 96, 96); } }
-    public static Color Input { get { return Contrast ? SystemColors.Window : Dark ? (Holiday ? Color.FromArgb(46, 39, 56) : Color.FromArgb(45, 45, 45)) : Color.White; } }
-    public static Color InputBorder { get { return Contrast ? SystemColors.WindowText : Dark ? (Holiday ? Color.FromArgb(76, 64, 92) : Color.FromArgb(70, 70, 70)) : Color.FromArgb(214, 214, 214); } }
-    public static Color Hover { get { return Contrast ? SystemColors.Window : Dark ? (Holiday ? Color.FromArgb(58, 49, 70) : Color.FromArgb(55, 55, 55)) : Color.FromArgb(233, 233, 233); } }
-    public static Color Selected { get { return Contrast ? SystemColors.Highlight : Dark ? (Holiday ? Color.FromArgb(64, 54, 78) : Color.FromArgb(60, 60, 60)) : Color.FromArgb(228, 228, 228); } }
+    public static Color Input { get { return Contrast ? SystemColors.Window : Pal.Input; } }
+    public static Color InputBorder { get { return Contrast ? SystemColors.WindowText : Pal.InputBorder; } }
+    public static Color Hover { get { return Contrast ? SystemColors.Window : Pal.Hover; } }
+    public static Color Selected { get { return Contrast ? SystemColors.Highlight : Pal.Selected; } }
     public static Color Danger { get { return Contrast ? SystemColors.WindowText : Dark ? Color.FromArgb(255, 153, 164) : Color.FromArgb(196, 43, 28); } }
     // On a dark background Windows 11 uses a lighter shade of the accent color
     public static Color AccentFill { get { return Contrast ? SystemColors.Highlight : Dark ? Blend(Accent, Color.White, 0.45) : Accent; } }
@@ -111,6 +120,12 @@ static class Theme
         if (Contrast) { var w = SystemColors.Window; return (w.R * 30 + w.G * 59 + w.B * 11) / 100 < 128; }
         if (Mode == 1) return false;
         if (Mode == 2) return true;
+        return WindowsDark();
+    }
+
+    // The theme Windows uses for apps
+    public static bool WindowsDark()
+    {
         try
         {
             using (var k = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"))
@@ -121,7 +136,25 @@ static class Theme
 
     static Color ReadAccent()
     {
-        if (Holiday) return Color.FromArgb(232, 110, 20);   // pumpkin
+        return Skin.Accent.IsEmpty ? SystemAccent() : Skin.Accent;   // the skin's own (Halloween: pumpkin)
+    }
+
+    // Paints as if another skin, light or dark, and the skin's fish or not were in use: the pictures of the looks in
+    // Settings. Only for painting, on the window's thread; everything is put back after
+    public static void As(Skin skin, bool dark, bool logo, Action paint)
+    {
+        Skin s0 = Skin; bool d0 = Dark, c0 = Contrast, l0 = SkinLogo; Color a0 = Accent;
+        Skin = skin; Dark = dark; Contrast = false; SkinLogo = logo;
+        if (systemAccent.IsEmpty) systemAccent = SystemAccent();
+        Accent = skin.Accent.IsEmpty ? systemAccent : skin.Accent;
+        try { paint(); }
+        finally { Skin = s0; Dark = d0; Contrast = c0; SkinLogo = l0; Accent = a0; }
+    }
+
+    static Color systemAccent;   // Windows' accent for As, read again with the other colors in Refresh
+
+    static Color SystemAccent()
+    {
         try
         {
             using (var k = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\DWM"))
@@ -1221,9 +1254,9 @@ class ThemedMessage : Form
 // The layout's letters in a circle (EN, RU…): the tray icon when chosen in Settings instead of the fish
 static class LetterIcon
 {
-    // Blue for Latin and orange for another alphabet; on Halloween, purple and pumpkin
-    public static Color Latin { get { return Theme.Holiday ? Color.FromArgb(124, 70, 200) : Color.FromArgb(40, 110, 220); } }
-    public static Color Other { get { return Theme.Holiday ? Color.FromArgb(240, 120, 20) : Color.FromArgb(232, 112, 30); } }
+    // The skin's colors: blue for Latin and orange for another alphabet; on Halloween, purple and pumpkin
+    public static Color Latin { get { return Theme.Skin.Latin; } }
+    public static Color Other { get { return Theme.Skin.Other; } }
     public static readonly Color Off = Color.FromArgb(150, 150, 150);
     static readonly Color DarkInk = Color.FromArgb(32, 32, 32);
 
@@ -1648,5 +1681,179 @@ static class ColorPicker
         menu.Items.Add(host);
         menu.Closed += (s, e) => owner.BeginInvoke(new Action(menu.Dispose));
         menu.Show(owner, new Point(owner.Width, owner.Height + 2), ToolStripDropDownDirection.BelowLeft);   // opens leftwards: the swatches sit at the right edge
+    }
+}
+
+// The looks to choose from (Skin.All), each a small picture of KeyFish in it. Choosing one changes nothing until
+// Settings are saved. Logo: the pictures show the skin's fish, or the classic one when that is switched off
+class SkinGallery : Control
+{
+    const int CardW = 140, CardH = 122, Gap = 10, Thumb = 80;   // in 96-DPI pixels, before the window is scaled
+    int selected, hover = -1;
+    bool logo = true, dark = Theme.Dark;
+    public event EventHandler SelectedChanged;
+
+    public SkinGallery(int width)
+    {
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint |
+                 ControlStyles.ResizeRedraw | ControlStyles.Selectable | ControlStyles.SupportsTransparentBackColor, true);
+        BackColor = Color.Transparent;
+        TabStop = true;
+        int perRow = Math.Max(1, (width + Gap) / (CardW + Gap));
+        int rows = (Skin.All.Length + perRow - 1) / perRow;
+        Size = new Size(width, rows * (CardH + Gap) - Gap);
+        AccessibleRole = AccessibleRole.List;
+    }
+
+    // The chosen look: its Number
+    public int Selected
+    {
+        get { return Skin.All[selected].Number; }
+        set { selected = Math.Max(0, Array.IndexOf(Skin.All, Skin.Find(value))); Invalidate(); }
+    }
+
+    public Skin SelectedSkin { get { return Skin.All[selected]; } }
+
+    public bool Logo { get { return logo; } set { logo = value; Invalidate(); } }
+    public bool Dark { get { return dark; } set { dark = value; Invalidate(); } }
+
+    RectangleF CardRect(int i)
+    {
+        float k = Theme.Scale;
+        int perRow = Math.Max(1, (int)((Width / k + Gap) / (CardW + Gap)));
+        return new RectangleF((i % perRow) * (CardW + Gap) * k, (i / perRow) * (CardH + Gap) * k, CardW * k, CardH * k);
+    }
+
+    int At(Point p)
+    {
+        for (int i = 0; i < Skin.All.Length; i++) if (CardRect(i).Contains(p)) return i;
+        return -1;
+    }
+
+    void Choose(int i)
+    {
+        if (i < 0 || i >= Skin.All.Length || i == selected) return;
+        selected = i;
+        AccessibilityNotifyClients(AccessibleEvents.NameChange, -1);
+        Invalidate();
+        if (SelectedChanged != null) SelectedChanged(this, EventArgs.Empty);
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        int h = At(e.Location);
+        if (h == hover) return;
+        hover = h;
+        Cursor = h >= 0 ? Cursors.Hand : Cursors.Default;
+        Invalidate();
+    }
+    protected override void OnMouseLeave(EventArgs e) { hover = -1; Invalidate(); base.OnMouseLeave(e); }
+    protected override void OnMouseDown(MouseEventArgs e) { Focus(); Choose(At(e.Location)); base.OnMouseDown(e); }
+    protected override void OnGotFocus(EventArgs e) { Invalidate(); base.OnGotFocus(e); }
+    protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
+    protected override bool IsInputKey(Keys k) { return k == Keys.Left || k == Keys.Right || k == Keys.Up || k == Keys.Down || base.IsInputKey(k); }
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (e.KeyCode == Keys.Left || e.KeyCode == Keys.Up) Choose(selected - 1);
+        if (e.KeyCode == Keys.Right || e.KeyCode == Keys.Down) Choose(selected + 1);
+        base.OnKeyDown(e);
+    }
+
+    // Narrator reads the chosen look
+    public override string Text { get { return Skin.All[selected].Name; } set { } }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        float k = Theme.Scale;
+        for (int i = 0; i < Skin.All.Length; i++)
+        {
+            var r = CardRect(i);
+            var skin = Skin.All[i];
+            var thumb = new RectangleF(r.X + 2 * k, r.Y + 2 * k, r.Width - 4 * k, Thumb * k);
+            Draw(g, thumb, skin, dark, logo, 0, -1);
+            var name = new RectangleF(r.X + 3 * k, thumb.Bottom + 5 * k, r.Width - 6 * k, 20 * k);
+            Theme.SmoothText(g, skin.Name, i == selected ? Theme.Strong : Theme.Body, name, Theme.Text, false, false);
+            // A holiday's look: its days, or that it is on now
+            if (skin.Season != null)
+                Theme.SmoothText(g, skin.Season(DateTime.Today) ? L.T("Сейчас", "On now") : skin.SeasonShort, Theme.Small,
+                                 new RectangleF(name.X, name.Bottom, name.Width, 18 * k), Theme.SubText, false, false);
+            // The chosen one is outlined in the accent color, the one under the mouse more faintly
+            Color edge = i == selected ? Theme.AccentFill : i == hover ? Theme.InputBorder : Color.Empty;
+            if (!edge.IsEmpty)
+                using (var path = Theme.Rounded(new RectangleF(thumb.X - 1.5f * k, thumb.Y - 1.5f * k, thumb.Width + 3 * k, thumb.Height + 3 * k), 7 * k))
+                using (var p = new Pen(edge, i == selected ? 2.2f * k : 1.2f * k)) g.DrawPath(p, path);
+            if (Focused && ShowFocusCues && i == selected)
+                using (var p = new Pen(Theme.Text) { DashStyle = DashStyle.Dot }) g.DrawRectangle(p, r.X, r.Y, r.Width - 1, r.Height - 1);
+        }
+    }
+
+    // KeyFish in a skin, small: Settings with its sidebar and the fish, a card with a switch on, a field with a
+    // selection, and the taskbar with the tray fish and letters. logo: the skin's fish or the classic one;
+    // tail and bubbles move the fish (FishLogo.Draw). Also used by the big preview in Settings and by tests\Preview
+    public static void Draw(Graphics g, RectangleF r, Skin skin, bool dark, bool logo, float tail, float bubbles)
+    {
+        Theme.As(skin, dark, logo, () =>
+        {
+            float u = r.Height / 80f;   // the picture is drawn on an 80-high grid
+            using (var clip = Theme.Rounded(r, 6 * u))
+            {
+                var saved = g.Save();
+                g.SetClip(clip, CombineMode.Intersect);
+                using (var b = new SolidBrush(Theme.Back)) g.FillRectangle(b, r);
+                // The sidebar: the fish, the name and three sections, the first chosen
+                float side = Math.Min(r.Width * 0.36f, 56 * u);
+                FishLogo.Draw(g, new RectangleF(r.X + 5 * u, r.Y + 5 * u, 20 * u, 20 * u), true, tail, 1, bubbles);
+                using (var b = new SolidBrush(Theme.Blend(Theme.Text, Theme.Back, 0.45)))
+                    g.FillRectangle(b, r.X + 28 * u, r.Y + 12 * u, side - 32 * u, 4 * u);
+                for (int n = 0; n < 3; n++)
+                {
+                    float y = r.Y + (32 + n * 11) * u;
+                    if (n == 0)
+                    {
+                        using (var path = Theme.Rounded(new RectangleF(r.X + 3 * u, y - 3.5f * u, side - 6 * u, 10 * u), 2.5f * u))
+                        using (var b = new SolidBrush(Theme.Selected)) g.FillPath(b, path);
+                        using (var b = new SolidBrush(Theme.AccentFill)) g.FillRectangle(b, r.X + 3 * u, y - 1 * u, 1.6f * u, 5 * u);
+                    }
+                    using (var b = new SolidBrush(Theme.Blend(Theme.Text, Theme.Back, 0.6)))
+                        g.FillRectangle(b, r.X + 8 * u, y, side - 18 * u, 3 * u);
+                }
+                // A card with two lines of text and a switch that is on
+                var card = new RectangleF(r.X + side, r.Y + 6 * u, r.Width - side - 5 * u, 24 * u);
+                Box(g, card, 3 * u, Theme.Card, Theme.CardBorder, u);
+                using (var b = new SolidBrush(Theme.Blend(Theme.Text, Theme.Card, 0.35)))
+                    g.FillRectangle(b, card.X + 6 * u, card.Y + 7 * u, card.Width * 0.42f, 4 * u);
+                using (var b = new SolidBrush(Theme.Blend(Theme.Text, Theme.Card, 0.65)))
+                    g.FillRectangle(b, card.X + 6 * u, card.Y + 14 * u, card.Width * 0.3f, 3 * u);
+                var sw = new RectangleF(card.Right - 24 * u, card.Y + 7 * u, 18 * u, 10 * u);
+                using (var path = Theme.Rounded(sw, 5 * u))
+                using (var b = new SolidBrush(Theme.AccentFill)) g.FillPath(b, path);
+                using (var b = new SolidBrush(Theme.OnAccent)) g.FillEllipse(b, sw.Right - 8.5f * u, sw.Y + 2 * u, 6 * u, 6 * u);
+                // A second card: an input field with a selection in it
+                var card2 = new RectangleF(card.X, card.Bottom + 4 * u, card.Width, 22 * u);
+                Box(g, card2, 3 * u, Theme.Card, Theme.CardBorder, u);
+                var field = new RectangleF(card2.X + 6 * u, card2.Y + 5 * u, card2.Width - 12 * u, 12 * u);
+                Box(g, field, 2 * u, Theme.Input, Theme.InputBorder, u * 0.8f);
+                using (var b = new SolidBrush(Theme.SelectionBack)) g.FillRectangle(b, field.X + 4 * u, field.Y + 3 * u, field.Width * 0.4f, 6 * u);
+                // The taskbar: the tray fish in its disc and the two letters icons
+                var bar = new RectangleF(r.X, r.Bottom - 14 * u, r.Width, 14 * u);
+                using (var b = new SolidBrush(dark ? Color.FromArgb(28, 28, 28) : Color.FromArgb(232, 232, 232))) g.FillRectangle(b, bar);
+                var colors = new[] { Theme.Skin.Other, Theme.Skin.Latin };
+                for (int n = 0; n < 2; n++)
+                    using (var b = new SolidBrush(colors[n])) g.FillEllipse(b, bar.Right - (16 + n * 13) * u, bar.Y + 2.5f * u, 9 * u, 9 * u);
+                FishLogo.Draw(g, new RectangleF(bar.Right - 43 * u, bar.Y + 1.5f * u, 11 * u, 11 * u), true, 0, 1, -1);
+                g.Restore(saved);
+            }
+        });
+    }
+
+    static void Box(Graphics g, RectangleF r, float radius, Color fill, Color border, float width)
+    {
+        using (var path = Theme.Rounded(r, radius))
+        {
+            using (var b = new SolidBrush(fill)) g.FillPath(b, path);
+            using (var p = new Pen(border, Math.Max(1, width))) g.DrawPath(p, path);
+        }
     }
 }

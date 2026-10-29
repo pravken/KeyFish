@@ -18,8 +18,12 @@ partial class App
     {
         idle = false;
         trayTimer.Interval = 150;
+        // A new day may bring a holiday's look, or take it away
+        if (DateTime.Today != themeDay) { themeDay = DateTime.Today; if (Theme.Refresh()) RebuildMenu(); }
         UpdateTrayIcon();
     }
+
+    DateTime themeDay = DateTime.Today;
 
     void UpdateTrayIcon()
     {
@@ -84,7 +88,7 @@ partial class App
         Icon want = pausedUntil != DateTime.MinValue ? iconPaused
                   : !watcher.Enabled || guardDown || foregroundNoRights ? iconOff
                   : showLayout && layoutColors.TryGetValue(currentLayoutName, out custom) ? FishIcon(custom, blink)
-                  : Theme.Holiday ? FishIcon(ru ? LetterIcon.Other : LetterIcon.Latin, blink)
+                  : Theme.LogoSkin.TintTray ? FishIcon(ru ? LetterIcon.Other : LetterIcon.Latin, blink)
                   : blink ? (ru ? blinkRu : blinkEn) : (ru ? iconRu : iconEn);
         if (blinkTicks > 0) blinkTicks--;
         if (tray.Icon != want) tray.Icon = want;
@@ -152,25 +156,31 @@ partial class App
 
     Icon FishIcon(Color color, bool blink)
     {
-        string key = color.ToArgb() + "|" + blink + "|" + Theme.Holiday;
+        string key = color.ToArgb() + "|" + blink + "|" + Theme.LogoSkin.Number;
         Icon icon;
         if (fishIcons.TryGetValue(key, out icon)) return icon;
+        using (var colored = FishBitmap(color, blink, SystemInformation.SmallIconSize)) icon = Icon.FromHandle(colored.GetHicon());
+        fishIcons[key] = icon;
+        return icon;
+    }
+
+    // The tray fish in a color at a size, in the skin's hat when it has one (tests\Preview draws the theme sheets with it)
+    internal static Bitmap FishBitmap(Color color, bool blink, Size size)
+    {
         using (var s = typeof(App).Assembly.GetManifestResourceStream(blink ? "fish-blink.ico" : "fish.ico"))
-        using (var source = new Icon(s, SystemInformation.SmallIconSize))
+        using (var source = new Icon(s, size))
         using (var bmp = source.ToBitmap())
-        using (var colored = LayoutColors.Recolor(bmp, color))
         {
-            if (Theme.Holiday)
+            var colored = LayoutColors.Recolor(bmp, color);
+            if (Theme.LogoSkin.Hat)
                 using (var g = Graphics.FromImage(colored))
                 {
                     g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
                     g.ScaleTransform(colored.Width / 64f, colored.Height / 64f);
                     FishLogo.Hat(g, colored.Width <= 20);
                 }
-            icon = Icon.FromHandle(colored.GetHicon());
+            return colored;
         }
-        fishIcons[key] = icon;
-        return icon;
     }
 
     // An hour without corrections, or back to correcting; from the hotkey it says which, since nothing else shows it
@@ -472,7 +482,11 @@ partial class App
     {
         if (e.Category != UserPreferenceCategory.General && e.Category != UserPreferenceCategory.Color && e.Category != UserPreferenceCategory.VisualStyle &&
             e.Category != UserPreferenceCategory.Accessibility) return;   // Accessibility: high contrast on or off
-        if (!Theme.Refresh()) return;
+        if (Theme.Refresh()) RebuildMenu();
+    }
+
+    void RebuildMenu()
+    {
         var old = tray.ContextMenuStrip;
         tray.ContextMenuStrip = BuildMenu();
         if (old != null) old.Dispose();

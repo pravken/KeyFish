@@ -17,12 +17,15 @@ static class Bubble
 {
     static System.Media.SoundPlayer player, spooky;
 
-    public static void Play()
+    public static void Play() { Play(Theme.SoundSkin); }
+
+    // The sound of a skin: Settings plays it to listen to before choosing
+    public static void Play(Skin skin)
     {
         try
         {
             // On Halloween a ghostly "ooo" instead of the bloop
-            if (Theme.Holiday)
+            if (skin.Ghost)
             {
                 if (spooky == null) { spooky = new System.Media.SoundPlayer(new MemoryStream(Ghost())); spooky.Load(); }
                 spooky.Play();

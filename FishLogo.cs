@@ -33,18 +33,18 @@ static class FishLogo
         var white = Color.White;
         var shade = Color.FromArgb(214, 228, 250);
 
-        bool holiday = Theme.Holiday;
+        var skin = Theme.LogoSkin;
         if (circle)
         {
             using (var path = new GraphicsPath())
             {
                 path.AddEllipse(0.5f, 0.5f, 63, 63);
-                // On Halloween the disc is a pumpkin
+                // The skin's disc: blue, or a pumpkin on Halloween
                 using (var b = new PathGradientBrush(path)
                 {
                     CenterPoint = new PointF(22, 18),
-                    CenterColor = holiday ? Color.FromArgb(255, 170, 70) : Color.FromArgb(78, 146, 240),
-                    SurroundColors = new[] { holiday ? Color.FromArgb(214, 88, 18) : Color.FromArgb(28, 88, 196) }
+                    CenterColor = skin.DiscCenter,
+                    SurroundColors = new[] { skin.DiscEdge }
                 })
                     g.FillPath(b, path);
             }
@@ -107,10 +107,10 @@ static class FishLogo
         using (var b = new SolidBrush(Color.FromArgb(22, 60, 140))) g.FillEllipse(b, 15.5f, 29 - eyeH / 2, 5, eyeH);
         if (eyeOpen > 0.5f) using (var b = new SolidBrush(white)) g.FillEllipse(b, 17.6f, 27.6f, 1.6f, 1.6f);
 
-        if (holiday) Hat(g);
+        if (skin.Hat) Hat(g);
 
         // Bubbles rise from the mouth; on Halloween, bats
-        if (holiday)
+        if (skin.Bats)
         {
             if (bubbles < 0) { Bat(g, 8.5f, 15.5f, 5f, 0.3f, 1); Bat(g, 15.5f, 7.5f, 3.6f, 0.75f, 1); }
             else for (int i = 0; i < 2; i++) BatFlight(g, (bubbles + i * 0.5f) % 1, i);
@@ -340,7 +340,7 @@ class Aquarium : Control
         g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
         double t = Elapsed;
         float w = Width, h = Height;
-        bool night = Theme.Holiday;
+        bool night = Theme.LogoSkin.Night;
 
         // The window behind, then the water level: rises in the first second, drains in the last one
         g.Clear(Parent != null ? Parent.BackColor : Theme.Back);

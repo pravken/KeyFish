@@ -291,7 +291,10 @@ partial class App : ApplicationContext
         RepairAutostart();
         L.Setting = GetSetting("Language", 0);
         Theme.Mode = Math.Max(0, Math.Min(GetSetting("Theme", 0), 2));
-        Theme.Holiday = GetSetting("Holiday", 1) != 0 && Theme.IsHalloween(DateTime.Today) && !Theme.Contrast;
+        Theme.Chosen = GetSetting("Skin", 0);
+        Theme.Holidays = GetSetting("Holiday", 1) != 0;
+        Theme.SkinLogo = GetSetting("SkinLogo", 1) != 0;
+        Theme.SkinSound = GetSetting("SkinSound", 1) != 0;
         Theme.Refresh();
         statsBase = GetSetting("StatsTotal", 0);
         if (GetSetting("StatsSince", 0) == 0) SetSetting("StatsSince", int.Parse(DateTime.Today.ToString("yyyyMMdd")));
@@ -471,7 +474,7 @@ partial class App : ApplicationContext
         {
             OpenAbout = owner => ShowAbout(owner), Updates = updates,
             BackupDir = backupDir, TrayLetters = trayLetters, LayoutColors = new Dictionary<string, Color>(layoutColors, StringComparer.OrdinalIgnoreCase), AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, RecentMenu = watcher.KeepRecent, Typography = watcher.Typography, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
-            CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting, ThemeMode = Theme.Mode, Holiday = GetSetting("Holiday", 1) != 0,
+            CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting, ThemeMode = Theme.Mode, SkinNumber = Theme.Chosen, Holiday = Theme.Holidays, SkinLogo = Theme.SkinLogo, SkinSound = Theme.SkinSound,
             Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ignoredBefore, Learned = learnedBefore,
             AppLayouts = ReadText(appLayoutsPath), InstalledLayouts = new List<LayoutTable>(watcher.Layouts.All)
         };
@@ -518,11 +521,20 @@ partial class App : ApplicationContext
                     SetSetting("Theme", f.ThemeMode);
                     themeChanged = Theme.Refresh();
                 }
-                if (f.Holiday != (GetSetting("Holiday", 1) != 0))
+                if (f.Holiday != Theme.Holidays || f.SkinNumber != Theme.Chosen)
                 {
                     SetSetting("Holiday", f.Holiday ? 1 : 0);
-                    Theme.Holiday = f.Holiday && Theme.IsHalloween(DateTime.Today) && !Theme.Contrast;
-                    Theme.Refresh();   // the accent color
+                    SetSetting("Skin", f.SkinNumber);
+                    Theme.Holidays = f.Holiday;
+                    Theme.Chosen = f.SkinNumber;
+                    if (Theme.Refresh()) themeChanged = true;
+                }
+                if (f.SkinLogo != Theme.SkinLogo || f.SkinSound != Theme.SkinSound)
+                {
+                    SetSetting("SkinLogo", f.SkinLogo ? 1 : 0);
+                    SetSetting("SkinSound", f.SkinSound ? 1 : 0);
+                    Theme.SkinLogo = f.SkinLogo;
+                    Theme.SkinSound = f.SkinSound;
                     themeChanged = true;
                 }
                 if (f.Language != L.Setting || themeChanged)
