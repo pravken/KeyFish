@@ -291,7 +291,7 @@ partial class App : ApplicationContext
         RepairAutostart();
         L.Setting = GetSetting("Language", 0);
         Theme.Mode = Math.Max(0, Math.Min(GetSetting("Theme", 0), 2));
-        Theme.Holiday = GetSetting("Holiday", 1) != 0 && Theme.IsHalloween(DateTime.Today) && !SystemInformation.HighContrast;
+        Theme.Holiday = GetSetting("Holiday", 1) != 0 && Theme.IsHalloween(DateTime.Today) && !Theme.Contrast;
         Theme.Refresh();
         statsBase = GetSetting("StatsTotal", 0);
         if (GetSetting("StatsSince", 0) == 0) SetSetting("StatsSince", int.Parse(DateTime.Today.ToString("yyyyMMdd")));
@@ -521,7 +521,7 @@ partial class App : ApplicationContext
                 if (f.Holiday != (GetSetting("Holiday", 1) != 0))
                 {
                     SetSetting("Holiday", f.Holiday ? 1 : 0);
-                    Theme.Holiday = f.Holiday && Theme.IsHalloween(DateTime.Today) && !SystemInformation.HighContrast;
+                    Theme.Holiday = f.Holiday && Theme.IsHalloween(DateTime.Today) && !Theme.Contrast;
                     Theme.Refresh();   // the accent color
                     themeChanged = true;
                 }

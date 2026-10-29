@@ -11,7 +11,7 @@ using Microsoft.Win32;
 static class Theme
 {
     // High contrast is on in Windows: the windows take its colors instead of KeyFish's own (read before Dark)
-    public static bool Contrast = SystemInformation.HighContrast;
+    public static bool Contrast = ReadContrast();
     public static bool Dark = ReadDark();
     public static Color Accent = ReadAccent();
     public static int Mode;   // the theme chosen in Settings: 0 — as in Windows, 1 — light, 2 — dark
@@ -25,7 +25,7 @@ static class Theme
     // read them again. True if anything changed
     public static bool Refresh()
     {
-        bool contrast = SystemInformation.HighContrast;
+        bool contrast = ReadContrast();
         bool changed = contrast != Contrast;
         Contrast = contrast;
         bool dark = ReadDark();
@@ -165,6 +165,16 @@ static class Theme
     }
 
     [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
+    [StructLayout(LayoutKind.Sequential)] struct HighContrastInfo { public int Size; public int Flags; public IntPtr Scheme; }
+    [DllImport("user32.dll")] static extern bool SystemParametersInfo(int action, int param, ref HighContrastInfo info, int winIni);
+
+    // Asked of Windows directly: SystemInformation.HighContrast subscribes to SystemEvents on the thread that first
+    // reads it, and with that the double-Shift hotkey stopped getting the selected word
+    public static bool ReadContrast()
+    {
+        var hc = new HighContrastInfo { Size = Marshal.SizeOf(typeof(HighContrastInfo)) };
+        return SystemParametersInfo(0x42, hc.Size, ref hc, 0) && (hc.Flags & 1) != 0;   // SPI_GETHIGHCONTRAST, HCF_HIGHCONTRASTON
+    }
     [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)] static extern int SetWindowTheme(IntPtr hwnd, string app, string idList);
 
     // Dark title bar and the Mica backdrop behind it (Windows 11; older versions just ignore the attributes)
