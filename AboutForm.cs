@@ -49,11 +49,13 @@ class AboutForm : Form
         Control above = count;
         if (recent != null)
         {
+            // A dash: the count by day is younger than the period
+            Func<int, string> number = n => n < 0 ? "—" : n.ToString("N0", L.Culture);
             var strip = new StatsStrip(new[]
             {
-                Tuple.Create(recent[0].ToString("N0", L.Culture), L.T("сегодня", "today")),
-                Tuple.Create(recent[1].ToString("N0", L.Culture), L.T("за неделю", "this week")),
-                Tuple.Create(recent[2].ToString("N0", L.Culture), L.T("за месяц", "this month")),
+                Tuple.Create(number(recent[0]), L.T("сегодня", "today")),
+                Tuple.Create(number(recent[1]), L.T("за неделю", "this week")),
+                Tuple.Create(number(recent[2]), L.T("за месяц", "this month")),
                 Tuple.Create(L.F("≈{0} мин", "≈{0} min", recent[3].ToString("N0", L.Culture)), L.T("сэкономлено", "saved"))
             }) { Location = new Point(139, count.Bottom + 10), Size = new Size(337, 46) };
             Controls.Add(strip);

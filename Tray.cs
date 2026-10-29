@@ -260,11 +260,17 @@ partial class App
     }
 
     // Caught today, in the last 7 and 30 days, and the minutes that saved: erasing a word, switching the layout and
-    // typing it again takes about 4 seconds
+    // typing it again takes about 4 seconds. -1 for a period that began before the count by day did: only part of it
+    // is known, and that part isn't the period's number
     int[] RecentStats(int total)
     {
         var d = Daily();
-        Func<int, int> last = days => d.Where(kv => kv.Key >= DayKey(DateTime.Today.AddDays(1 - days))).Sum(kv => kv.Value);
+        int known = GetSetting("StatsDaysSince", DayKey(DateTime.Today));
+        Func<int, int> last = days =>
+        {
+            int from = DayKey(DateTime.Today.AddDays(1 - days));
+            return from < known ? -1 : d.Where(kv => kv.Key >= from).Sum(kv => kv.Value);
+        };
         return new[] { last(1), last(7), last(30), (int)Math.Round(total * 4 / 60.0) };
     }
 

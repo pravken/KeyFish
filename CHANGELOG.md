@@ -1,3 +1,7 @@
+2.1.4 2026-10-29
+Fixed:
+• The week and month statistics in About counted only the days recorded so far
+
 2.1.3 2026-10-29
 New:
 • Settings apply as soon as they are changed

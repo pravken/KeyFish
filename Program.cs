@@ -313,6 +313,8 @@ partial class App : ApplicationContext
         Theme.Refresh();
         statsBase = GetSetting("StatsTotal", 0);
         if (GetSetting("StatsSince", 0) == 0) SetSetting("StatsSince", int.Parse(DateTime.Today.ToString("yyyyMMdd")));
+        // The day the count by day started (2.1.0): a week or a month before it isn't known
+        if (GetSetting("StatsDaysSince", 0) == 0) SetSetting("StatsDaysSince", Daily().Count > 0 ? Daily().Keys.Min() : DayKey(DateTime.Today));
         string dir = DataDir();
         Dictionaries.Dir = Path.Combine(dir, "dictionaries");
         Detector.Extra = Dictionaries.Lines;
