@@ -151,6 +151,6 @@ Extended dictionary	Erweitertes Wörterbuch
 Download	Herunterladen
 Downloading…	Wird geladen…
 Remove	Entfernen
-About 100,000 more words for each language of your layouts ({0}): rare words, names, slang, so KeyFish understands better what you typed. Downloaded from GitHub when you click, about 1 MB; about 10 MB of memory per language.	Rund 100.000 weitere Wörter für jede Sprache Ihrer Layouts ({0}): seltene Wörter, Namen, Umgangssprache, damit KeyFish besser versteht, was Sie getippt haben. Wird auf Klick von GitHub geladen, etwa 1 MB; etwa 10 MB Arbeitsspeicher pro Sprache.
+About 100,000 more words for each language of your layouts ({0}): rare words, names, slang, so KeyFish understands better what you typed. Downloaded from GitHub when you click, about 1 MB; about 3 MB of memory per language.	Rund 100.000 weitere Wörter für jede Sprache Ihrer Layouts ({0}): seltene Wörter, Namen, Umgangssprache, damit KeyFish besser versteht, was Sie getippt haben. Wird auf Klick von GitHub geladen, etwa 1 MB; etwa 3 MB Arbeitsspeicher pro Sprache.
 The downloaded dictionary doesn't match its checksum, so it wasn't installed.	Das heruntergeladene Wörterbuch stimmt nicht mit seiner Prüfsumme überein und wurde nicht installiert.
 Couldn't download the dictionary: 	Das Wörterbuch konnte nicht geladen werden: 

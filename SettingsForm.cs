@@ -268,8 +268,8 @@ class SettingsForm : Form
             });
         };
         Row(page, ref y, L.T("Расширенный словарь", "Extended dictionary"),
-            L.F("Ещё около 100 тысяч слов для каждого языка ваших раскладок ({0}): редкие слова, имена, жаргон — KeyFish точнее понимает, что вы набрали. Скачивается с GitHub по кнопке, около 1 МБ; в памяти около 10 МБ на язык.",
-                "About 100,000 more words for each language of your layouts ({0}): rare words, names, slang, so KeyFish understands better what you typed. Downloaded from GitHub when you click, about 1 MB; about 10 MB of memory per language.",
+            L.F("Ещё около 100 тысяч слов для каждого языка ваших раскладок ({0}): редкие слова, имена, жаргон — KeyFish точнее понимает, что вы набрали. Скачивается с GitHub по кнопке, около 1 МБ; в памяти около 3 МБ на язык.",
+                "About 100,000 more words for each language of your layouts ({0}): rare words, names, slang, so KeyFish understands better what you typed. Downloaded from GitHub when you click, about 1 MB; about 3 MB of memory per language.",
                 tags), button);
     }
 

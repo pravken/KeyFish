@@ -6,15 +6,21 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 
-// Language model: a frequency dictionary plus three-letter sequence statistics
+// Language model: a frequency dictionary plus three-letter sequence statistics.
+// Kept compact, as sorted arrays: a string and a hash-table entry per word would take several times the letters
+// themselves (tens of megabytes with an extended dictionary)
 public class LangModel
 {
     // A dictionary without frequencies (every word has the same weight) treats each of its words as this common
     const long TypicalCount = 3000;
 
-    readonly Dictionary<string, long> words = new Dictionary<string, long>();
-    readonly Dictionary<string, double> tri = new Dictionary<string, double>();
-    readonly Dictionary<string, double> ctx = new Dictionary<string, double>();
+    // The words, sorted, one after another in one buffer: word i is text[starts[i] .. starts[i + 1])
+    readonly char[] text;
+    readonly int[] starts;
+    readonly long[] counts;
+    // Three- and two-letter sequences, each packed into a number (see Pack), sorted, with their weights
+    readonly long[] triKeys, ctxKeys;
+    readonly double[] triWeights, ctxWeights;
     readonly int alphabet;
 
     public string Lang;
@@ -24,6 +30,9 @@ public class LangModel
     public LangModel(IEnumerable<string> lines, int alphabetSize)
     {
         alphabet = alphabetSize + 1;
+        var words = new Dictionary<string, long>();
+        var tri = new Dictionary<long, double>();
+        var ctx = new Dictionary<long, double>();
         long first = -1;
         bool allSame = true;
         foreach (string line in lines)
@@ -40,25 +49,84 @@ public class LangModel
             string p = "^^" + w + "$";
             for (int i = 2; i < p.Length; i++)
             {
-                Add(tri, p.Substring(i - 2, 3), weight);
-                Add(ctx, p.Substring(i - 2, 2), weight);
+                Add(tri, Pack(p, i - 2, 3), weight);
+                Add(ctx, Pack(p, i - 2, 2), weight);
             }
         }
         HasFrequencies = !allSame;
+
+        var sorted = new string[words.Count];
+        words.Keys.CopyTo(sorted, 0);
+        Array.Sort(sorted, StringComparer.Ordinal);
+        int length = 0;
+        foreach (string w in sorted) length += w.Length;
+        text = new char[length];
+        starts = new int[sorted.Length + 1];
+        counts = new long[sorted.Length];
+        for (int i = 0, at = 0; i < sorted.Length; i++)
+        {
+            starts[i] = at;
+            sorted[i].CopyTo(0, text, at, sorted[i].Length);
+            at += sorted[i].Length;
+            counts[i] = words[sorted[i]];
+        }
+        starts[sorted.Length] = length;
+        ToArrays(tri, out triKeys, out triWeights);
+        ToArrays(ctx, out ctxKeys, out ctxWeights);
     }
 
-    static void Add(Dictionary<string, double> d, string k, double v)
+    // Up to three characters in one number; the length goes first, so "ab" and "\0ab" differ
+    static long Pack(string s, int start, int length)
+    {
+        long key = length;
+        for (int i = start; i < start + length; i++) key = (key << 16) | s[i];
+        return key;
+    }
+
+    static void Add(Dictionary<long, double> d, long k, double v)
     {
         double cur;
         d.TryGetValue(k, out cur);
         d[k] = cur + v;
     }
 
+    static void ToArrays(Dictionary<long, double> d, out long[] keys, out double[] values)
+    {
+        keys = new long[d.Count];
+        values = new double[d.Count];
+        d.Keys.CopyTo(keys, 0);
+        d.Values.CopyTo(values, 0);
+        Array.Sort(keys, values);
+    }
+
+    static double Lookup(long[] keys, double[] values, long key)
+    {
+        int i = Array.BinarySearch(keys, key);
+        return i >= 0 ? values[i] : 0;
+    }
+
+    // Ordinal comparison of a word with word i of the buffer
+    int Compare(string word, int i)
+    {
+        int s = starts[i], n = starts[i + 1] - s;
+        for (int k = 0; k < word.Length && k < n; k++)
+        {
+            int d = word[k] - text[s + k];
+            if (d != 0) return d;
+        }
+        return word.Length - n;
+    }
+
     public long Count(string word)
     {
-        long c;
-        if (!words.TryGetValue(word, out c)) return 0;
-        return HasFrequencies ? c : TypicalCount;
+        int lo = 0, hi = counts.Length - 1;
+        while (lo <= hi)
+        {
+            int mid = (lo + hi) >> 1, c = Compare(word, mid);
+            if (c == 0) return HasFrequencies ? counts[mid] : TypicalCount;
+            if (c < 0) hi = mid - 1; else lo = mid + 1;
+        }
+        return 0;
     }
 
     // Average log probability per character: the higher, the more natural the word is for the language
@@ -68,9 +136,8 @@ public class LangModel
         double sum = 0;
         for (int i = 2; i < p.Length; i++)
         {
-            double t, c;
-            tri.TryGetValue(p.Substring(i - 2, 3), out t);
-            ctx.TryGetValue(p.Substring(i - 2, 2), out c);
+            double t = Lookup(triKeys, triWeights, Pack(p, i - 2, 3));
+            double c = Lookup(ctxKeys, ctxWeights, Pack(p, i - 2, 2));
             sum += Math.Log((t + 0.1) / (c + 0.1 * alphabet));
         }
         return sum / (p.Length - 2);

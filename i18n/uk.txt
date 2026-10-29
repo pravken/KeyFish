@@ -151,6 +151,6 @@ Extended dictionary	Розширений словник
 Download	Завантажити
 Downloading…	Завантажую…
 Remove	Видалити
-About 100,000 more words for each language of your layouts ({0}): rare words, names, slang, so KeyFish understands better what you typed. Downloaded from GitHub when you click, about 1 MB; about 10 MB of memory per language.	Ще близько 100 тисяч слів для кожної мови ваших розкладок ({0}): рідкісні слова, імена, жаргон — KeyFish точніше розуміє, що ви набрали. Завантажується з GitHub за кнопкою, близько 1 МБ; у пам'яті близько 10 МБ на мову.
+About 100,000 more words for each language of your layouts ({0}): rare words, names, slang, so KeyFish understands better what you typed. Downloaded from GitHub when you click, about 1 MB; about 3 MB of memory per language.	Ще близько 100 тисяч слів для кожної мови ваших розкладок ({0}): рідкісні слова, імена, жаргон — KeyFish точніше розуміє, що ви набрали. Завантажується з GitHub за кнопкою, близько 1 МБ; у пам'яті близько 3 МБ на мову.
 The downloaded dictionary doesn't match its checksum, so it wasn't installed.	Завантажений словник не збігся з контрольною сумою — його не встановлено.
 Couldn't download the dictionary: 	Не вдалося завантажити словник: 
