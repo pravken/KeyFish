@@ -10,6 +10,8 @@ using Microsoft.Win32;
 // and a few self-drawn controls (switch, card, rounded button, sidebar). No extra libraries.
 static class Theme
 {
+    // High contrast is on in Windows: the windows take its colors instead of KeyFish's own (read before Dark)
+    public static bool Contrast = SystemInformation.HighContrast;
     public static bool Dark = ReadDark();
     public static Color Accent = ReadAccent();
     public static int Mode;   // the theme chosen in Settings: 0 — as in Windows, 1 — light, 2 — dark
@@ -23,29 +25,34 @@ static class Theme
     // read them again. True if anything changed
     public static bool Refresh()
     {
+        bool contrast = SystemInformation.HighContrast;
+        bool changed = contrast != Contrast;
+        Contrast = contrast;
         bool dark = ReadDark();
         Color accent = ReadAccent();
-        if (dark == Dark && accent == Accent) return false;
+        if (!changed && dark == Dark && accent == Accent) return false;
         Dark = dark;
         Accent = accent;
         return true;
     }
 
-    // On Halloween the dark theme leans to night purple
-    public static Color Back { get { return Dark ? (Holiday ? Color.FromArgb(31, 26, 38) : Color.FromArgb(32, 32, 32)) : Color.FromArgb(243, 243, 243); } }
-    public static Color Card { get { return Dark ? (Holiday ? Color.FromArgb(43, 36, 52) : Color.FromArgb(43, 43, 43)) : Color.FromArgb(251, 251, 251); } }
-    public static Color CardBorder { get { return Dark ? (Holiday ? Color.FromArgb(27, 22, 34) : Color.FromArgb(29, 29, 29)) : Color.FromArgb(229, 229, 229); } }
-    public static Color Text { get { return Dark ? Color.White : Color.FromArgb(27, 27, 27); } }
-    public static Color SubText { get { return Dark ? Color.FromArgb(200, 200, 200) : Color.FromArgb(96, 96, 96); } }
-    public static Color Input { get { return Dark ? (Holiday ? Color.FromArgb(46, 39, 56) : Color.FromArgb(45, 45, 45)) : Color.White; } }
-    public static Color InputBorder { get { return Dark ? (Holiday ? Color.FromArgb(76, 64, 92) : Color.FromArgb(70, 70, 70)) : Color.FromArgb(214, 214, 214); } }
-    public static Color Hover { get { return Dark ? (Holiday ? Color.FromArgb(58, 49, 70) : Color.FromArgb(55, 55, 55)) : Color.FromArgb(233, 233, 233); } }
-    public static Color Selected { get { return Dark ? (Holiday ? Color.FromArgb(64, 54, 78) : Color.FromArgb(60, 60, 60)) : Color.FromArgb(228, 228, 228); } }
-    public static Color Danger { get { return Dark ? Color.FromArgb(255, 153, 164) : Color.FromArgb(196, 43, 28); } }
+    // On Halloween the dark theme leans to night purple. In high contrast: the system's own colors, with clear borders
+    public static Color Back { get { return Contrast ? SystemColors.Window : Dark ? (Holiday ? Color.FromArgb(31, 26, 38) : Color.FromArgb(32, 32, 32)) : Color.FromArgb(243, 243, 243); } }
+    public static Color Card { get { return Contrast ? SystemColors.Window : Dark ? (Holiday ? Color.FromArgb(43, 36, 52) : Color.FromArgb(43, 43, 43)) : Color.FromArgb(251, 251, 251); } }
+    public static Color CardBorder { get { return Contrast ? SystemColors.WindowText : Dark ? (Holiday ? Color.FromArgb(27, 22, 34) : Color.FromArgb(29, 29, 29)) : Color.FromArgb(229, 229, 229); } }
+    public static Color Text { get { return Contrast ? SystemColors.WindowText : Dark ? Color.White : Color.FromArgb(27, 27, 27); } }
+    public static Color SubText { get { return Contrast ? SystemColors.WindowText : Dark ? Color.FromArgb(200, 200, 200) : Color.FromArgb(96, 96, 96); } }
+    public static Color Input { get { return Contrast ? SystemColors.Window : Dark ? (Holiday ? Color.FromArgb(46, 39, 56) : Color.FromArgb(45, 45, 45)) : Color.White; } }
+    public static Color InputBorder { get { return Contrast ? SystemColors.WindowText : Dark ? (Holiday ? Color.FromArgb(76, 64, 92) : Color.FromArgb(70, 70, 70)) : Color.FromArgb(214, 214, 214); } }
+    public static Color Hover { get { return Contrast ? SystemColors.Window : Dark ? (Holiday ? Color.FromArgb(58, 49, 70) : Color.FromArgb(55, 55, 55)) : Color.FromArgb(233, 233, 233); } }
+    public static Color Selected { get { return Contrast ? SystemColors.Highlight : Dark ? (Holiday ? Color.FromArgb(64, 54, 78) : Color.FromArgb(60, 60, 60)) : Color.FromArgb(228, 228, 228); } }
+    public static Color Danger { get { return Contrast ? SystemColors.WindowText : Dark ? Color.FromArgb(255, 153, 164) : Color.FromArgb(196, 43, 28); } }
     // On a dark background Windows 11 uses a lighter shade of the accent color
-    public static Color AccentFill { get { return Dark ? Blend(Accent, Color.White, 0.45) : Accent; } }
-    public static Color OnAccent { get { return Dark ? Color.Black : Color.White; } }
-    public static Color SelectionBack { get { return Blend(AccentFill, Card, Dark ? 0.7 : 0.82); } }
+    public static Color AccentFill { get { return Contrast ? SystemColors.Highlight : Dark ? Blend(Accent, Color.White, 0.45) : Accent; } }
+    public static Color OnAccent { get { return Contrast ? SystemColors.HighlightText : Dark ? Color.Black : Color.White; } }
+    // Text on a selected item (Selected, SelectionBack): in high contrast the system's highlight text color
+    public static Color OnSelected { get { return Contrast ? SystemColors.HighlightText : Text; } }
+    public static Color SelectionBack { get { return Contrast ? SystemColors.Highlight : Blend(AccentFill, Card, Dark ? 0.7 : 0.82); } }
 
     // The screen's scale (125 % → 1.25). Windows are laid out in 96-DPI pixels and scaled by this once, when built
     // (ScaleWindow); fonts are in points and grow with the screen by themselves.
@@ -100,6 +107,8 @@ static class Theme
 
     static bool ReadDark()
     {
+        // High contrast: dark when its window background is
+        if (Contrast) { var w = SystemColors.Window; return (w.R * 30 + w.G * 59 + w.B * 11) / 100 < 128; }
         if (Mode == 1) return false;
         if (Mode == 2) return true;
         try
@@ -717,8 +726,9 @@ class NavList : Control
                 using (var path = Theme.Rounded(new RectangleF(r.X, r.Y + r.Height / 2 - 8, 3, 16), 1.5f))
                 using (var b = new SolidBrush(Theme.AccentFill)) g.FillPath(b, path);
             Color under = i == selected ? Theme.Selected : i == hover ? Theme.Hover : BackColor;
-            Theme.SmoothText(g, Items[i].Item1, icons, new Rectangle(r.X + 10, r.Y + 1, 28, r.Height), Theme.Text, true, false);
-            Theme.SmoothText(g, Items[i].Item2, Font, new Rectangle(r.X + 44, r.Y, r.Width - 48, r.Height), Theme.Text, false);
+            Color ink = i == selected ? Theme.OnSelected : Theme.Text;
+            Theme.SmoothText(g, Items[i].Item1, icons, new Rectangle(r.X + 10, r.Y + 1, 28, r.Height), ink, true, false);
+            Theme.SmoothText(g, Items[i].Item2, Font, new Rectangle(r.X + 44, r.Y, r.Width - 48, r.Height), ink, false);
             if (Focused && ShowFocusCues && i == selected)
                 using (var p = new Pen(Theme.Text) { DashStyle = DashStyle.Dot }) g.DrawRectangle(p, r);
         }

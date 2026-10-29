@@ -1139,6 +1139,7 @@ class HotkeyBox : TextBox
     {
         recording = on;
         BackColor = on ? Theme.SelectionBack : Theme.Input;
+        ForeColor = on ? Theme.OnSelected : Theme.Text;
         Font = on ? Theme.Strong : Theme.Body;
         Show(on ? Prompt : SettingsForm.Format(value));
     }

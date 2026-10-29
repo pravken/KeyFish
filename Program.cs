@@ -764,7 +764,8 @@ class App : ApplicationContext
     // Windows switched between the light and dark theme or changed the accent color: the tray menu follows at once
     void OnSystemPreference(object sender, UserPreferenceChangedEventArgs e)
     {
-        if (e.Category != UserPreferenceCategory.General && e.Category != UserPreferenceCategory.Color && e.Category != UserPreferenceCategory.VisualStyle) return;
+        if (e.Category != UserPreferenceCategory.General && e.Category != UserPreferenceCategory.Color && e.Category != UserPreferenceCategory.VisualStyle &&
+            e.Category != UserPreferenceCategory.Accessibility) return;   // Accessibility: high contrast on or off
         if (!Theme.Refresh()) return;
         var old = tray.ContextMenuStrip;
         tray.ContextMenuStrip = BuildMenu();
@@ -809,7 +810,7 @@ class App : ApplicationContext
         RepairAutostart();
         L.Setting = GetSetting("Language", 0);
         Theme.Mode = Math.Max(0, Math.Min(GetSetting("Theme", 0), 2));
-        Theme.Holiday = GetSetting("Holiday", 1) != 0 && Theme.IsHalloween(DateTime.Today);
+        Theme.Holiday = GetSetting("Holiday", 1) != 0 && Theme.IsHalloween(DateTime.Today) && !SystemInformation.HighContrast;
         Theme.Refresh();
         statsBase = GetSetting("StatsTotal", 0);
         if (GetSetting("StatsSince", 0) == 0) SetSetting("StatsSince", int.Parse(DateTime.Today.ToString("yyyyMMdd")));
@@ -1144,7 +1145,7 @@ class App : ApplicationContext
                 if (f.Holiday != (GetSetting("Holiday", 1) != 0))
                 {
                     SetSetting("Holiday", f.Holiday ? 1 : 0);
-                    Theme.Holiday = f.Holiday && Theme.IsHalloween(DateTime.Today);
+                    Theme.Holiday = f.Holiday && Theme.IsHalloween(DateTime.Today) && !SystemInformation.HighContrast;
                     Theme.Refresh();   // the accent color
                     themeChanged = true;
                 }

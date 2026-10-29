@@ -41,6 +41,8 @@ static class Preview
         if (args.Length > ta) typeof(Theme).GetField("Dark").SetValue(null, args[ta] == "dark");
         // "halloween": the holiday look, whatever the date
         if (Array.IndexOf(args, "halloween") >= 0) { Theme.Holiday = true; Theme.Accent = Color.FromArgb(232, 110, 20); }
+        // "contrast": the high-contrast colors path, with whatever system colors this computer has
+        if (Array.IndexOf(args, "contrast") >= 0) { Theme.Contrast = true; Theme.Dark = false; }
         L.Setting = args.Length > ta + 1 ? Array.IndexOf(L.Codes, args[ta + 1]) + 1 : 1;
         Application.EnableVisualStyles();
         Form form;
