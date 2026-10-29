@@ -9,7 +9,7 @@ using System.Text;
 //   wrong  — each word in the other layout: KeyFish must give the original word back.
 // The decision goes the way KeyFish makes it (digits and code skipped, Detector.Choose with the previous word's
 // language as context), without the parts that need a live keyboard (learned words, held-back short words).
-// Usage: LayoutBench.exe <data dir> <layouts dir> <corpus dir>   (exit code 1 if false corrections exceed the limit)
+// Usage: LayoutBench.exe <data dir> <layouts dir> <corpus dir> [max false corrections] [min % fixed]   (exit code 1 past a limit)
 static class LayoutBench
 {
     class Side { public string Lang; public LayoutTable Layout; public LangModel Model; }
@@ -121,7 +121,11 @@ static class LayoutBench
         Console.WriteLine("typed right:  {0} words, {1} false corrections ({2:0.00}%)", words, falseFixes, 100.0 * falseFixes / words);
         Console.WriteLine("typed wrong:  {0} words, fixed {1} ({2:0.0}%), missed {3}, wrong result {4}",
                           wrongTotal, wrongFixed, 100.0 * wrongFixed / wrongTotal, wrongMissed, wrongGarbled);
+        // Optional limits for CI: at most this many false corrections, at least this share of wrong-layout words fixed
         int limit = args.Length > 3 ? int.Parse(args[3]) : int.MaxValue;
-        Environment.Exit(falseFixes > limit ? 1 : 0);
+        double minFixed = args.Length > 4 ? double.Parse(args[4], System.Globalization.CultureInfo.InvariantCulture) : 0;
+        bool failed = falseFixes > limit || 100.0 * wrongFixed / wrongTotal < minFixed;
+        if (failed) Console.WriteLine("FAILED: the limits are at most {0} false corrections and at least {1}% fixed", limit, minFixed);
+        Environment.Exit(failed ? 1 : 0);
     }
 }

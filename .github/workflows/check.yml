@@ -1,0 +1,48 @@
+# On every push and pull request: KeyFish builds, the layout tables read right, and the detector is no worse than
+# before on tests\corpus (false corrections and the share of wrong-layout words fixed). The typing tests need a
+# real desktop and are run by hand (tests\run-tests.ps1)
+name: Check
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      # Pinned to an exact commit, not a tag, so a moved tag can't get into the build
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build
+        shell: cmd
+        run: build.bat
+
+      - name: Build the checks
+        shell: pwsh
+        run: |
+          $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          New-Item -ItemType Directory -Force tests\bin | Out-Null
+          foreach ($c in 'LayoutCheck', 'ChooseCheck', 'LayoutBench') {
+            & $csc /nologo /codepage:65001 /out:tests\bin\$c.exe /r:System.Core.dll tests\$c.cs Detector.cs Layouts.cs
+            if ($LASTEXITCODE -ne 0) { throw "$c doesn't build" }
+          }
+
+      - name: Layout tables
+        shell: pwsh
+        run: tests\bin\LayoutCheck.exe tests\layouts; if ($LASTEXITCODE -ne 0) { throw 'LayoutCheck failed' }
+
+      - name: Choosing among Cyrillic layouts
+        shell: pwsh
+        run: tests\bin\ChooseCheck.exe data tests\layouts; if ($LASTEXITCODE -ne 0) { throw 'ChooseCheck failed' }
+
+      # The limits are the current results; raise them when the detector gets better
+      - name: False corrections and misses
+        shell: pwsh
+        run: tests\bin\LayoutBench.exe data tests\layouts tests\corpus 2 92.5; if ($LASTEXITCODE -ne 0) { throw 'The detector got worse on tests\corpus' }
