@@ -287,12 +287,23 @@ class KeyboardWatcher
         InstallHooks();
     }
 
+    // Called on the hook thread for every key and mouse click: KeyFish's tray icon wakes up to look at the layout
+    // (it is switched with keys, or by clicking the taskbar). Must be quick and must not throw
+    public Action Activity;
+
+    void Notify()
+    {
+        var a = Activity;
+        if (a != null) try { a(); } catch { }
+    }
+
     IntPtr MouseHook(int code, IntPtr wParam, IntPtr lParam)
     {
         lastHookEvent = Environment.TickCount;
         int msg = wParam.ToInt32();
         if (code >= 0 && (msg == 0x0201 || msg == 0x0204 || msg == 0x0207)) // L/R/M button down
         {
+            Notify();
             lastShiftTap = 0;
             lock (sync) { ResetAll(); last = null; erasedKeys = null; }
         }
@@ -304,6 +315,7 @@ class KeyboardWatcher
         lastHookEvent = Environment.TickCount;
         if (code >= 0)
         {
+            Notify();
             // The fields are read in place: copying the structure would allocate on every key, down and up
             var k = new W.KBDLLHOOKSTRUCT
             {

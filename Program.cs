@@ -157,6 +157,19 @@ class App : ApplicationContext
     string currentLayoutName = "";
     int seenCorrections, blinkTicks;
     readonly System.Windows.Forms.Timer trayTimer = new System.Windows.Forms.Timer();
+    SynchronizationContext uiContext;
+    volatile bool idle;
+    volatile int lastActivity;
+    Native.WinEventProc foregroundProc;   // kept referenced: Windows calls it for as long as the hook lives
+    IntPtr foregroundHook;
+
+    // Something happened (a key, a click, another window in front): look now and keep looking often for a while
+    void Wake()
+    {
+        idle = false;
+        trayTimer.Interval = 150;
+        UpdateTrayIcon();
+    }
     readonly int ownPid = Process.GetCurrentProcess().Id;
 
     IntPtr lastForeground;
@@ -644,8 +657,25 @@ class App : ApplicationContext
         tray.DoubleClick += (s, e) => { if (!busy) OpenSettings(); };
         tray.Visible = true;
 
+        // The tray icon follows the window in front and its layout. Windows says when another window comes to the front;
+        // a layout change has no such signal, so it is looked for often only while keys are pressed or clicked (that's
+        // how layouts are switched) and while the icon blinks, and once a second otherwise
+        uiContext = SynchronizationContext.Current;
+        foregroundProc = (hook, ev, hwnd, idObject, idChild, thread, time) => { lastActivity = Environment.TickCount; Wake(); };
+        foregroundHook = Native.SetWinEventHook(3, 3, IntPtr.Zero, foregroundProc, 0, 0, 0);   // EVENT_SYSTEM_FOREGROUND, out of context
+        watcher.Activity = () =>
+        {
+            lastActivity = Environment.TickCount;
+            if (idle) { idle = false; var c = uiContext; if (c != null) c.Post(_ => Wake(), null); }
+        };
         trayTimer.Interval = 150;
-        trayTimer.Tick += (s, e) => UpdateTrayIcon();
+        trayTimer.Tick += (s, e) =>
+        {
+            UpdateTrayIcon();
+            bool busyNow = blinkTicks > 0 || Environment.TickCount - lastActivity < 3000;
+            trayTimer.Interval = busyNow ? 150 : 1000;
+            idle = !busyNow;
+        };
         trayTimer.Start();
 
         hotkeys.Pressed += OnHotkey;
@@ -1303,6 +1333,7 @@ class App : ApplicationContext
         FileQueue.Flush(2000);
         tray.Visible = false;
         hotkeys.UnregisterAll();
+        if (foregroundHook != IntPtr.Zero) Native.UnhookWinEvent(foregroundHook);
         CrashLog.Stop();
         base.ExitThreadCore();
     }
@@ -1408,6 +1439,10 @@ class HotkeyWindow : NativeWindow
 
 static class Native
 {
+    public delegate void WinEventProc(IntPtr hook, uint ev, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);
+    [DllImport("user32.dll")] public static extern IntPtr SetWinEventHook(uint min, uint max, IntPtr module, WinEventProc proc, uint pid, uint thread, uint flags);
+    [DllImport("user32.dll")] public static extern bool UnhookWinEvent(IntPtr hook);
+
     [StructLayout(LayoutKind.Sequential)] public struct POINT { public int x, y; }
     [StructLayout(LayoutKind.Sequential)] public struct SIZE { public int cx, cy; }
     [StructLayout(LayoutKind.Sequential, Pack = 1)] public struct BLENDFUNCTION { public byte BlendOp, BlendFlags, SourceConstantAlpha, AlphaFormat; }
