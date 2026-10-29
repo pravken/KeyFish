@@ -159,3 +159,7 @@ Icon and cues	Значок і підказки
 System	Система
 Sound on corrections	Звук під час виправлення
 Layout: {0}	Розкладка: {0}
+Switch layout of the text in the clipboard (copy, press, paste)	Розкладка тексту в буфері обміну (скопіюйте, натисніть, вставте)
+There is no text in the clipboard.	У буфері обміну немає тексту.
+Couldn't tell which layout to switch the text to.	Не вдалося зрозуміти, в яку розкладку перевести текст.
+The text in the clipboard is now in the {0} layout, ready to paste.	Текст у буфері обміну переведено в розкладку {0} — його можна вставити.

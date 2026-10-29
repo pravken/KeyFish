@@ -24,6 +24,8 @@ static class Typer
         var f = new Form { Width = 900, Height = 300, TopMost = true, Text = "KeyFish test" };
         var tb = new TextBox { Multiline = true, Dock = DockStyle.Fill, Font = new System.Drawing.Font("Segoe UI", 14) };
         f.Controls.Add(tb);
+        // A multi-line text box ignores Ctrl+A; the tests select everything with it, as in most apps
+        tb.KeyDown += (o, e) => { if (e.Control && e.KeyCode == Keys.A) { tb.SelectAll(); e.SuppressKeyPress = true; } };
         if (args.Length > 2 && args[2] == "full") { f.FormBorderStyle = FormBorderStyle.None; f.WindowState = FormWindowState.Maximized; }
 
         var steps = new Queue<Action>();

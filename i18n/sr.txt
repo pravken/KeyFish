@@ -159,3 +159,7 @@ Icon and cues	Иконица и наговештаји
 System	Систем
 Sound on corrections	Звук при исправци
 Layout: {0}	Распоред: {0}
+Switch layout of the text in the clipboard (copy, press, paste)	Распоред текста у оставу (копирајте, притисните, налепите)
+There is no text in the clipboard.	У остави нема текста.
+Couldn't tell which layout to switch the text to.	Није могуће утврдити у који распоред пребацити текст.
+The text in the clipboard is now in the {0} layout, ready to paste.	Текст у остави је сада у распореду {0} — може да се налепи.

@@ -429,15 +429,17 @@ class App : ApplicationContext
                 L.T("Раскладка выделенного текста — запасное сочетание", "Switch layout of selected text — alternative keys"),
                 L.T("Регистр выделенного текста (aa → Aa → AA)", "Change case of selected text (aa → Aa → AA)"),
                 L.T("Транслитерация (привет ⇄ privet)", "Transliterate (привет ⇄ privet)"),
-                L.T("Раскладка всей строки до курсора", "Switch layout of the whole line before the cursor")
+                L.T("Раскладка всей строки до курсора", "Switch layout of the whole line before the cursor"),
+                L.T("Раскладка текста в буфере обмена (скопируйте, нажмите, вставьте)", "Switch layout of the text in the clipboard (copy, press, paste)")
             };
         }
     }
     public static readonly Keys[] HotkeyDefaults =
     {
-        Keys.Pause, Keys.Control | Keys.Shift | Keys.Space, Keys.Shift | Keys.F3, Keys.Shift | Keys.Pause, Keys.Alt | Keys.Pause
+        Keys.Pause, Keys.Control | Keys.Shift | Keys.Space, Keys.Shift | Keys.F3, Keys.Shift | Keys.Pause, Keys.Alt | Keys.Pause,
+        Keys.None   // the clipboard: off until the user picks keys for it
     };
-    const int HkLayout = 1, HkLayoutAlt = 2, HkCase = 3, HkTranslit = 4, HkLine = 5;
+    const int HkLayout = 1, HkLayoutAlt = 2, HkCase = 3, HkTranslit = 4, HkLine = 5, HkClipboard = 6;
 
     static Keys GetHotkey(int i) { return (Keys)GetSetting("Hotkey" + (i + 1), (int)HotkeyDefaults[i]); }
 
@@ -1015,6 +1017,8 @@ class App : ApplicationContext
         hotkeyWindow = Native.GetForegroundWindow();
         try
         {
+            // The clipboard is converted in place: nothing is copied from or typed into the window, so it works anywhere
+            if (id == HkClipboard) { ConvertClipboard(); return; }
             if (W.HasMoreRights(hotkeyWindow)) { NoRightsHere(hotkeyWindow); return; }
             if (id == HkLayout && watcher.Undo()) return;
             if (!watcher.HotkeyAllowed(hotkeyWindow)) return;   // an excluded app or a password field
@@ -1129,6 +1133,30 @@ class App : ApplicationContext
             if (result != null && Paste(result)) W.SwitchLayout(target, layout.Hkl);
         }
         RestoreClipboard(saved);
+    }
+
+    // The text the user copied, in the other layout, put back into the clipboard to paste anywhere: for places where
+    // the selection hotkey can't copy or type (remote desktops, apps run as administrator, some games and web forms).
+    // The text isn't shown in the notification: Windows keeps notifications
+    void ConvertClipboard()
+    {
+        string text = null;
+        try { if (Clipboard.ContainsText()) text = Clipboard.GetText(); } catch { }
+        if (string.IsNullOrEmpty(text) || text.Length > 100000)
+        {
+            tray.ShowBalloonTip(3000, "KeyFish", L.T("В буфере обмена нет текста.", "There is no text in the clipboard."), ToolTipIcon.Info);
+            return;
+        }
+        LayoutTable layout;
+        string result = watcher.ConvertText(text, hotkeyWindow, out layout);
+        if (result == null)
+        {
+            tray.ShowBalloonTip(3000, "KeyFish", L.T("Не удалось понять, в какую раскладку перевести текст.", "Couldn't tell which layout to switch the text to."), ToolTipIcon.Info);
+            return;
+        }
+        try { Clipboard.SetText(result); } catch { return; }
+        tray.ShowBalloonTip(3000, "KeyFish", L.F("Текст в буфере обмена переведён в раскладку {0} — его можно вставить.",
+            "The text in the clipboard is now in the {0} layout, ready to paste.", (layout.Name ?? "").Split('-')[0].ToUpperInvariant()), ToolTipIcon.Info);
     }
 
     void ConvertSelection()

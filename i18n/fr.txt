@@ -159,3 +159,7 @@ Icon and cues	Icône et indications
 System	Système
 Sound on corrections	Son à chaque correction
 Layout: {0}	Disposition : {0}
+Switch layout of the text in the clipboard (copy, press, paste)	Disposition du texte du presse-papiers (copiez, appuyez, collez)
+There is no text in the clipboard.	Le presse-papiers ne contient pas de texte.
+Couldn't tell which layout to switch the text to.	Impossible de savoir dans quelle disposition convertir le texte.
+The text in the clipboard is now in the {0} layout, ready to paste.	Le texte du presse-papiers est maintenant dans la disposition {0}, prêt à coller.

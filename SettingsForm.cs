@@ -1367,7 +1367,7 @@ static class SettingsArchive
     public static readonly string[] Values =
     {
         "AutoCorrect", "Typos", "QuietFullscreen", "UndoCtrlZ", "LayoutColor", "CheckUpdates", "LayoutBadge", "RecentMenu", "QuickKey", "Sound", "TrayLetters", "Typography",
-        "Language", "Theme", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5"
+        "Language", "Theme", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5", "Hotkey6"
     };
     static readonly string[] FileNames = { "replacements.txt", "exclusions.txt", "ignored-words.txt", "learned-words.txt", "app-layouts.txt", "layout-colors.txt" };
 

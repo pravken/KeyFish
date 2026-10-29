@@ -159,3 +159,7 @@ Icon and cues	Ikona i podpowiedzi
 System	System
 Sound on corrections	Dźwięk przy poprawkach
 Layout: {0}	Układ: {0}
+Switch layout of the text in the clipboard (copy, press, paste)	Układ tekstu w schowku (skopiuj, naciśnij, wklej)
+There is no text in the clipboard.	W schowku nie ma tekstu.
+Couldn't tell which layout to switch the text to.	Nie udało się ustalić, na jaki układ przełączyć tekst.
+The text in the clipboard is now in the {0} layout, ready to paste.	Tekst w schowku jest teraz w układzie {0} — można go wkleić.
