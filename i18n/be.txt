@@ -156,3 +156,5 @@ Couldn't download the dictionary: 	Не ўдалося спампаваць сл
 Correction	Выпраўленне
 Icon and cues	Значок і падказкі
 System	Сістэма
+Sound on corrections	Гук пры выпраўленні
+Layout: {0}	Раскладка: {0}

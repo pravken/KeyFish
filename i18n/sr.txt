@@ -157,3 +157,5 @@ Couldn't download the dictionary: 	Преузимање речника није 
 Correction	Исправљање
 Icon and cues	Иконица и наговештаји
 System	Систем
+Sound on corrections	Звук при исправци
+Layout: {0}	Распоред: {0}

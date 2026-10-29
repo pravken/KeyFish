@@ -157,3 +157,5 @@ Couldn't download the dictionary: 	Das Wörterbuch konnte nicht geladen werden:
 Correction	Korrektur
 Icon and cues	Symbol und Hinweise
 System	System
+Sound on corrections	Ton bei Korrekturen
+Layout: {0}	Layout: {0}

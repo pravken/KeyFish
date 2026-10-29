@@ -157,3 +157,5 @@ Couldn't download the dictionary: 	Не вдалося завантажити с
 Correction	Виправлення
 Icon and cues	Значок і підказки
 System	Система
+Sound on corrections	Звук під час виправлення
+Layout: {0}	Розкладка: {0}

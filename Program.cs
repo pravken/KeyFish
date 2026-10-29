@@ -204,7 +204,7 @@ class App : ApplicationContext
             if (!sameWindow) { lastForeground = fg; foregroundNoRights = W.HasMoreRights(fg); ApplyAppLayout(fg, pid); }
             IntPtr hkl = W.LayoutHkl(fg);
             var layout = watcher.Layouts.Get(hkl);
-            if (layout != null) { currentRu = layout.Script != null && layout.Script != "Latin"; currentLayoutName = (layout.Name ?? "").Split('-')[0].ToUpperInvariant(); }
+            if (layout != null) { currentRu = layout.Script != null && layout.Script != "Latin"; currentLayoutName = (layout.Name ?? "").Split('-')[0].ToUpperInvariant(); currentCulture = layout.Name; }
             // The layout changed in the window being typed in (by the user or by an auto-fix): show it at the caret
             if (sameWindow && hkl != lastHkl && lastHkl != IntPtr.Zero && showBadge && layout != null && currentLayoutName.Length > 0)
             {
@@ -283,6 +283,7 @@ class App : ApplicationContext
     }
 
     IntPtr lastHkl;
+    string currentCulture;   // the layout's culture name, "ru-RU", for the tray menu
     bool playSound, trayLetters;
     bool foregroundNoRights;   // the window in front runs as administrator: KeyFish can't work in it (the fish is grey)
 
@@ -492,16 +493,31 @@ class App : ApplicationContext
         ThemedMenuRenderer.Apply(recentItem.DropDown);
         recentItem.DropDownItems.Add("…");   // filled when the menu opens
 
+        // The layout now on, and switches used often enough to want them without opening Settings
+        var layoutItem = new ToolStripMenuItem { Enabled = false };
+        var typosItem = new ToolStripMenuItem(L.T("Исправлять опечатки", "Fix typos"));
+        typosItem.Click += (s, e) => { watcher.FixTypos = !watcher.FixTypos; SetSetting("Typos", watcher.FixTypos ? 1 : 0); };
+        var typographyItem = new ToolStripMenuItem(L.T("Типографика", "Typography"));
+        typographyItem.Click += (s, e) => { watcher.Typography = !watcher.Typography; SetSetting("Typography", watcher.Typography ? 1 : 0); };
+        var soundItem = new ToolStripMenuItem(L.T("Звук при исправлении", "Sound on corrections"));
+        soundItem.Click += (s, e) => { playSound = !playSound; SetSetting("Sound", playSound ? 1 : 0); };
+
         var menu = new ContextMenuStrip();
         ThemedMenuRenderer.Apply(menu);
         var title = new ToolStripMenuItem("KeyFish " + Application.ProductVersion);
         title.Font = menuTitleFont ?? (menuTitleFont = new Font(title.Font, FontStyle.Bold));   // one font for every rebuilt menu
         title.Click += (s, e) => ShowAbout();
         menu.Items.Add(title);
+        menu.Items.Add(layoutItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(autoItem);
         menu.Items.Add(pauseItem);
         menu.Items.Add(recentItem);
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(typosItem);
+        menu.Items.Add(typographyItem);
+        menu.Items.Add(soundItem);
+        menu.Items.Add(new ToolStripSeparator());
         menu.Opening += (s, e) =>
         {
             if (busy) { e.Cancel = true; return; }   // a hotkey is working through the clipboard right now
@@ -511,12 +527,28 @@ class App : ApplicationContext
                                                                : L.F("Продолжить исправлять (пауза до {0})", "Resume (paused until {0})", pausedUntil.ToString("t", L.Culture));
             recentItem.Visible = watcher.KeepRecent;
             FillRecent(recentItem);
+            typosItem.Checked = watcher.FixTypos;
+            typographyItem.Checked = watcher.Typography;
+            soundItem.Checked = playSound;
+            layoutItem.Text = L.F("Раскладка: {0}", "Layout: {0}", LayoutDisplayName());
         };
         menu.Items.Add(L.T("Настройки…", "Settings…"), null, (s, e) => OpenSettings());
         menu.Items.Add(L.T("Проверить обновления", "Check for updates"), null, (s, e) => CheckForUpdates(true));
         menu.Items.Add(L.T("О программе…", "About…"), null, (s, e) => ShowAbout());
         menu.Items.Add(L.T("Выход", "Exit"), null, (s, e) => ExitThread());
         return menu;
+    }
+
+    // "Русский (Россия)" for ru-RU, in the interface language where Windows has it; the short tag otherwise
+    string LayoutDisplayName()
+    {
+        try
+        {
+            var c = new System.Globalization.CultureInfo(currentCulture);
+            string name = L.Ru ? c.NativeName : c.DisplayName;
+            return name.Length > 0 ? char.ToUpper(name[0]) + name.Substring(1) : currentLayoutName;
+        }
+        catch { return currentLayoutName.Length > 0 ? currentLayoutName : "—"; }
     }
 
     void FillRecent(ToolStripMenuItem parent)

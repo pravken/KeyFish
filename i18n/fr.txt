@@ -157,3 +157,5 @@ Couldn't download the dictionary: 	Impossible de télécharger le dictionnaire :
 Correction	Correction
 Icon and cues	Icône et indications
 System	Système
+Sound on corrections	Son à chaque correction
+Layout: {0}	Disposition : {0}

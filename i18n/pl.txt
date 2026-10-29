@@ -157,3 +157,5 @@ Couldn't download the dictionary: 	Nie udało się pobrać słownika:
 Correction	Poprawianie
 Icon and cues	Ikona i podpowiedzi
 System	System
+Sound on corrections	Dźwięk przy poprawkach
+Layout: {0}	Układ: {0}
