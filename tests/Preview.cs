@@ -24,11 +24,14 @@ static class Preview
         return null;
     }
 
-    // "newver": a newer release is out; otherwise nothing was checked yet
+    // "newver": a newer release is out; "uptodate": the installed one is the latest; "offline": GitHub didn't answer;
+    // otherwise nothing was checked yet
     static UpdateInfo FakeUpdates(string[] args)
     {
         var u = new UpdateInfo { Check = done => { }, Install = () => { } };
         if (Array.IndexOf(args, "newver") >= 0) { u.Latest = new Updater.Release { Version = new Version(9, 0, 0), Tag = "9.0.0" }; u.CheckedAt = DateTime.Now; }
+        if (Array.IndexOf(args, "uptodate") >= 0) { u.Latest = new Updater.Release { Version = Updater.Current, Tag = Application.ProductVersion }; u.CheckedAt = DateTime.Now; }
+        if (Array.IndexOf(args, "offline") >= 0) u.Failed = true;
         return u;
     }
 

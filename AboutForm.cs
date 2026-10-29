@@ -76,7 +76,10 @@ class AboutForm : Form
         Control below = link;
         if (updates != null)
         {
-            var update = Theme.Label("", Theme.Body, Theme.AccentFill);
+            // The answer wraps, and the place is kept for the longest one, so a check that ends later never runs
+            // into the buttons
+            var update = Theme.Wrapped(L.T("Не удалось подключиться к GitHub. Проверьте подключение к интернету и повторите попытку позже.",
+                                           "Could not connect to GitHub. Check the internet connection and try again later.").Replace(". ", ".\n"), 337, Theme.Body, Theme.AccentFill);
             update.Location = new Point(139, link.Top + (int)Math.Ceiling(link.Height / Theme.Scale) + 2);
             Action refresh = () =>
             {
@@ -84,7 +87,7 @@ class AboutForm : Form
                 update.Text = updates.Checking ? L.T("Проверка…", "Checking…")
                             : updates.NewVersion ? L.F("Доступна версия {0} — обновить", "Version {0} is available — update", updates.Latest.Tag)
                             : updates.Latest == null && !updates.Failed ? L.T("Проверить обновления", "Check for updates")
-                            : updates.Status;
+                            : updates.Status.Replace(". ", ".\n");   // a sentence a line: "checked at" stays whole
                 update.ForeColor = act ? Theme.AccentFill : Theme.SubText;
                 update.Cursor = act ? Cursors.Hand : Cursors.Default;
             };
@@ -117,7 +120,7 @@ class AboutForm : Form
         Controls.Add(changes);
         Controls.Add(ok);
         // The buttons sit under the text, however many lines it took ("link" is sized by its font: back to 96-DPI pixels)
-        int buttons = Math.Max(192, below.Top + (int)Math.Ceiling(below.Height / Theme.Scale) + 34);
+        int buttons = Math.Max(192, below.Top + (below == link ? (int)Math.Ceiling(below.Height / Theme.Scale) : below.Height) + 34);
         foreach (var b in new Control[] { support, changes, ok }) b.Top = buttons;
         ClientSize = new Size(500, buttons + 58);
         KeyPreview = true;
