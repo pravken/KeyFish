@@ -1330,7 +1330,7 @@ static class Pictures
 
     // The word is typed letter by letter, KeyFish fixes it (it flashes in the accent color), with undo Ctrl+Z puts
     // the typed word back; then the word is selected and deleted, and the field is empty again, as at the start
-    public static void Typing(Graphics g, RectangleF r, int ms, string typed, string fixedWord, bool undo)
+    public static void Typing(Graphics g, RectangleF r, int ms, string typed, string fixedWord, bool undo, string undoKey = "Ctrl+Z")
     {
         var box = Box(g, r);
         var inner = new RectangleF(box.X + Theme.S(5), box.Y, box.Width - Theme.S(10), box.Height);
@@ -1355,7 +1355,7 @@ static class Pictures
             else if (mix >= 1) Text(g, fixedWord, inner, 1, fixedColor);
             else { Text(g, sofar, inner, 1 - mix, Theme.Text); Text(g, fixedWord, inner, mix, fixedColor); }
         }
-        if (undo) Key(g, box, "Ctrl+Z", Held(ms, undoAt, 650));
+        if (undo) Key(g, box, undoKey, Held(ms, undoAt, 650));
         if (sel <= 0 && CaretOn(ms, ms >= Start && ms < fixAt)) Caret(g, box, inner.X + wordWidth);
     }
 

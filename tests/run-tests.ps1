@@ -19,7 +19,7 @@ Copy-Item "$PSScriptRoot\pw.html", "$PSScriptRoot\tx.html" $bin -Force
 # so a run that was cut short (window closed, power lost) is undone by the next run before it starts.
 # "complete" is written last: without it the copy is unfinished, and the user's own files were never touched
 $files = 'replacements.txt', 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt'
-$regNames = 'Typos', 'StatsTotal', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect', 'QuickKey', 'CorrectionTips', 'Typography', 'Hotkey6'
+$regNames = 'Typos', 'StatsTotal', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect', 'QuickKey', 'CorrectionTips', 'Typography', 'Hotkey6', 'IntroShown'
 $backupDir = Join-Path $PSScriptRoot 'backup'
 
 # KeyFish's settings in the registry go through reg.exe in a .cmd started by Explorer: when this script runs inside a
@@ -71,7 +71,7 @@ Set-Content (Join-Path $backupDir 'complete') 'ok' -Encoding ascii
 [IO.File]::WriteAllText((Join-Path $data 'replacements.txt'), "спс = спасибо`r`nсув = С уважением,\nТест`r`nln2 = C:\\new`r`n", (New-Object Text.UTF8Encoding $false))
 foreach ($f in 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt') { $p = Join-Path $data $f; if (Test-Path $p) { Remove-Item $p } }
 # QuickKey 1: double Shift; CorrectionTips 2: no first-fix tips over the test windows
-Set-Real ([ordered]@{ Typos = 1; UndoCtrlZ = 1; QuietFullscreen = 1; AutoCorrect = 1; QuickKey = 1; Typography = 1; CorrectionTips = 2; Hotkey6 = 196689 })   # Hotkey6: Ctrl+Shift+Q converts the clipboard
+Set-Real ([ordered]@{ Typos = 1; UndoCtrlZ = 1; QuietFullscreen = 1; AutoCorrect = 1; QuickKey = 1; Typography = 1; CorrectionTips = 2; Hotkey6 = 196689; IntroShown = 1 })   # Hotkey6: Ctrl+Shift+Q converts the clipboard
 Get-Process KeyFish -ErrorAction SilentlyContinue | Stop-Process; Start-Sleep -Milliseconds 800
 explorer.exe $app; Start-Sleep 5
 

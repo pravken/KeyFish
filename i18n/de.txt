@@ -163,3 +163,13 @@ Switch layout of the text in the clipboard (copy, press, paste)	Layout des Texts
 There is no text in the clipboard.	In der Zwischenablage ist kein Text.
 Couldn't tell which layout to switch the text to.	Es war nicht zu erkennen, in welches Layout der Text gehört.
 The text in the clipboard is now in the {0} layout, ready to paste.	Der Text in der Zwischenablage ist jetzt im Layout {0} und kann eingefügt werden.
+Welcome to KeyFish	Willkommen bei KeyFish
+KeyFish fixes the layout as you type	KeyFish korrigiert das Layout beim Tippen
+If a fix wasn't wanted	Wenn eine Korrektur nicht gewollt war
+Everything else is in Settings	Alles andere steht in den Einstellungen
+Typed a word in the wrong layout? After the space KeyFish switches it: ghbdtn → привет.	Ein Wort im falschen Layout getippt? Nach dem Leerzeichen stellt KeyFish es um: ghbdtn → привет.
+Press Pause right after the fix: the word comes back, and KeyFish remembers it and leaves it alone.	Drücken Sie gleich nach der Korrektur Pause: Das Wort kommt zurück, und KeyFish merkt es sich und lässt es künftig in Ruhe.
+Double-click the fish in the tray for Settings: hotkeys, replacements, exclusions, the extended dictionary. The fish shows the layout and turns grey while KeyFish isn't correcting.	Ein Doppelklick auf den Fisch im Infobereich öffnet die Einstellungen: Tastenkürzel, Ersetzungen, Ausnahmen, das erweiterte Wörterbuch. Der Fisch zeigt das Layout und wird grau, solange KeyFish nicht korrigiert.
+Back	Zurück
+Start	Los geht's
+Next	Weiter

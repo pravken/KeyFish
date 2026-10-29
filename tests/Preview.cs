@@ -78,7 +78,16 @@ static class Preview
             form = new ChangelogForm(System.IO.File.ReadAllText(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\" + (L.Ru ? "CHANGELOG.ru.md" : "CHANGELOG.md")), System.Text.Encoding.UTF8));
         else if (args[0] == "message")
             form = (Form)Activator.CreateInstance(typeof(ThemedMessage), BindingFlags.NonPublic | BindingFlags.Instance, null,
-                new object[] { "Вышла версия 2.0.1 (у вас 2.0.0).\n\nОбновить сейчас? KeyFish скачает новую версию с GitHub, проверит контрольную сумму и перезапустится.", "Обновление KeyFish", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Information }, null);
+                new object[] { "Вышла версия 2.0.1 (у вас 2.0.0).\n\nОбновить сейчас? KeyFish скачает новую версию с GitHub, проверит контрольную сумму и перезапустится.", "Обновление KeyFish", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Information, null }, null);
+        else if (args[0] == "intro")
+        {
+            form = new IntroForm();
+            // "step=N": that step of the introduction
+            foreach (string arg in args)
+                if (arg.StartsWith("step="))
+                    typeof(IntroForm).GetMethod("Show", BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { typeof(int) }, null)
+                        .Invoke(form, new object[] { int.Parse(arg.Substring(5)) });
+        }
         else form = new AboutForm("Рыбка поймала 1 234 ошибки", "2.0.0\n• Новое\n\n1.8.3\n• Старое\n", LayoutTable.Installed(),
                                   FakeUpdates(args));
         string outPath = args[args[0] == "settings" ? 2 : 1];

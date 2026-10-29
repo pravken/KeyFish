@@ -163,3 +163,13 @@ Switch layout of the text in the clipboard (copy, press, paste)	Układ tekstu w 
 There is no text in the clipboard.	W schowku nie ma tekstu.
 Couldn't tell which layout to switch the text to.	Nie udało się ustalić, na jaki układ przełączyć tekst.
 The text in the clipboard is now in the {0} layout, ready to paste.	Tekst w schowku jest teraz w układzie {0} — można go wkleić.
+Welcome to KeyFish	Witamy w KeyFish
+KeyFish fixes the layout as you type	KeyFish poprawia układ w locie
+If a fix wasn't wanted	Jeśli poprawka nie była potrzebna
+Everything else is in Settings	Wszystko inne — w ustawieniach
+Typed a word in the wrong layout? After the space KeyFish switches it: ghbdtn → привет.	Wpisałeś słowo w złym układzie? Po spacji KeyFish sam je przełączy: ghbdtn → привет.
+Press Pause right after the fix: the word comes back, and KeyFish remembers it and leaves it alone.	Naciśnij Pause zaraz po poprawce: słowo wróci, a KeyFish je zapamięta i więcej go nie ruszy.
+Double-click the fish in the tray for Settings: hotkeys, replacements, exclusions, the extended dictionary. The fish shows the layout and turns grey while KeyFish isn't correcting.	Dwuklik na rybkę w zasobniku otwiera ustawienia: skróty, zamienniki, wyjątki, rozszerzony słownik. Rybka pokazuje układ i szarzeje, gdy KeyFish nie poprawia.
+Back	Wstecz
+Start	Zaczynamy
+Next	Dalej

@@ -730,6 +730,18 @@ class App : ApplicationContext
         };
         updateTimer.Start();
 
+        // A new user (no settings saved yet, nothing corrected yet) gets a short introduction once
+        if (GetSetting("IntroShown", 0) == 0)
+        {
+            SetSetting("IntroShown", 1);
+            if (statsBase == 0)
+            {
+                var intro = new System.Windows.Forms.Timer { Interval = 1500 };
+                intro.Tick += (s, e) => { intro.Stop(); intro.Dispose(); using (var f = new IntroForm()) f.ShowDialog(); };
+                intro.Start();
+            }
+        }
+
         // The last run ended in a crash: once Windows' record of it is read, offer to report it (a few seconds after
         // start, so the tray icon is there and KeyFish is running again before anything asks for attention)
         var crashOffer = new System.Windows.Forms.Timer { Interval = 8000 };

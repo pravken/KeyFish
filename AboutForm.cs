@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
@@ -317,5 +318,103 @@ class ChangelogView : Control
                 g.DrawString(b.Text, font, brush, r);
                 g.DrawString(b.Text, font, brush, new RectangleF(r.X + Theme.Heavier, r.Y, r.Width, r.Height));   // a touch heavier, see Theme.Heavier
             }
+    }
+}
+
+// The first start: three short steps on what KeyFish does, how to take a fix back and where the settings are,
+// each with a looping picture like those in Settings. Shown once, to new users only
+class IntroForm : Form
+{
+    readonly string[] titles, texts;
+    readonly FeaturePreview[] pictures;
+    readonly SmoothLabel title, text;
+    readonly Control dots;
+    readonly RoundButton back, next;
+    int step;
+
+    public IntroForm()
+    {
+        Text = L.T("Добро пожаловать в KeyFish", "Welcome to KeyFish");
+        StartPosition = FormStartPosition.CenterScreen;
+        FormBorderStyle = FormBorderStyle.FixedDialog;
+        MaximizeBox = MinimizeBox = false;
+        Theme.Apply(this);
+        ClientSize = new Size(520, 330);
+
+        titles = new[]
+        {
+            L.T("KeyFish исправляет раскладку на лету", "KeyFish fixes the layout as you type"),
+            L.T("Если исправлять было не нужно", "If a fix wasn't wanted"),
+            L.T("Всё остальное — в настройках", "Everything else is in Settings")
+        };
+        texts = new[]
+        {
+            L.T("Набрали слово не в той раскладке — после пробела KeyFish сам переведёт его: ghbdtn → привет.",
+                "Typed a word in the wrong layout? After the space KeyFish switches it: ghbdtn → привет."),
+            L.T("Нажмите Pause сразу после исправления: слово вернётся, а KeyFish запомнит его и больше не тронет.",
+                "Press Pause right after the fix: the word comes back, and KeyFish remembers it and leaves it alone."),
+            L.T("Двойной щелчок по рыбке в трее открывает настройки: горячие клавиши, автозамены, исключения, расширенный словарь. Рыбка показывает раскладку и сереет, когда KeyFish не исправляет.",
+                "Double-click the fish in the tray for Settings: hotkeys, replacements, exclusions, the extended dictionary. The fish shows the layout and turns grey while KeyFish isn't correcting.")
+        };
+        pictures = new[]
+        {
+            new FeaturePreview((g, r, ms) => Pictures.Typing(g, r, ms, "ghbdtn", "привет", false), Pictures.TypingLength("ghbdtn", false)),
+            new FeaturePreview((g, r, ms) => Pictures.Typing(g, r, ms, "ghbdtn", "привет", true, "Pause"), Pictures.TypingLength("ghbdtn", true)),
+            new FeaturePreview((g, r, ms) => Pictures.Switching(g, r, ms, () => fishEn, () => fishRu), Pictures.SwitchLength)
+        };
+        foreach (var p in pictures)
+        {
+            p.Size = new Size(240, 52);
+            p.Location = new Point((520 - 240) / 2, 34);
+            p.Visible = false;
+            Controls.Add(p);
+        }
+        title = new SmoothLabel { Font = Theme.Section, ForeColor = Theme.Text, AutoSize = false, Location = new Point(32, 112), Size = new Size(456, 30), TextAlign = ContentAlignment.MiddleCenter };
+        text = new SmoothLabel { Font = Theme.Body, ForeColor = Theme.SubText, AutoSize = false, Location = new Point(48, 146), Size = new Size(424, 90), TextAlign = ContentAlignment.TopCenter };
+        // Which step this is: one dot per step, the current one filled with the accent color
+        dots = new Panel { Location = new Point(32, 276), Size = new Size(80, 34), BackColor = Theme.Back };
+        dots.Paint += (s, e) =>
+        {
+            e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            float d = Theme.S(8), gap = Theme.S(8), y = (dots.Height - d) / 2;
+            for (int k = 0; k < titles.Length; k++)
+            {
+                var r = new RectangleF(k * (d + gap) + 1, y, d, d);
+                if (k == step) using (var b = new SolidBrush(Theme.AccentFill)) e.Graphics.FillEllipse(b, r);
+                else using (var p = new Pen(Theme.SubText, 1.2f)) e.Graphics.DrawEllipse(p, r);
+            }
+        };
+        back = new RoundButton { Text = L.T("Назад", "Back"), Location = new Point(264, 276), Size = new Size(108, 34) };
+        next = new RoundButton { AccentStyle = true, Location = new Point(380, 276), Size = new Size(108, 34) };
+        back.Click += (s, e) => Show(step - 1);
+        next.Click += (s, e) => { if (step == titles.Length - 1) Close(); else Show(step + 1); };
+        Controls.AddRange(new Control[] { title, text, dots, back, next });
+        KeyPreview = true;
+        KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) Close(); };
+        Show(0);
+        Theme.SolidLabels(this);
+        Theme.ScaleWindow(this);
+        Shown += (s, e) => { next.Focus(); pictures[step].Play(300); };
+    }
+
+    readonly Image fishEn = Pictures.Fish(false), fishRu = Pictures.Fish(true);
+
+    void Show(int i)
+    {
+        step = i;
+        for (int k = 0; k < pictures.Length; k++) pictures[k].Visible = k == i;
+        if (IsHandleCreated) pictures[i].Play(150);
+        title.Text = titles[i];
+        text.Text = texts[i];
+        dots.Invalidate();
+        back.Visible = i > 0;
+        next.Text = i == titles.Length - 1 ? L.T("Начать", "Start") : L.T("Далее", "Next");
+        next.Focus();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) { fishEn.Dispose(); fishRu.Dispose(); }
+        base.Dispose(disposing);
     }
 }

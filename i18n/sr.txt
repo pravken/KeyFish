@@ -163,3 +163,13 @@ Switch layout of the text in the clipboard (copy, press, paste)	Распоред
 There is no text in the clipboard.	У остави нема текста.
 Couldn't tell which layout to switch the text to.	Није могуће утврдити у који распоред пребацити текст.
 The text in the clipboard is now in the {0} layout, ready to paste.	Текст у остави је сада у распореду {0} — може да се налепи.
+Welcome to KeyFish	Добро дошли у KeyFish
+KeyFish fixes the layout as you type	KeyFish исправља распоред у ходу
+If a fix wasn't wanted	Ако исправка није била потребна
+Everything else is in Settings	Све остало — у подешавањима
+Typed a word in the wrong layout? After the space KeyFish switches it: ghbdtn → привет.	Откуцали сте реч у погрешном распореду? После размака KeyFish ће је сам пребацити.
+Press Pause right after the fix: the word comes back, and KeyFish remembers it and leaves it alone.	Притисните Pause одмах после исправке: реч се враћа, а KeyFish је памти и више је не дира.
+Double-click the fish in the tray for Settings: hotkeys, replacements, exclusions, the extended dictionary. The fish shows the layout and turns grey while KeyFish isn't correcting.	Двоклик на рибицу у палети отвара подешавања: пречице, замене, изузеци, проширени речник. Рибица показује распоред и посиви кад KeyFish не исправља.
+Back	Назад
+Start	Почни
+Next	Даље

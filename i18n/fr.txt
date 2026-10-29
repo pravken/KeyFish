@@ -163,3 +163,13 @@ Switch layout of the text in the clipboard (copy, press, paste)	Disposition du t
 There is no text in the clipboard.	Le presse-papiers ne contient pas de texte.
 Couldn't tell which layout to switch the text to.	Impossible de savoir dans quelle disposition convertir le texte.
 The text in the clipboard is now in the {0} layout, ready to paste.	Le texte du presse-papiers est maintenant dans la disposition {0}, prêt à coller.
+Welcome to KeyFish	Bienvenue dans KeyFish
+KeyFish fixes the layout as you type	KeyFish corrige la disposition pendant la frappe
+If a fix wasn't wanted	Si une correction n'était pas voulue
+Everything else is in Settings	Tout le reste est dans les paramètres
+Typed a word in the wrong layout? After the space KeyFish switches it: ghbdtn → привет.	Un mot tapé dans la mauvaise disposition ? Après l'espace, KeyFish le convertit : ghbdtn → привет.
+Press Pause right after the fix: the word comes back, and KeyFish remembers it and leaves it alone.	Appuyez sur Pause juste après la correction : le mot revient, et KeyFish s'en souvient et ne le touche plus.
+Double-click the fish in the tray for Settings: hotkeys, replacements, exclusions, the extended dictionary. The fish shows the layout and turns grey while KeyFish isn't correcting.	Un double-clic sur le poisson dans la zone de notification ouvre les paramètres : raccourcis, remplacements, exclusions, dictionnaire étendu. Le poisson montre la disposition et devient gris quand KeyFish ne corrige pas.
+Back	Retour
+Start	Commencer
+Next	Suivant

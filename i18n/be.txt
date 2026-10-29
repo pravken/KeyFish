@@ -162,3 +162,13 @@ Switch layout of the text in the clipboard (copy, press, paste)	Раскладк
 There is no text in the clipboard.	У буферы абмену няма тэксту.
 Couldn't tell which layout to switch the text to.	Не ўдалося зразумець, у якую раскладку перавесці тэкст.
 The text in the clipboard is now in the {0} layout, ready to paste.	Тэкст у буферы абмену перакладзены ў раскладку {0} — яго можна ўставіць.
+Welcome to KeyFish	Вітаем у KeyFish
+KeyFish fixes the layout as you type	KeyFish выпраўляе раскладку на ляту
+If a fix wasn't wanted	Калі выпраўляць не трэба было
+Everything else is in Settings	Усё астатняе — у наладах
+Typed a word in the wrong layout? After the space KeyFish switches it: ghbdtn → привет.	Набралі слова не ў той раскладцы — пасля прабелу KeyFish сам пераведзе яго.
+Press Pause right after the fix: the word comes back, and KeyFish remembers it and leaves it alone.	Націсніце Pause адразу пасля выпраўлення: слова вернецца, а KeyFish запомніць яго і больш не кране.
+Double-click the fish in the tray for Settings: hotkeys, replacements, exclusions, the extended dictionary. The fish shows the layout and turns grey while KeyFish isn't correcting.	Падвойны пстрык па рыбцы ў трэі адкрывае налады: гарачыя клавішы, аўтазамены, выключэнні, пашыраны слоўнік. Рыбка паказвае раскладку і шарэе, калі KeyFish не выпраўляе.
+Back	Назад
+Start	Пачаць
+Next	Далей
