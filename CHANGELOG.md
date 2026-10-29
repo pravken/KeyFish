@@ -1,3 +1,11 @@
+2.2.0 2026-10-30
+New:
+• A text actions menu on Ctrl+Shift+F2: case, layout, spaces, lines, a name for code
+• Calculating an expression in the selected text
+• Paste without formatting on Ctrl+Shift+V in any app
+Improved:
+• A new layout of the About window
+
 2.1.5 2026-10-29
 Improved:
 • Remote desktop clients other than mstsc are excluded by default
