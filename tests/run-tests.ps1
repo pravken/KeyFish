@@ -109,6 +109,8 @@ $tests = @(
   # Ctrl+Shift+F2: the text actions menu. Nothing selected: the line before the cursor; the first item is picked with Enter
   @('menu: calculate',        "2^=3^84~~%^@$('_' * 15)`$~~~~~~~~~~",       '14', ''),
   @('menu: uppercase',        "hello world~~%a~~%^@$('_' * 15)`$~~~~~~~~~~", 'HELLO WORLD', ''),
+  # Ctrl+Shift+V: the clipboard's text pasted, twice; a second later the user's clipboard is back, and Ctrl+V pastes it
+  @('paste without formatting', "abc~~%a~~%c~~<~~%^v~~~~%^v$('~' * 25)%v~~~~", 'abcabcabc', ''),
   @('menu: closed, no change', "hello~~%^@$('_' * 15)``~~~~~~~~ ~~x~~~~",   'hello x', '')
 )
 $pass = 0; $total = 0

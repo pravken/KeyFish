@@ -31,7 +31,8 @@ partial class App
                 L.T("Удаление форматирования выделенного текста: полужирный, курсив, ссылки, стилизованные символы",
                     "Clear the formatting of selected text: bold, italic, links, styled characters"),
                 L.T("Меню действий с выделенным текстом: регистр, раскладка, пробелы, строки, вычисление выражения",
-                    "Menu of actions on selected text: case, layout, spaces, lines, calculating an expression")
+                    "Menu of actions on selected text: case, layout, spaces, lines, calculating an expression"),
+                L.T("Вставка текста из буфера обмена без форматирования", "Paste text from the clipboard without formatting")
             };
         }
     }
@@ -41,10 +42,10 @@ partial class App
         Keys.Pause, Keys.Control | Keys.Shift | Keys.Space, Keys.Shift | Keys.F3, Keys.Shift | Keys.Pause, Keys.Alt | Keys.Pause,
         Keys.None,   // the clipboard: off until the user picks keys for it
         Keys.None,   // pause: the same
-        Keys.Shift | Keys.F2, Keys.Control | Keys.Shift | Keys.F2
+        Keys.Shift | Keys.F2, Keys.Control | Keys.Shift | Keys.F2, Keys.Control | Keys.Shift | Keys.V
     };
 
-    const int HkLayout = 1, HkLayoutAlt = 2, HkCase = 3, HkTranslit = 4, HkLine = 5, HkClipboard = 6, HkPause = 7, HkPlain = 8, HkActions = 9;
+    const int HkLayout = 1, HkLayoutAlt = 2, HkCase = 3, HkTranslit = 4, HkLine = 5, HkClipboard = 6, HkPause = 7, HkPlain = 8, HkActions = 9, HkPastePlain = 10;
 
     static Keys GetHotkey(int i) { return (Keys)GetSetting("Hotkey" + (i + 1), (int)HotkeyDefaults[i]); }
 
@@ -59,11 +60,15 @@ partial class App
             Keys k = GetHotkey(i);
             if (k == Keys.None) continue;
             if (!HotkeyBox.Allowed(k)) { notAllowed.Add(SettingsForm.Format(k)); continue; }   // Enter or a letter stored by an older version or by hand
-            uint mods = ((k & Keys.Control) != 0 ? Native.MOD_CONTROL : 0) | ((k & Keys.Shift) != 0 ? Native.MOD_SHIFT : 0) |
-                        ((k & Keys.Alt) != 0 ? Native.MOD_ALT : 0);
-            if (!hotkeys.Register(i + 1, mods, k & Keys.KeyCode)) failed.Add(SettingsForm.Format(k));
+            if (!hotkeys.Register(i + 1, Modifiers(k), k & Keys.KeyCode)) failed.Add(SettingsForm.Format(k));
         }
         return failed;
+    }
+
+    static uint Modifiers(Keys k)
+    {
+        return ((k & Keys.Control) != 0 ? Native.MOD_CONTROL : 0) | ((k & Keys.Shift) != 0 ? Native.MOD_SHIFT : 0) |
+               ((k & Keys.Alt) != 0 ? Native.MOD_ALT : 0);
     }
 
     // Hotkeys stored that can't be used as one (Enter, a plain letter): left off, and said once, with the others
@@ -92,6 +97,7 @@ partial class App
             if (id == HkClipboard) { ConvertClipboard(); return; }
             if (id == HkPause) { TogglePause(true); return; }
             if (W.HasMoreRights(hotkeyWindow)) { NoRightsHere(hotkeyWindow); return; }
+            if (id == HkPastePlain) { PastePlain(); return; }
             if (id == HkLayout && watcher.Undo()) return;
             if (!watcher.HotkeyAllowed(hotkeyWindow)) return;   // an excluded app or a password field
             if (!Native.WaitModifiersReleased()) return;      // keys still held: Ctrl+C would become Ctrl+Shift+C
@@ -316,6 +322,48 @@ partial class App
         }
 
         RestoreClipboard(saved);
+    }
+
+    // Apps where Ctrl+Shift+V already has a meaning of its own: editors and IDEs (Markdown preview, the clipboard
+    // history), terminals (their paste), Outlook (Move to folder). The keys go on to them
+    static readonly HashSet<string> OwnPastePlain = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "Code", "Code - Insiders", "devenv", "sublime_text", "idea64", "pycharm64", "rider64", "webstorm64", "clion64", "goland64",
+        "phpstorm64", "datagrip64", "rubymine64", "studio64", "WindowsTerminal", "alacritty", "wezterm-gui", "OUTLOOK", "olk"
+    };
+
+    // The clipboard's text pasted without its formatting, in any app: put on the clipboard as text alone for the paste,
+    // the user's own clipboard back a second later. Where the keys mean something else already, where KeyFish may not
+    // touch the text (a password field, an excluded app), or with no text on the clipboard (a picture, files), the
+    // keys go on to the app as if KeyFish weren't there
+    void PastePlain()
+    {
+        bool here = !OwnPastePlain.Contains(W.ProcessName(hotkeyWindow)) && watcher.HotkeyAllowed(hotkeyWindow);
+        if (!Native.WaitModifiersReleased()) return;
+        string text = null;
+        if (here) try { text = Clip.Text(); } catch { }
+        if (string.IsNullOrEmpty(text)) { PassOn(HkPastePlain); return; }
+        Clip.Saved saved = SaveClipboard();
+        Paste(text);
+        RestoreClipboard(saved);
+    }
+
+    // A hotkey's keys sent on to the window in front: let go of for a moment, so they reach the app, and taken back
+    void PassOn(int id)
+    {
+        Keys k = GetHotkey(id - 1);
+        var keys = new List<byte>();
+        if ((k & Keys.Control) != 0) keys.Add(Native.VK_CONTROL);
+        if ((k & Keys.Shift) != 0) keys.Add(Native.VK_SHIFT);
+        if ((k & Keys.Alt) != 0) keys.Add(Native.VK_MENU);
+        keys.Add((byte)(k & Keys.KeyCode));
+        Native.UnregisterHotKey(hotkeys.Handle, id);
+        try
+        {
+            Native.Chord(keys.ToArray());
+            Pump(50);
+        }
+        finally { Native.RegisterHotKey(hotkeys.Handle, id, Modifiers(k) | Native.MOD_NOREPEAT, (uint)(k & Keys.KeyCode)); }
     }
 
     // The menu of text actions, next to the caret: for the selection or, with nothing selected, the line before the

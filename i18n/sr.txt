@@ -265,3 +265,4 @@ Remove extra spaces and empty lines	Уклони сувишне размаке �
 Sort lines	Сортирај редове
 Remove duplicate lines	Уклони поновљене редове
 Name for code	Име за код
+Paste text from the clipboard without formatting	Налепљивање текста из оставе без форматирања

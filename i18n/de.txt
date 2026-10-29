@@ -265,3 +265,4 @@ Remove extra spaces and empty lines	Überflüssige Leerzeichen und Leerzeilen en
 Sort lines	Zeilen sortieren
 Remove duplicate lines	Doppelte Zeilen entfernen
 Name for code	Name für Code
+Paste text from the clipboard without formatting	Text aus der Zwischenablage ohne Formatierung einfügen

@@ -265,3 +265,4 @@ Remove extra spaces and empty lines	Usuń zbędne spacje i puste wiersze
 Sort lines	Sortuj wiersze
 Remove duplicate lines	Usuń powtarzające się wiersze
 Name for code	Nazwa w kodzie
+Paste text from the clipboard without formatting	Wklejanie tekstu ze schowka bez formatowania

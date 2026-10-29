@@ -265,3 +265,4 @@ Remove extra spaces and empty lines	Supprimer les espaces superflus et les ligne
 Sort lines	Trier les lignes
 Remove duplicate lines	Supprimer les lignes en double
 Name for code	Nom pour le code
+Paste text from the clipboard without formatting	Coller le texte du presse-papiers sans mise en forme

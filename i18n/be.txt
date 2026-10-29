@@ -265,3 +265,4 @@ Remove extra spaces and empty lines	Выдаліць лішнія прабелы
 Sort lines	Сартаваць радкі
 Remove duplicate lines	Выдаліць паўторныя радкі
 Name for code	Імя для кода
+Paste text from the clipboard without formatting	Устаўка тэксту з буфера абмену без фарматавання

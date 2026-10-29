@@ -265,3 +265,4 @@ Remove extra spaces and empty lines	Quitar espacios sobrantes y líneas vacías
 Sort lines	Ordenar líneas
 Remove duplicate lines	Quitar líneas repetidas
 Name for code	Nombre para código
+Paste text from the clipboard without formatting	Pegar el texto del portapapeles sin formato
