@@ -182,3 +182,4 @@ this month	diesen Monat
 saved	gespart
 Holiday look	Festliches Aussehen
 For Halloween (October 24 to November 2): pumpkin colors, a hat on the fish, bats. Takes effect after saving.	Zu Halloween (24. Oktober bis 2. November): Kürbisfarben, ein Hut für den Fisch, Fledermäuse. Wird nach dem Speichern übernommen.
+The word is now in "Never correct".	Das Wort steht jetzt unter „Nie korrigieren“.

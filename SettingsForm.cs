@@ -342,6 +342,13 @@ class SettingsForm : Form
 
     // The tray icons in the pictures, made once per layout and color (the colors may change while Settings is open)
     readonly Dictionary<string, Image> sampleIcons = new Dictionary<string, Image>();
+
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        foreach (var image in sampleIcons.Values) image.Dispose();
+        sampleIcons.Clear();
+        base.OnFormClosed(e);
+    }
     Func<Image> SampleIcon(bool letters, bool other)
     {
         return () =>
@@ -999,7 +1006,8 @@ class SettingsForm : Form
         if (values.TryGetValue("Language", out n)) Language = Math.Max(0, n);
         if (values.TryGetValue("Theme", out n)) ThemeMode = Math.Max(0, Math.Min(n, 2));
         if (values.TryGetValue("Holiday", out n)) Holiday = n != 0;
-        for (int i = 0; i < Hotkeys.Length; i++) if (values.TryGetValue("Hotkey" + (i + 1), out n)) Hotkeys[i] = (Keys)n;
+        for (int i = 0; i < Hotkeys.Length; i++)
+            if (values.TryGetValue("Hotkey" + (i + 1), out n) && (n == 0 || HotkeyBox.Allowed((Keys)n))) Hotkeys[i] = (Keys)n;
         DialogResult = DialogResult.OK;
         Close();
     }
@@ -1162,14 +1170,22 @@ class HotkeyBox : TextBox
             return;
         }
         if ((code == Keys.Back || code == Keys.Delete) && e.Modifiers == Keys.None) { Finish(Keys.None); return; }
-        // Single letters and digits without modifiers would get in the way of typing
-        bool plain = e.Modifiers == Keys.None || e.Modifiers == Keys.Shift;
-        if (plain && ((code >= Keys.A && code <= Keys.Z) || (code >= Keys.D0 && code <= Keys.D9) || code == Keys.Space))
+        if (!Allowed(code | e.Modifiers))
         {
             Show(SettingsForm.NeedModifier);
             return;
         }
         Finish(code | e.Modifiers);
+    }
+
+    // A hotkey is taken from every app, so without Ctrl or Alt only keys that type nothing and move nothing can be one
+    // (Pause, Scroll Lock, F1–F24): Enter, Tab, letters, punctuation or arrows would stop working everywhere else
+    public static bool Allowed(Keys k)
+    {
+        Keys code = k & Keys.KeyCode;
+        if (code == Keys.None || code == Keys.ShiftKey || code == Keys.ControlKey || code == Keys.Menu) return false;
+        if ((k & (Keys.Control | Keys.Alt)) != 0) return true;
+        return code == Keys.Pause || code == Keys.Scroll || (code >= Keys.F1 && code <= Keys.F24);
     }
 
     // A hotkey is set: show it and stop listening, so the next keys don't change it by accident

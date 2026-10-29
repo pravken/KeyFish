@@ -502,7 +502,7 @@ class App : ApplicationContext
         for (int i = 0; i < HotkeyDefaults.Length; i++)
         {
             Keys k = GetHotkey(i);
-            if (k == Keys.None) continue;
+            if (k == Keys.None || !HotkeyBox.Allowed(k)) continue;   // Enter or a letter stored by an older version or by hand
             uint mods = ((k & Keys.Control) != 0 ? Native.MOD_CONTROL : 0) | ((k & Keys.Shift) != 0 ? Native.MOD_SHIFT : 0) |
                         ((k & Keys.Alt) != 0 ? Native.MOD_ALT : 0);
             if (!hotkeys.Register(i + 1, mods, k & Keys.KeyCode)) failed.Add(SettingsForm.Format(k));
@@ -623,7 +623,8 @@ class App : ApplicationContext
             item.Click += (s, e) =>
             {
                 watcher.NeverCorrect(f);
-                tray.ShowBalloonTip(3000, "KeyFish", L.F("«{0}» добавлено в «Не исправлять».", "\"{0}\" is now in \"Never correct\".", string.Join(" ", f.Words)), ToolTipIcon.Info);
+                // Without the word: Windows keeps notifications in its notification center
+                tray.ShowBalloonTip(3000, "KeyFish", L.T("Слово добавлено в «Не исправлять».", "The word is now in \"Never correct\"."), ToolTipIcon.Info);
             };
             parent.DropDownItems.Add(item);
         }
@@ -747,7 +748,12 @@ class App : ApplicationContext
         // a layout change has no such signal, so it is looked for often only while keys are pressed or clicked (that's
         // how layouts are switched) and while the icon blinks, and once a second otherwise
         uiContext = SynchronizationContext.Current;
-        foregroundProc = (hook, ev, hwnd, idObject, idChild, thread, time) => { lastActivity = Environment.TickCount; Wake(); };
+        // Called by Windows from outside any handler of KeyFish's: an error here must not reach it
+        foregroundProc = (hook, ev, hwnd, idObject, idChild, thread, time) =>
+        {
+            lastActivity = Environment.TickCount;
+            try { Wake(); } catch (Exception ex) { CrashLog.Write("error", ex); }
+        };
         foregroundHook = Native.SetWinEventHook(3, 3, IntPtr.Zero, foregroundProc, 0, 0, 0);   // EVENT_SYSTEM_FOREGROUND, out of context
         watcher.Activity = () =>
         {
@@ -1225,7 +1231,8 @@ class App : ApplicationContext
             tray.ShowBalloonTip(3000, "KeyFish", L.T("Не удалось понять, в какую раскладку перевести текст.", "Couldn't tell which layout to switch the text to."), ToolTipIcon.Info);
             return;
         }
-        try { Clipboard.SetText(result); } catch { return; }
+        // Pasteable as usual, but kept out of the clipboard history and cloud sync, like KeyFish's other text
+        try { Clipboard.SetDataObject(Private(new DataObject(DataFormats.UnicodeText, result)), true); } catch { return; }
         tray.ShowBalloonTip(3000, "KeyFish", L.F("Текст в буфере обмена переведён в раскладку {0} — его можно вставить.",
             "The text in the clipboard is now in the {0} layout, ready to paste.", (layout.Name ?? "").Split('-')[0].ToUpperInvariant()), ToolTipIcon.Info);
     }
@@ -1328,6 +1335,13 @@ class App : ApplicationContext
         return data;
     }
 
+    static readonly HashSet<string> KeptFormats = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        DataFormats.UnicodeText, DataFormats.Text, DataFormats.OemText, DataFormats.Rtf, DataFormats.Html, DataFormats.CommaSeparatedValue,
+        DataFormats.FileDrop, "FileName", "FileNameW", "Locale", "Shell IDList Array", "Preferred DropEffect",
+        DataFormats.Bitmap, DataFormats.Dib, "Format17", "PNG"
+    };
+
     static IDataObject SaveClipboard()
     {
         FlushRestore();   // the previous hotkey's restore first, or its text would be saved as the user's
@@ -1336,9 +1350,22 @@ class App : ApplicationContext
             var src = Clipboard.GetDataObject();
             if (src == null) return null;
             var copy = new DataObject();
+            long kept = 0;
             foreach (string f in src.GetFormats(false))
             {
-                try { var d = src.GetData(f, false); if (d != null) copy.SetData(f, false, d); }
+                // Only what people copy and paste between apps: an app's own formats (a spreadsheet's Biff12, an
+                // embedded object) can be made on demand and run to hundreds of megabytes, freezing the hotkey
+                if (!KeptFormats.Contains(f)) continue;
+                try
+                {
+                    var d = src.GetData(f, false);
+                    if (d == null) continue;
+                    var stream = d as Stream;
+                    long size = stream != null ? stream.Length : d is string ? ((string)d).Length * 2 : 0;
+                    if (kept + size > 64L * 1024 * 1024) continue;
+                    kept += size;
+                    copy.SetData(f, false, d);
+                }
                 catch { }
             }
             return copy;

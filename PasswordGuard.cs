@@ -83,6 +83,7 @@ class PasswordGuardClient
                     CreateNoWindow = true
                 };
                 guardStarted = DateTime.UtcNow;
+                if (guard != null) guard.Dispose();   // the one that exited
                 guard = Process.Start(info);
                 guard.EnableRaisingEvents = true;
                 guard.Exited += (s, e) => Restart();

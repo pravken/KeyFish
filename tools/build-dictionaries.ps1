@@ -8,6 +8,8 @@
 #   Belarusian AOSP dictionary — https://codeberg.org/Anibyl/Belarusian-AOSP-dictionary (be; no frequencies)
 param([switch]$Extended, [int]$MinCount = 20, [string[]]$Languages)
 $ErrorActionPreference = 'Stop'
+# FrequencyWords at a fixed commit, so a rebuild gives the same lists (L11 of the 2026-10 audit)
+$frequencyWordsCommit = '525f9b560de45753a5ea01069454e72e9aa541c6'
 $root = Split-Path $PSScriptRoot -Parent
 $data = Join-Path $root 'data'
 $tmp = Join-Path ([IO.Path]::GetTempPath()) 'keyfish-dictionaries'
@@ -50,7 +52,7 @@ function Save-List($name, $pairs) {
 
 function Read-FrequencyWords($lang) {
     $file = Join-Path $tmp "$lang.txt"
-    Invoke-WebRequest "https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/$lang/${lang}_50k.txt" -OutFile $file
+    Invoke-WebRequest "https://raw.githubusercontent.com/hermitdave/FrequencyWords/$frequencyWordsCommit/content/2018/$lang/${lang}_50k.txt" -OutFile $file
     foreach ($line in [IO.File]::ReadLines($file, [Text.Encoding]::UTF8)) {
         $parts = $line.Split(' ')
         if ($parts.Length -eq 2) { , @($parts[0], $parts[1]) }
@@ -92,7 +94,7 @@ if ($Extended) {
         $min = if ($smallCorpus.ContainsKey($lang)) { [Math]::Min($MinCount, $smallCorpus[$lang]) } else { $MinCount }
         $file = Join-Path $tmp "${lang}_full.txt"
         if (-not (Test-Path $file)) {
-            Invoke-WebRequest "https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/$lang/${lang}_full.txt" -OutFile $file
+            Invoke-WebRequest "https://raw.githubusercontent.com/hermitdave/FrequencyWords/$frequencyWordsCommit/content/2018/$lang/${lang}_full.txt" -OutFile $file
         }
         foreach ($line in [IO.File]::ReadLines($file, [Text.Encoding]::UTF8)) {
             $sp = $line.IndexOf(' ')

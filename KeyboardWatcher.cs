@@ -251,7 +251,8 @@ class KeyboardWatcher
         keyboardProc = KeyboardHook;
         mouseProc = MouseHook;
 
-        try { guard = new PasswordGuardClient(); } catch { }
+        try { guard = new PasswordGuardClient(); }
+        catch (Exception ex) { CrashLog.Write("the password-field check couldn't start", ex); }   // nothing is corrected then, and the fish is grey
         new Thread(Worker) { IsBackground = true }.Start();
         new Thread(() =>
         {
@@ -430,6 +431,8 @@ class KeyboardWatcher
             bool altGr = Down(0xA5) || (ctrl && Down(0x12));
             bool typesChar = layout != null && LayoutTable.IsTypingKey(scan) &&
                              (layout.CharFor(scan, shift, caps, altGr) != '\0' || layout.DeadFor(scan, shift, caps, altGr) != '\0');
+            // Win+Space switches the layout (Windows 10 and 11): the word goes on, like after Alt+Shift
+            if (vk == 0x20 && (Down(0x5B) || Down(0x5C)) && !ctrl && !Down(0x12)) return false;
             if (!(altGr && typesChar) && (ctrl || Down(0x12) || Down(0x5B) || Down(0x5C))) { ResetAll(); return false; }
 
             if (hwnd != wordHwnd) { ResetAll(); wordHwnd = hwnd; context = null; erasedKeys = null; }
@@ -700,12 +703,14 @@ class KeyboardWatcher
         }
     }
 
-    // The user erased a correction: remember the words and switch the layout back
+    // The user erased a correction: remember the words and switch the layout back. Erasing only the last word rejects
+    // only that one: short words fixed before it along with it ("а" in "а можно") stay on screen and aren't learned
     void Reject()
     {
         var c = last;
         last = null;
-        foreach (string w in c.OriginalWords) AddIgnored(w);
+        bool all = c.Backspaced >= c.Replaced.Length + 1;
+        for (int i = all ? 0 : Math.Max(0, c.OriginalWords.Count - 1); i < c.OriginalWords.Count; i++) AddIgnored(c.OriginalWords[i]);
         recent.Remove(c.Recent);
         W.SwitchLayout(c.Hwnd, c.OriginalLayout);
         var original = Layouts.Get(c.OriginalLayout);
@@ -1119,7 +1124,7 @@ class KeyboardWatcher
 
     // Focus was checked after this word started; otherwise we can't know it isn't a password
     // The password guard answers checks; while it doesn't, nothing is corrected (shown by the tray icon)
-    public bool GuardAnswering { get { return guard == null || guard.Answering; } }
+    public bool GuardAnswering { get { return guard != null && guard.Answering; } }   // no check at all is never "answering"
 
     void RequestFocusCheck() { if (guard != null) guard.RequestCheck(); }
 
@@ -1132,6 +1137,9 @@ class KeyboardWatcher
 
         string cls = W.ClassName(hwnd);
         if (cls == "Progman" || cls == "WorkerW" || cls == "Shell_TrayWnd") return false;
+        // A maximized window is an ordinary one, even where it covers the whole monitor (an auto-hidden taskbar,
+        // a second monitor without one); games and videos go full screen without being maximized
+        if (W.IsZoomed(W.GetAncestor(hwnd, 2))) return false;   // GA_ROOT
         W.RECT r;
         var mi = new W.MONITORINFO { cbSize = Marshal.SizeOf(typeof(W.MONITORINFO)) };
         if (!W.GetWindowRect(hwnd, out r) || !W.GetMonitorInfo(W.MonitorFromWindow(hwnd, 2), ref mi)) return false;
@@ -1278,6 +1286,8 @@ static class W
     }
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string cls, string title);
+    [DllImport("user32.dll")] public static extern bool IsZoomed(IntPtr hwnd);
+    [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr hwnd, uint flags);
 
     [DllImport("advapi32.dll", SetLastError = true)] static extern bool OpenProcessToken(IntPtr process, uint access, out IntPtr token);
     [DllImport("advapi32.dll", SetLastError = true)] static extern bool GetTokenInformation(IntPtr token, int cls, IntPtr info, int length, out int returned);
