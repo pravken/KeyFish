@@ -13,6 +13,11 @@ static class Theme
     public static bool Dark = ReadDark();
     public static Color Accent = ReadAccent();
     public static int Mode;   // the theme chosen in Settings: 0 — as in Windows, 1 — light, 2 — dark
+    // The holiday look (Halloween: a pumpkin accent, a night-purple dark theme, the fish in a witch's hat), set at start
+    // and when Settings are saved: on during the holiday unless switched off in Settings
+    public static bool Holiday;
+
+    public static bool IsHalloween(DateTime day) { return (day.Month == 10 && day.Day >= 24) || (day.Month == 11 && day.Day <= 2); }
 
     // Windows switched to the dark or light theme, the accent color changed or another theme was chosen in Settings:
     // read them again. True if anything changed
@@ -26,15 +31,16 @@ static class Theme
         return true;
     }
 
-    public static Color Back { get { return Dark ? Color.FromArgb(32, 32, 32) : Color.FromArgb(243, 243, 243); } }
-    public static Color Card { get { return Dark ? Color.FromArgb(43, 43, 43) : Color.FromArgb(251, 251, 251); } }
-    public static Color CardBorder { get { return Dark ? Color.FromArgb(29, 29, 29) : Color.FromArgb(229, 229, 229); } }
+    // On Halloween the dark theme leans to night purple
+    public static Color Back { get { return Dark ? (Holiday ? Color.FromArgb(31, 26, 38) : Color.FromArgb(32, 32, 32)) : Color.FromArgb(243, 243, 243); } }
+    public static Color Card { get { return Dark ? (Holiday ? Color.FromArgb(43, 36, 52) : Color.FromArgb(43, 43, 43)) : Color.FromArgb(251, 251, 251); } }
+    public static Color CardBorder { get { return Dark ? (Holiday ? Color.FromArgb(27, 22, 34) : Color.FromArgb(29, 29, 29)) : Color.FromArgb(229, 229, 229); } }
     public static Color Text { get { return Dark ? Color.White : Color.FromArgb(27, 27, 27); } }
     public static Color SubText { get { return Dark ? Color.FromArgb(200, 200, 200) : Color.FromArgb(96, 96, 96); } }
-    public static Color Input { get { return Dark ? Color.FromArgb(45, 45, 45) : Color.White; } }
-    public static Color InputBorder { get { return Dark ? Color.FromArgb(70, 70, 70) : Color.FromArgb(214, 214, 214); } }
-    public static Color Hover { get { return Dark ? Color.FromArgb(55, 55, 55) : Color.FromArgb(233, 233, 233); } }
-    public static Color Selected { get { return Dark ? Color.FromArgb(60, 60, 60) : Color.FromArgb(228, 228, 228); } }
+    public static Color Input { get { return Dark ? (Holiday ? Color.FromArgb(46, 39, 56) : Color.FromArgb(45, 45, 45)) : Color.White; } }
+    public static Color InputBorder { get { return Dark ? (Holiday ? Color.FromArgb(76, 64, 92) : Color.FromArgb(70, 70, 70)) : Color.FromArgb(214, 214, 214); } }
+    public static Color Hover { get { return Dark ? (Holiday ? Color.FromArgb(58, 49, 70) : Color.FromArgb(55, 55, 55)) : Color.FromArgb(233, 233, 233); } }
+    public static Color Selected { get { return Dark ? (Holiday ? Color.FromArgb(64, 54, 78) : Color.FromArgb(60, 60, 60)) : Color.FromArgb(228, 228, 228); } }
     public static Color Danger { get { return Dark ? Color.FromArgb(255, 153, 164) : Color.FromArgb(196, 43, 28); } }
     // On a dark background Windows 11 uses a lighter shade of the accent color
     public static Color AccentFill { get { return Dark ? Blend(Accent, Color.White, 0.45) : Accent; } }
@@ -106,6 +112,7 @@ static class Theme
 
     static Color ReadAccent()
     {
+        if (Holiday) return Color.FromArgb(232, 110, 20);   // pumpkin
         try
         {
             using (var k = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\DWM"))
@@ -1187,7 +1194,10 @@ class ThemedMessage : Form
 // The layout's letters in a circle (EN, RU…): the tray icon when chosen in Settings instead of the fish
 static class LetterIcon
 {
-    public static readonly Color Latin = Color.FromArgb(40, 110, 220), Other = Color.FromArgb(232, 112, 30), Off = Color.FromArgb(150, 150, 150);
+    // Blue for Latin and orange for another alphabet; on Halloween, purple and pumpkin
+    public static Color Latin { get { return Theme.Holiday ? Color.FromArgb(124, 70, 200) : Color.FromArgb(40, 110, 220); } }
+    public static Color Other { get { return Theme.Holiday ? Color.FromArgb(240, 120, 20) : Color.FromArgb(232, 112, 30); } }
+    public static readonly Color Off = Color.FromArgb(150, 150, 150);
     static readonly Color DarkInk = Color.FromArgb(32, 32, 32);
 
     // White letters as before, unless the color is so light that white barely stands out on it (white, pale yellow…):

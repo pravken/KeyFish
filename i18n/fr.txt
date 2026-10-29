@@ -180,3 +180,5 @@ this week	cette semaine
 this month	ce mois-ci
 ≈{0} min	≈{0} min
 saved	gagnées
+Holiday look	Décor de fête
+For Halloween (October 24 to November 2): pumpkin colors, a hat on the fish, bats. Takes effect after saving.	Pour Halloween (du 24 octobre au 2 novembre) : couleurs citrouille, un chapeau pour le poisson, des chauves-souris. S'applique après l'enregistrement.

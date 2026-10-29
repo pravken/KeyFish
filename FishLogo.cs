@@ -33,16 +33,18 @@ static class FishLogo
         var white = Color.White;
         var shade = Color.FromArgb(214, 228, 250);
 
+        bool holiday = Theme.Holiday;
         if (circle)
         {
             using (var path = new GraphicsPath())
             {
                 path.AddEllipse(0.5f, 0.5f, 63, 63);
+                // On Halloween the disc is a pumpkin
                 using (var b = new PathGradientBrush(path)
                 {
                     CenterPoint = new PointF(22, 18),
-                    CenterColor = Color.FromArgb(78, 146, 240),
-                    SurroundColors = new[] { Color.FromArgb(28, 88, 196) }
+                    CenterColor = holiday ? Color.FromArgb(255, 170, 70) : Color.FromArgb(78, 146, 240),
+                    SurroundColors = new[] { holiday ? Color.FromArgb(214, 88, 18) : Color.FromArgb(28, 88, 196) }
                 })
                     g.FillPath(b, path);
             }
@@ -105,8 +107,15 @@ static class FishLogo
         using (var b = new SolidBrush(Color.FromArgb(22, 60, 140))) g.FillEllipse(b, 15.5f, 29 - eyeH / 2, 5, eyeH);
         if (eyeOpen > 0.5f) using (var b = new SolidBrush(white)) g.FillEllipse(b, 17.6f, 27.6f, 1.6f, 1.6f);
 
-        // Bubbles rise from the mouth
-        if (bubbles < 0)
+        if (holiday) Hat(g);
+
+        // Bubbles rise from the mouth; on Halloween, bats
+        if (holiday)
+        {
+            if (bubbles < 0) { Bat(g, 8.5f, 15.5f, 5f, 0.3f, 1); Bat(g, 15.5f, 7.5f, 3.6f, 0.75f, 1); }
+            else for (int i = 0; i < 2; i++) BatFlight(g, (bubbles + i * 0.5f) % 1, i);
+        }
+        else if (bubbles < 0)
             using (var p = new Pen(Color.FromArgb(230, white), 1.6f))
             {
                 g.DrawEllipse(p, 11, 13, 6, 6);
@@ -119,6 +128,70 @@ static class FishLogo
     }
 
     static readonly float[] BubbleSizes = { 3f, 2.2f, 2.6f };
+
+    static readonly Color HatColor = Color.FromArgb(52, 28, 74), BatColor = Color.FromArgb(38, 20, 52);
+
+    // A witch's hat on the fish's head, its tip bent back (on the 64×64 grid). bold: a bigger hat for small icons,
+    // where the usual one would be a smudge
+    public static void Hat(Graphics g, bool bold = false)
+    {
+        var state = g.Save();
+        if (bold) { g.TranslateTransform(20, 22); g.ScaleTransform(1.45f, 1.45f); g.TranslateTransform(-20, -20); }
+        using (var cone = new GraphicsPath())
+        {
+            cone.AddBezier(14.5f, 21.5f, 17, 15, 19.5f, 10, 23, 6.5f);
+            cone.AddBezier(23, 6.5f, 26, 4, 29, 4.5f, 31, 6.5f);      // the tip bends back over the head
+            cone.AddBezier(31, 6.5f, 27.5f, 7, 25.5f, 9, 25.5f, 13);
+            cone.AddBezier(25.5f, 13, 25.5f, 16, 26.5f, 18.5f, 27.5f, 20.5f);
+            cone.CloseFigure();
+            using (var b = new LinearGradientBrush(new PointF(14, 0), new PointF(28, 0), Color.FromArgb(78, 46, 104), HatColor)) g.FillPath(b, cone);
+        }
+        // An orange band and the brim
+        using (var p = new Pen(Color.FromArgb(255, 150, 40), 2f)) g.DrawLine(p, 16, 18.6f, 26.6f, 17.8f);
+        using (var b = new SolidBrush(HatColor)) g.FillEllipse(b, 10.5f, 19.2f, 21, 4.6f);
+        using (var p = new Pen(Color.FromArgb(90, 255, 255, 255), 0.6f)) g.DrawArc(p, 11, 19.4f, 20, 4, 190, 120);
+        g.Restore(state);
+    }
+
+    // A bat at (x, y), wingspan about 2·size; flap 0…1 is how high the wings are
+    public static void Bat(Graphics g, float x, float y, float size, float flap, float alpha)
+    {
+        float up = (flap - 0.5f) * size * 0.9f;
+        var wing = new[]
+        {
+            new PointF(0, 0), new PointF(-0.35f * size, -0.25f * size - up * 0.5f), new PointF(-1f * size, -0.35f * size - up),
+            new PointF(-0.8f * size, 0.15f * size - up * 0.4f), new PointF(-0.55f * size, 0.05f * size), new PointF(-0.35f * size, 0.3f * size),
+            new PointF(0, 0.2f * size)
+        };
+        using (var b = new SolidBrush(Color.FromArgb((int)(255 * Math.Max(0, Math.Min(1, alpha))), BatColor)))
+        {
+            var left = new PointF[wing.Length];
+            var right = new PointF[wing.Length];
+            for (int i = 0; i < wing.Length; i++)
+            {
+                left[i] = new PointF(x + wing[i].X, y + wing[i].Y);
+                right[i] = new PointF(x - wing[i].X, y + wing[i].Y);
+            }
+            g.FillPolygon(b, left);
+            g.FillPolygon(b, right);
+            g.FillEllipse(b, x - 0.22f * size, y - 0.3f * size, 0.44f * size, 0.6f * size);
+            // Ears
+            g.FillPolygon(b, new[] { new PointF(x - 0.2f * size, y - 0.2f * size), new PointF(x - 0.14f * size, y - 0.48f * size), new PointF(x - 0.04f * size, y - 0.25f * size) });
+            g.FillPolygon(b, new[] { new PointF(x + 0.2f * size, y - 0.2f * size), new PointF(x + 0.14f * size, y - 0.48f * size), new PointF(x + 0.04f * size, y - 0.25f * size) });
+        }
+    }
+
+    // One bat of the stream at its moment t (0…1): it leaves the mouth, flaps up beside the hat and fades away
+    static void BatFlight(Graphics g, float t, int seed)
+    {
+        float ease = 1 - (1 - t) * (1 - t);
+        float x = 11.5f - 3 * ease + 1.2f * (float)Math.Sin((t * 4 + seed) * Math.PI);
+        float y = 26 - 19 * ease;
+        float size = 1.8f + 3.4f * Math.Min(1, t / 0.25f);
+        float alpha = Math.Min(1, t / 0.15f) * (t > 0.8f ? (1 - t) / 0.2f : 1);
+        float flap = 0.5f + 0.5f * (float)Math.Sin(t * 40 + seed);
+        Bat(g, x, y, size, flap, alpha);
+    }
 
     // One bubble of the stream at its own moment t (0…1): it appears at the mouth growing from a point, rises with a
     // gentle sway, and at the top pops — the ring widens, thins and fades while a few droplets fly off
@@ -224,7 +297,8 @@ class FishView : Control
 }
 
 // Easter egg: the window fills with water, the fish swims in, eats a word typed in the wrong layout
-// and lets out the right one as a bubble. Clicks are ignored until it ends, so it always plays to the end
+// and lets out the right one as a bubble. Clicks are ignored until it ends, so it always plays to the end.
+// On Halloween the water is night, the specks are fireflies, the fish is a ghost and the word rises in a moon with a bat
 class Aquarium : Control
 {
     readonly Timer timer = new Timer { Interval = 16 };
@@ -266,6 +340,7 @@ class Aquarium : Control
         g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
         double t = Elapsed;
         float w = Width, h = Height;
+        bool night = Theme.Holiday;
 
         // The window behind, then the water level: rises in the first second, drains in the last one
         g.Clear(Parent != null ? Parent.BackColor : Theme.Back);
@@ -280,7 +355,8 @@ class Aquarium : Control
             path.AddLine(w + 8, top, w + 8, h);
             path.AddLine(w + 8, h, 0, h);
             path.CloseFigure();
-            using (var b = new LinearGradientBrush(new RectangleF(0, top - 5, w, h - top + 10), Color.FromArgb(120, 190, 250), Color.FromArgb(20, 70, 170), 90f))
+            using (var b = new LinearGradientBrush(new RectangleF(0, top - 5, w, h - top + 10),
+                       night ? Color.FromArgb(96, 56, 140) : Color.FromArgb(120, 190, 250), night ? Color.FromArgb(18, 10, 32) : Color.FromArgb(20, 70, 170), 90f))
                 g.FillPath(b, path);
         }
         if (level < 0.05) return;
@@ -294,7 +370,7 @@ class Aquarium : Control
                 float x = w * (0.2f + 0.3f * i) + 20 * (float)Math.Sin(t + i);
                 g.FillPolygon(b, new[] { new PointF(x, top), new PointF(x + 40, top), new PointF(x - 30, h), new PointF(x - 90, h) });
             }
-        using (var b = new SolidBrush(Color.FromArgb(70, 255, 255, 255)))
+        using (var b = new SolidBrush(night ? Color.FromArgb(150, 255, 170, 60) : Color.FromArgb(70, 255, 255, 255)))
             foreach (var p in specks)
             {
                 float y = (float)((p.Y * h - t * 18) % h + h) % h;
@@ -334,12 +410,23 @@ class Aquarium : Control
                 var st = g.Save();
                 g.TranslateTransform(wordX, y);
                 g.ScaleTransform(scale, scale);
-                using (var b = new SolidBrush(Color.FromArgb((int)(60 * fade), 255, 255, 255))) g.FillEllipse(b, -d / 2, -d / 2, d, d);
-                using (var p = new Pen(Color.FromArgb((int)(220 * fade), 255, 255, 255), 2f)) g.DrawEllipse(p, -d / 2, -d / 2, d, d);
-                // A glint on the bubble
-                using (var p = new Pen(Color.FromArgb((int)(150 * fade), 255, 255, 255), 2.5f) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round })
-                    g.DrawArc(p, -d / 2 + 7, -d / 2 + 7, d - 14, d - 14, 200, 50);
-                using (var b = new SolidBrush(Color.FromArgb((int)(255 * textFade), 255, 255, 255))) g.DrawString(right, font, b, -size.Width / 2, -size.Height / 2);
+                if (night)
+                {
+                    // A full moon with a bat flapping across it
+                    using (var b = new SolidBrush(Color.FromArgb((int)(230 * fade), 255, 176, 70))) g.FillEllipse(b, -d / 2, -d / 2, d, d);
+                    using (var b = new SolidBrush(Color.FromArgb((int)(60 * fade), 255, 230, 160))) g.FillEllipse(b, -d / 2 + 5, -d / 2 + 4, d * 0.4f, d * 0.3f);
+                    FishLogo.Bat(g, d * 0.32f, -d * 0.42f, d * 0.2f, 0.5f + 0.5f * (float)Math.Sin(t * 18), fade);
+                    using (var b = new SolidBrush(Color.FromArgb((int)(255 * textFade), 46, 22, 60))) g.DrawString(right, font, b, -size.Width / 2, -size.Height / 2);
+                }
+                else
+                {
+                    using (var b = new SolidBrush(Color.FromArgb((int)(60 * fade), 255, 255, 255))) g.FillEllipse(b, -d / 2, -d / 2, d, d);
+                    using (var p = new Pen(Color.FromArgb((int)(220 * fade), 255, 255, 255), 2f)) g.DrawEllipse(p, -d / 2, -d / 2, d, d);
+                    // A glint on the bubble
+                    using (var p = new Pen(Color.FromArgb((int)(150 * fade), 255, 255, 255), 2.5f) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round })
+                        g.DrawArc(p, -d / 2 + 7, -d / 2 + 7, d - 14, d - 14, 200, 50);
+                    using (var b = new SolidBrush(Color.FromArgb((int)(255 * textFade), 255, 255, 255))) g.DrawString(right, font, b, -size.Width / 2, -size.Height / 2);
+                }
                 g.Restore(st);
                 // Crumbs of the eaten word turn into little bubbles
                 float c = Ease((t - eat) / 2.2);
@@ -363,7 +450,26 @@ class Aquarium : Control
         var state = g.Save();
         g.TranslateTransform(fx + fishSize, fy);
         g.ScaleTransform(-1, 1);
-        FishLogo.Draw(g, new RectangleF(0, 0, fishSize, fishSize), false, tail, 1, (float)(t * 0.6 % 1));
+        if (night)
+        {
+            // A ghost: the fish drawn into its own picture, then put down see-through and wavering
+            int size = Math.Max(8, (int)fishSize);
+            using (var ghost = new Bitmap(size, size))
+            {
+                using (var gg = Graphics.FromImage(ghost))
+                {
+                    gg.SmoothingMode = SmoothingMode.AntiAlias;
+                    FishLogo.Draw(gg, new RectangleF(0, 0, size, size), false, tail, 1, (float)(t * 0.6 % 1));
+                }
+                using (var attr = new System.Drawing.Imaging.ImageAttributes())
+                {
+                    float a = 0.55f + 0.2f * (float)Math.Sin(t * 5);
+                    attr.SetColorMatrix(new System.Drawing.Imaging.ColorMatrix { Matrix00 = 0.9f, Matrix11 = 0.95f, Matrix22 = 1f, Matrix33 = a });
+                    g.DrawImage(ghost, new Rectangle(0, 0, size, size), 0, 0, size, size, GraphicsUnit.Pixel, attr);
+                }
+            }
+        }
+        else FishLogo.Draw(g, new RectangleF(0, 0, fishSize, fishSize), false, tail, 1, (float)(t * 0.6 % 1));
         g.Restore(state);
         g.Clip = clip;
     }

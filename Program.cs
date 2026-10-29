@@ -251,6 +251,7 @@ class App : ApplicationContext
         Color custom;
         Icon want = !watcher.Enabled || guardDown || foregroundNoRights ? iconOff
                   : showLayout && layoutColors.TryGetValue(currentLayoutName, out custom) ? FishIcon(custom, blink)
+                  : Theme.Holiday ? FishIcon(ru ? LetterIcon.Other : LetterIcon.Latin, blink)
                   : blink ? (ru ? blinkRu : blinkEn) : (ru ? iconRu : iconEn);
         if (blinkTicks > 0) blinkTicks--;
         if (tray.Icon != want) tray.Icon = want;
@@ -315,18 +316,27 @@ class App : ApplicationContext
         return other ? LetterIcon.Other : LetterIcon.Latin;
     }
 
-    // The tray fish in a chosen color, made once per color
+    // The tray fish in a chosen color, made once per color; on Halloween it wears a witch's hat
     readonly Dictionary<string, Icon> fishIcons = new Dictionary<string, Icon>();
     Icon FishIcon(Color color, bool blink)
     {
-        string key = color.ToArgb() + "|" + blink;
+        string key = color.ToArgb() + "|" + blink + "|" + Theme.Holiday;
         Icon icon;
         if (fishIcons.TryGetValue(key, out icon)) return icon;
         using (var s = typeof(App).Assembly.GetManifestResourceStream(blink ? "fish-blink.ico" : "fish.ico"))
         using (var source = new Icon(s, SystemInformation.SmallIconSize))
         using (var bmp = source.ToBitmap())
         using (var colored = LayoutColors.Recolor(bmp, color))
+        {
+            if (Theme.Holiday)
+                using (var g = Graphics.FromImage(colored))
+                {
+                    g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                    g.ScaleTransform(colored.Width / 64f, colored.Height / 64f);
+                    FishLogo.Hat(g, colored.Width <= 20);
+                }
             icon = Icon.FromHandle(colored.GetHicon());
+        }
         fishIcons[key] = icon;
         return icon;
     }
@@ -669,6 +679,7 @@ class App : ApplicationContext
         RepairAutostart();
         L.Setting = GetSetting("Language", 0);
         Theme.Mode = Math.Max(0, Math.Min(GetSetting("Theme", 0), 2));
+        Theme.Holiday = GetSetting("Holiday", 1) != 0 && Theme.IsHalloween(DateTime.Today);
         Theme.Refresh();
         statsBase = GetSetting("StatsTotal", 0);
         if (GetSetting("StatsSince", 0) == 0) SetSetting("StatsSince", int.Parse(DateTime.Today.ToString("yyyyMMdd")));
@@ -946,7 +957,7 @@ class App : ApplicationContext
         {
             OpenAbout = owner => ShowAbout(owner), Updates = updates,
             BackupDir = backupDir, TrayLetters = trayLetters, LayoutColors = new Dictionary<string, Color>(layoutColors, StringComparer.OrdinalIgnoreCase), AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, RecentMenu = watcher.KeepRecent, Typography = watcher.Typography, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
-            CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting, ThemeMode = Theme.Mode,
+            CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting, ThemeMode = Theme.Mode, Holiday = GetSetting("Holiday", 1) != 0,
             Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ignoredBefore, Learned = learnedBefore,
             AppLayouts = ReadText(appLayoutsPath), InstalledLayouts = new List<LayoutTable>(watcher.Layouts.All)
         };
@@ -992,6 +1003,13 @@ class App : ApplicationContext
                     Theme.Mode = f.ThemeMode;
                     SetSetting("Theme", f.ThemeMode);
                     themeChanged = Theme.Refresh();
+                }
+                if (f.Holiday != (GetSetting("Holiday", 1) != 0))
+                {
+                    SetSetting("Holiday", f.Holiday ? 1 : 0);
+                    Theme.Holiday = f.Holiday && Theme.IsHalloween(DateTime.Today);
+                    Theme.Refresh();   // the accent color
+                    themeChanged = true;
                 }
                 if (f.Language != L.Setting || themeChanged)
                 {
@@ -1481,16 +1499,56 @@ class UpdateInfo
 // A short "bloop" for a correction: a rising tone that fades out, made here instead of shipping a sound file
 static class Bubble
 {
-    static System.Media.SoundPlayer player;
+    static System.Media.SoundPlayer player, spooky;
 
     public static void Play()
     {
         try
         {
+            // On Halloween a ghostly "ooo" instead of the bloop
+            if (Theme.Holiday)
+            {
+                if (spooky == null) { spooky = new System.Media.SoundPlayer(new MemoryStream(Ghost())); spooky.Load(); }
+                spooky.Play();
+                return;
+            }
             if (player == null) { player = new System.Media.SoundPlayer(new MemoryStream(Wave())); player.Load(); }
             player.Play();
         }
         catch { }
+    }
+
+    // A soft falling "ooo" with a wobble and two fading echoes, as short and quiet as the bloop
+    static byte[] Ghost()
+    {
+        const int rate = 44100;
+        int lead = rate * 250 / 1000, n = rate * 260 / 1000, echo = rate * 110 / 1000, tail = rate * 150 / 1000;
+        int total = lead + n + echo * 2 + tail;
+        var mix = new double[n + echo * 2];
+        double phase = 0;
+        int fadeOut = rate * 20 / 1000;
+        for (int i = 0; i < n; i++)
+        {
+            double t = (double)i / n;
+            double freq = 620 * Math.Pow(0.62, t) * (1 + 0.03 * Math.Sin(2 * Math.PI * 7 * i / rate));   // 620 → 385 Hz, wavering
+            phase += 2 * Math.PI * freq / rate;
+            double envelope = Math.Min(1, i / (rate * 0.03)) * (1 - 0.4 * t);
+            if (i > n - fadeOut) envelope *= (double)(n - i) / fadeOut;
+            double s = (Math.Sin(phase) + 0.25 * Math.Sin(2 * phase)) * envelope * 0.18;
+            mix[i] += s;
+            mix[i + echo] += s * 0.35;
+            mix[i + echo * 2] += s * 0.12;
+        }
+        var ms = new MemoryStream();
+        var w = new BinaryWriter(ms);
+        w.Write(Encoding.ASCII.GetBytes("RIFF")); w.Write(36 + total * 2); w.Write(Encoding.ASCII.GetBytes("WAVEfmt "));
+        w.Write(16); w.Write((short)1); w.Write((short)1); w.Write(rate); w.Write(rate * 2); w.Write((short)2); w.Write((short)16);
+        w.Write(Encoding.ASCII.GetBytes("data")); w.Write(total * 2);
+        for (int i = 0; i < lead; i++) w.Write((short)0);
+        foreach (double s in mix) w.Write((short)(Math.Max(-1, Math.Min(1, s)) * short.MaxValue));
+        for (int i = 0; i < tail; i++) w.Write((short)0);
+        w.Flush();
+        return ms.ToArray();
     }
 
     static byte[] Wave()

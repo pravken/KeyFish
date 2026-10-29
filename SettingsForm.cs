@@ -18,6 +18,7 @@ class SettingsForm : Form
     public int QuickKey;                 // 0 — off, 1 — double Shift, 2 — Caps Lock
     public int Language;                 // see L.Choices
     public int ThemeMode;                // see Theme.Mode
+    public bool Holiday = true;          // the holiday look while a holiday lasts
     public Keys[] Hotkeys;
     public string Replacements, Exclusions, Ignored, Learned, AppLayouts;
     public IList<LayoutTable> InstalledLayouts = new List<LayoutTable>();
@@ -26,6 +27,7 @@ class SettingsForm : Form
 
     ToggleSwitch tAuto, tTypos, tQuiet, tCtrlZ, tColor, tAutostart, tUpdates, tBadge, tRecent, tSound, tLetters, tTypography;
     DropDown cbLanguage, cbTheme, cbQuickKey;
+    ToggleSwitch tHoliday;
     HotkeyBox[] hotkeyBoxes;
     DataGridView gridReplacements, gridApps, gridIgnored, gridLearned;
 
@@ -412,6 +414,9 @@ class SettingsForm : Form
         cbTheme.Items.AddRange(new[] { L.T("Как в Windows", "Same as Windows"), L.T("Светлая", "Light"), L.T("Тёмная", "Dark") });
         cbTheme.SelectedIndex = Math.Max(0, Math.Min(ThemeMode, 2));
         Row(page, ref y, L.T("Тема", "Theme"), L.T("Применится после сохранения.", "Takes effect after saving."), cbTheme);
+        Row(page, ref y, L.T("Праздничное оформление", "Holiday look"),
+            L.T("На Хэллоуин (24 октября — 2 ноября): тыквенные цвета, шляпа у рыбки, летучие мыши. Применится после сохранения.",
+                "For Halloween (October 24 to November 2): pumpkin colors, a hat on the fish, bats. Takes effect after saving."), tHoliday = Toggle(Holiday));
         Group(page, ref y, L.T("Исправление", "Correction"));
         Row(page, ref y, L.T("Исправлять раскладку при наборе", "Fix the keyboard layout as you type"),
             L.T("ghbdtn → привет, руддщ → hello. Автозамены тоже работают, только когда это включено.",
@@ -924,7 +929,7 @@ class SettingsForm : Form
             { "UndoCtrlZ", UndoCtrlZ ? 1 : 0 }, { "LayoutColor", LayoutColor ? 1 : 0 }, { "CheckUpdates", CheckUpdates ? 1 : 0 },
             { "LayoutBadge", LayoutBadge ? 1 : 0 }, { "RecentMenu", RecentMenu ? 1 : 0 }, { "QuickKey", QuickKey }, { "Sound", Sound ? 1 : 0 }, { "Typography", Typography ? 1 : 0 },
             { "TrayLetters", TrayLetters ? 1 : 0 },
-            { "Language", Language }, { "Theme", ThemeMode }
+            { "Language", Language }, { "Theme", ThemeMode }, { "Holiday", Holiday ? 1 : 0 }
         };
         for (int i = 0; i < Hotkeys.Length; i++) v["Hotkey" + (i + 1)] = (int)Hotkeys[i];
         return v;
@@ -993,6 +998,7 @@ class SettingsForm : Form
         if (values.TryGetValue("QuickKey", out n)) QuickKey = Math.Max(0, Math.Min(n, 2));
         if (values.TryGetValue("Language", out n)) Language = Math.Max(0, n);
         if (values.TryGetValue("Theme", out n)) ThemeMode = Math.Max(0, Math.Min(n, 2));
+        if (values.TryGetValue("Holiday", out n)) Holiday = n != 0;
         for (int i = 0; i < Hotkeys.Length; i++) if (values.TryGetValue("Hotkey" + (i + 1), out n)) Hotkeys[i] = (Keys)n;
         DialogResult = DialogResult.OK;
         Close();
@@ -1017,6 +1023,7 @@ class SettingsForm : Form
         QuickKey = cbQuickKey.SelectedIndex;
         Language = cbLanguage.SelectedIndex;
         ThemeMode = cbTheme.SelectedIndex;
+        Holiday = tHoliday.Checked;
         for (int i = 0; i < Hotkeys.Length; i++) Hotkeys[i] = hotkeyBoxes[i].Value;
 
         gridApps.EndEdit();
@@ -1368,7 +1375,7 @@ static class SettingsArchive
     public static readonly string[] Values =
     {
         "AutoCorrect", "Typos", "QuietFullscreen", "UndoCtrlZ", "LayoutColor", "CheckUpdates", "LayoutBadge", "RecentMenu", "QuickKey", "Sound", "TrayLetters", "Typography",
-        "Language", "Theme", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5", "Hotkey6"
+        "Language", "Theme", "Holiday", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5", "Hotkey6"
     };
     static readonly string[] FileNames = { "replacements.txt", "exclusions.txt", "ignored-words.txt", "learned-words.txt", "app-layouts.txt", "layout-colors.txt" };
 

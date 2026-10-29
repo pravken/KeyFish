@@ -180,3 +180,5 @@ this week	за тиждень
 this month	за місяць
 ≈{0} min	≈{0} хв
 saved	заощаджено
+Holiday look	Святкове оформлення
+For Halloween (October 24 to November 2): pumpkin colors, a hat on the fish, bats. Takes effect after saving.	На Гелловін (24 жовтня — 2 листопада): гарбузові кольори, капелюх у рибки, кажани. Застосується після збереження.

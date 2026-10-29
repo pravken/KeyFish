@@ -180,3 +180,5 @@ this week	w tygodniu
 this month	w miesiącu
 ≈{0} min	≈{0} min
 saved	oszczędzone
+Holiday look	Świąteczny wygląd
+For Halloween (October 24 to November 2): pumpkin colors, a hat on the fish, bats. Takes effect after saving.	Na Halloween (24 października — 2 listopada): dyniowe kolory, kapelusz dla rybki, nietoperze. Zadziała po zapisaniu.
