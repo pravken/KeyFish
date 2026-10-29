@@ -21,6 +21,8 @@ class SettingsForm : Form
     public int SkinNumber;               // the look chosen (Skin.Number)
     public bool Holiday = true;          // a holiday's own look while the holiday lasts
     public bool SkinLogo = true, SkinSound = true;   // the look changes the fish and the sound too
+    public Dictionary<string, string> SoundMap = new Dictionary<string, string>();   // event → sound (Sounds)
+    public string SoundsDir;             // where the user's .wav files are
     public Keys[] Hotkeys;
     public string Replacements, Exclusions, Ignored, Learned, AppLayouts;
     public IList<LayoutTable> InstalledLayouts = new List<LayoutTable>();
@@ -31,6 +33,8 @@ class SettingsForm : Form
     DropDown cbLanguage, cbTheme, cbQuickKey;
     ToggleSwitch tHoliday, tSkinLogo, tSkinSound;
     SkinGallery gallery;
+    DropDown[] soundBoxes;
+    List<string>[] soundIds;
     HotkeyBox[] hotkeyBoxes;
     DataGridView gridReplacements, gridApps, gridIgnored, gridLearned;
 
@@ -194,6 +198,85 @@ class SettingsForm : Form
 
     static ToggleSwitch Toggle(bool value) { return new ToggleSwitch { Checked = value }; }
 
+    // Sounds: on or off, and a sound for each event (the look's own, none, a built-in one or the user's .wav),
+    // each with a button to listen to it before saving
+    void SoundsCard(Control page, ref int y)
+    {
+        const int pad = 18, boxW = 220, playW = 40;
+        var card = new Card { Location = new Point(16, y), Width = ContentWidth };
+        tSound = Toggle(Sound);
+        string title = L.T("Звуки", "Sounds");
+        int textW = ContentWidth - pad * 3 - tSound.Width;
+        var t = Theme.Wrapped(title, textW);
+        t.Location = new Point(pad, 14);
+        var d = Theme.Wrapped(L.T("Тихий звук, чтобы слышать, что KeyFish что-то сделал. Свои звуки — файлы .wav в папке звуков.",
+                                  "A soft sound so you hear when KeyFish does something. Your own sounds: .wav files in the sounds folder."), textW, Theme.Small, Theme.SubText);
+        d.Location = new Point(pad, t.Bottom + 1);
+        tSound.AccessibleName = title;
+        tSound.Location = new Point(ContentWidth - pad - tSound.Width, 18);
+        card.Controls.Add(t);
+        card.Controls.Add(d);
+        card.Controls.Add(tSound);
+        int cy = Math.Max(d.Bottom, tSound.Bottom) + 14;
+        soundBoxes = new DropDown[Sounds.Events.Length];
+        soundIds = new List<string>[Sounds.Events.Length];
+        for (int i = 0; i < Sounds.Events.Length; i++)
+        {
+            int e = i;
+            var name = Theme.Wrapped(Sounds.EventName(e), ContentWidth - pad * 3 - boxW - playW - 8);
+            var box = new DropDown { Size = new Size(boxW, 32), AccessibleName = Sounds.EventName(e) };
+            box.Location = new Point(ContentWidth - pad - playW - 8 - boxW, cy);
+            name.Location = new Point(pad, cy + (32 - name.Height) / 2);
+            var play = new RoundButton { Glyph = "\uE768", Text = "", Size = new Size(playW, 32), Location = new Point(ContentWidth - pad - playW, cy),
+                                         AccessibleName = L.F("Послушать: {0}", "Listen: {0}", Sounds.EventName(e)) };
+            play.Click += (s, ev) =>
+            {
+                int k = soundBoxes[e].SelectedIndex;
+                if (k >= 0) Sounds.Play(soundIds[e][k], tSkinSound.Checked ? gallery.SelectedSkin : Skin.Classic);
+            };
+            soundBoxes[e] = box;
+            card.Controls.Add(name);
+            card.Controls.Add(box);
+            card.Controls.Add(play);
+            cy += 40;
+        }
+        FillSounds();
+        var folder = new RoundButton { Text = L.T("Папка звуков", "Sounds folder"), Glyph = "\uE838", Size = new Size(170, 32), Location = new Point(pad, cy + 4) };
+        folder.Click += (s, ev) =>
+        {
+            try { System.IO.Directory.CreateDirectory(SoundsDir); Process.Start("explorer.exe", "\"" + SoundsDir + "\""); } catch { }
+        };
+        folder.Enabled = SoundsDir != null;
+        card.Controls.Add(folder);
+        card.Height = folder.Bottom + 16;
+        page.Controls.Add(card);
+        y += card.Height + 4;
+        // Files put into the folder while Settings is open show up when the window is back in front
+        Activated += (s, ev) => FillSounds();
+    }
+
+    // The choices for each event: the look's sound, none, the built-in ones, the user's files; keeps what is chosen
+    void FillSounds()
+    {
+        if (soundBoxes == null) return;
+        var files = Sounds.Files();
+        for (int e = 0; e < soundBoxes.Length; e++)
+        {
+            string current;
+            if (soundIds[e] != null && soundBoxes[e].SelectedIndex >= 0) current = soundIds[e][soundBoxes[e].SelectedIndex];
+            else if (!SoundMap.TryGetValue(Sounds.Events[e], out current)) current = Sounds.Default(e);
+            var ids = new List<string> { Sounds.Look, Sounds.None };
+            ids.AddRange(Sounds.Builtin);
+            ids.AddRange(files);
+            if (!ids.Contains(current)) ids.Add(current);   // a file that is gone stays chosen until changed
+            soundIds[e] = ids;
+            var box = soundBoxes[e];
+            box.Items.Clear();
+            box.Items.AddRange(ids.Select(Sounds.SoundName));
+            box.SelectedIndex = ids.IndexOf(current);
+        }
+    }
+
     // The look: light or dark, the gallery of looks, a big moving picture of the chosen one as it will be, and what it
     // changes besides the colors. The pictures follow the choices at once, and the sound can be listened to before saving
     void LooksCard(Control page, ref int y)
@@ -256,7 +339,7 @@ class SettingsForm : Form
         line(L.T("Рыбка в стиле оформления", "The fish in the look's style"), L.T("Логотип, значок в трее и аквариум.", "The logo, the tray icon and the aquarium."), tSkinLogo);
         line(L.T("Звук оформления", "The look's sound"), L.T("Звук исправления.", "The correction sound."), tSkinSound);
         var listen = new RoundButton { Text = L.T("Послушать", "Listen"), Glyph = "\uE768", Size = new Size(130, 30), Location = new Point(x, cy - 6) };
-        listen.Click += (s, e) => Bubble.Play(tSkinSound.Checked ? gallery.SelectedSkin : Skin.Classic);
+        listen.Click += (s, e) => Sounds.Play(Sounds.Look, tSkinSound.Checked ? gallery.SelectedSkin : Skin.Classic);
         card.Controls.Add(listen);
         cy = listen.Bottom + 12;
         var seasons = Skin.All.Where(k => k.Season != null).Select(k => k.Name + ": " + k.SeasonText);
@@ -533,8 +616,7 @@ class SettingsForm : Form
         Row(page, ref y, L.T("Последние исправления в меню рыбки", "Recent corrections in the fish menu"),
             L.T("Нажмите на исправление в меню, и KeyFish больше не будет так исправлять. Список хранится только в памяти.",
                 "Click a correction in the menu and KeyFish won't correct it again. The list is kept only in memory."), tRecent = Toggle(RecentMenu));
-        Row(page, ref y, L.T("Тихий звук при исправлении", "A soft sound on each correction"),
-            L.T("Короткий «бульк», чтобы слышать, что KeyFish что-то поменял.", "A short \"bloop\" so you hear when KeyFish changes something."), tSound = Toggle(Sound));
+        SoundsCard(page, ref y);
         Group(page, ref y, L.T("Система", "System"));
         Row(page, ref y, L.T("Запускать вместе с Windows", "Start with Windows"), null, tAutostart = Toggle(Autostart));
         Row(page, ref y, L.T("Проверять обновления", "Check for updates"),
@@ -1029,7 +1111,7 @@ class SettingsForm : Form
         {
             { "replacements.txt", Replacements }, { "exclusions.txt", Exclusions }, { "ignored-words.txt", Ignored },
             { "learned-words.txt", Learned }, { "app-layouts.txt", AppLayouts },
-            { "layout-colors.txt", global::LayoutColors.Format(LayoutColors) }
+            { "layout-colors.txt", global::LayoutColors.Format(LayoutColors) }, { "sounds.txt", Sounds.Format(SoundMap) }
         };
     }
 
@@ -1077,6 +1159,7 @@ class SettingsForm : Form
         if (files.TryGetValue("learned-words.txt", out text)) Learned = text;
         if (files.TryGetValue("app-layouts.txt", out text)) AppLayouts = text;
         if (files.TryGetValue("layout-colors.txt", out text)) LayoutColors = global::LayoutColors.Parse(text.Trim());
+        if (files.TryGetValue("sounds.txt", out text)) SoundMap = Sounds.Parse(text);
         Func<string, bool, bool> flag = (name, current) => { int v; return values.TryGetValue(name, out v) ? v != 0 : current; };
         AutoCorrect = flag("AutoCorrect", AutoCorrect); Typos = flag("Typos", Typos); QuietFullscreen = flag("QuietFullscreen", QuietFullscreen);
         UndoCtrlZ = flag("UndoCtrlZ", UndoCtrlZ); LayoutColor = flag("LayoutColor", LayoutColor); CheckUpdates = flag("CheckUpdates", CheckUpdates);
@@ -1110,6 +1193,9 @@ class SettingsForm : Form
         CheckUpdates = tUpdates.Checked;
         LayoutBadge = tBadge.Checked;
         Sound = tSound.Checked;
+        SoundMap = new Dictionary<string, string>();
+        for (int e = 0; e < soundBoxes.Length; e++)
+            if (soundBoxes[e].SelectedIndex >= 0) SoundMap[Sounds.Events[e]] = soundIds[e][soundBoxes[e].SelectedIndex];
         RecentMenu = tRecent.Checked;
         Typography = tTypography.Checked;
         QuickKey = cbQuickKey.SelectedIndex;
@@ -1481,7 +1567,7 @@ static class SettingsArchive
         "AutoCorrect", "Typos", "QuietFullscreen", "UndoCtrlZ", "LayoutColor", "CheckUpdates", "LayoutBadge", "RecentMenu", "QuickKey", "Sound", "TrayLetters", "Typography",
         "Language", "Theme", "Holiday", "Skin", "SkinLogo", "SkinSound", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5", "Hotkey6", "Hotkey7"
     };
-    static readonly string[] FileNames = { "replacements.txt", "exclusions.txt", "ignored-words.txt", "learned-words.txt", "app-layouts.txt", "layout-colors.txt" };
+    static readonly string[] FileNames = { "replacements.txt", "exclusions.txt", "ignored-words.txt", "learned-words.txt", "app-layouts.txt", "layout-colors.txt", "sounds.txt" };
 
     public static void Save(string path, Dictionary<string, string> files, Dictionary<string, int> values)
     {

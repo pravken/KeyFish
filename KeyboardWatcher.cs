@@ -164,6 +164,10 @@ class KeyboardWatcher
     int correctionCount, expansionCount;
     public int CorrectionCount { get { return Volatile.Read(ref correctionCount); } }
     public int ExpansionCount { get { return Volatile.Read(ref expansionCount); } }
+    // Of the corrections, typos fixed; and fixes taken back (Pause, Ctrl+Z): which sound to play
+    public int TypoCount { get { return Volatile.Read(ref typoCount); } }
+    public int UndoCount { get { return Volatile.Read(ref undoCount); } }
+    int typoCount, undoCount;
     volatile bool fixTypos;
     SpellService spell;
     readonly object spellSync = new object();
@@ -1032,6 +1036,7 @@ class KeyboardWatcher
             c = last;
             if (c == null || pending || W.GetForegroundWindow() != c.Hwnd) return false;
             last = null;
+            Interlocked.Increment(ref undoCount);
             foreach (string w in c.OriginalWords) AddIgnored(w);
             recent.Remove(c.Recent);
             history.Clear();
@@ -1083,6 +1088,7 @@ class KeyboardWatcher
             };
             rec.Shown = text;
             rec.Changed = true;
+            Interlocked.Increment(ref typoCount);
             Interlocked.Increment(ref correctionCount);
         }
         Execute(new Job { Backspaces = typed.Length + 1, Text = text, TerminatorVk = job.TerminatorVk, Hwnd = job.Hwnd });

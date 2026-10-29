@@ -165,7 +165,7 @@ partial class App : ApplicationContext
     Icon iconEn, iconRu, blinkEn, blinkRu;
     bool showLayout, currentRu;
     string currentLayoutName = "";
-    int seenCorrections, blinkTicks;
+    int seenCorrections, blinkTicks, seenTypos, seenUndos;
     readonly System.Windows.Forms.Timer trayTimer = new System.Windows.Forms.Timer();
     SynchronizationContext uiContext;
     volatile bool idle;
@@ -335,6 +335,8 @@ partial class App : ApplicationContext
         playSound = GetSetting("Sound", 0) != 0;
         trayLetters = GetSetting("TrayLetters", 0) != 0;
         layoutColors = LayoutColors.Parse(GetText("LayoutColors"));
+        Sounds.Dir = Path.Combine(dir, "sounds");
+        Sounds.Load(Sounds.Parse(GetText("Sounds")));
         // Double Shift or Caps Lock comes from the keyboard hook's thread: hand it to this one
         var ui = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
         watcher.QuickFix += () => ui.Post(_ =>
@@ -473,7 +475,7 @@ partial class App : ApplicationContext
         settingsForm = new SettingsForm
         {
             OpenAbout = owner => ShowAbout(owner), Updates = updates,
-            BackupDir = backupDir, TrayLetters = trayLetters, LayoutColors = new Dictionary<string, Color>(layoutColors, StringComparer.OrdinalIgnoreCase), AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, RecentMenu = watcher.KeepRecent, Typography = watcher.Typography, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
+            BackupDir = backupDir, TrayLetters = trayLetters, LayoutColors = new Dictionary<string, Color>(layoutColors, StringComparer.OrdinalIgnoreCase), AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, SoundMap = new Dictionary<string, string>(Sounds.Map), SoundsDir = Sounds.Dir, RecentMenu = watcher.KeepRecent, Typography = watcher.Typography, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
             CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting, ThemeMode = Theme.Mode, SkinNumber = Theme.Chosen, Holiday = Theme.Holidays, SkinLogo = Theme.SkinLogo, SkinSound = Theme.SkinSound,
             Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ignoredBefore, Learned = learnedBefore,
             AppLayouts = ReadText(appLayoutsPath), InstalledLayouts = new List<LayoutTable>(watcher.Layouts.All)
@@ -492,6 +494,7 @@ partial class App : ApplicationContext
                 autoCorrect = f.AutoCorrect; ApplyEnabled(); SetSetting("AutoCorrect", f.AutoCorrect ? 1 : 0);
                 showBadge = f.LayoutBadge; SetSetting("LayoutBadge", f.LayoutBadge ? 1 : 0);
                 playSound = f.Sound; SetSetting("Sound", f.Sound ? 1 : 0);
+                Sounds.Load(f.SoundMap); SetText("Sounds", Sounds.Format(f.SoundMap)); Sounds.Forget();
                 trayLetters = f.TrayLetters; SetSetting("TrayLetters", f.TrayLetters ? 1 : 0);
                 layoutColors = f.LayoutColors; SetText("LayoutColors", LayoutColors.Format(f.LayoutColors));
                 watcher.KeepRecent = f.RecentMenu; SetSetting("RecentMenu", f.RecentMenu ? 1 : 0);
@@ -564,7 +567,7 @@ partial class App : ApplicationContext
             {
                 { "replacements.txt", ReadText(replacementsPath) }, { "exclusions.txt", ReadText(exclusionsPath) },
                 { "ignored-words.txt", ignoredBefore }, { "learned-words.txt", learnedBefore }, { "app-layouts.txt", ReadText(appLayoutsPath) },
-                { "layout-colors.txt", GetText("LayoutColors") }
+                { "layout-colors.txt", GetText("LayoutColors") }, { "sounds.txt", GetText("Sounds") }
             };
             var values = new Dictionary<string, int>();
             using (var k = Registry.CurrentUser.OpenSubKey(SettingsKey))

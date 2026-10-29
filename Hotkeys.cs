@@ -71,6 +71,7 @@ partial class App
         if (busy) return;
         busy = true;
         hotkeyWindow = Native.GetForegroundWindow();
+        textChanged = false;
         try
         {
             // The clipboard is converted in place: nothing is copied from or typed into the window, so it works anywhere
@@ -86,8 +87,15 @@ partial class App
             else ConvertSelection();
         }
         catch { }
-        finally { busy = false; }
+        finally
+        {
+            busy = false;
+            if (textChanged && playSound) Sounds.Play(Sounds.Hotkey);
+        }
     }
+
+    // A hotkey changed the text (pasted it, or converted the clipboard): its sound plays
+    static bool textChanged;
 
     // A hotkey in an app run as administrator: Windows won't let KeyFish copy or type there, so say why nothing happens
     // (once per app while KeyFish runs) instead of leaving the user guessing
@@ -118,6 +126,7 @@ partial class App
         if (!SameWindow()) return false;
         Native.Chord(Native.VK_CONTROL, (byte)'V');
         Pump(150);
+        textChanged = true;
         return true;
     }
 
@@ -236,6 +245,7 @@ partial class App
         }
         // Pasteable as usual, but kept out of the clipboard history and cloud sync, like KeyFish's other text
         try { Clipboard.SetDataObject(Private(new DataObject(DataFormats.UnicodeText, result)), true); } catch { return; }
+        textChanged = true;
         tray.ShowBalloonTip(3000, "KeyFish", L.F("Текст в буфере обмена переведён в раскладку {0} — его можно вставить.",
             "The text in the clipboard is now in the {0} layout, ready to paste.", (layout.Name ?? "").Split('-')[0].ToUpperInvariant()), ToolTipIcon.Info);
     }

@@ -39,6 +39,7 @@ static class UnitTests
         Run("Settings archive", () => ArchiveTests());
         Run("Import", () => ImportTests());
         Run("Looks", () => SkinTests());
+        Run("Sounds", () => SoundTests());
 
         Console.WriteLine("{0} passed, {1} failed", passed, failed);
         return failed;
@@ -192,6 +193,28 @@ static class UnitTests
             Is("a word list", Importer.Words(words).Count, 2);
         }
         finally { try { Directory.Delete(dir, true); } catch { } }
+    }
+
+    static void SoundTests()
+    {
+        var m = Sounds.Parse("fix = drop\nundo = file:my sound.wav\ntypo = file:..\\evil.wav\npause = nothing\nbogus = bloop\n");
+        Is("known sounds are kept", m.Count, 2);
+        Is("a built-in one", m["fix"], "drop");
+        Is("a file by name", m["undo"], "file:my sound.wav");
+        True("a path out of the folder is dropped", !m.ContainsKey("typo"));
+        Is("written and read back", Sounds.Format(Sounds.Parse(Sounds.Format(m))), Sounds.Format(m));
+        Is("default for a fix", Sounds.Default(Sounds.Fix), Sounds.Look);
+        Is("default for an undo", Sounds.Default(Sounds.Undo), Sounds.None);
+        foreach (string s in Sounds.Builtin)
+        {
+            byte[] w = Sounds.Make(s);
+            True(s + " is a WAV", w != null && w.Length > 44 && Encoding.ASCII.GetString(w, 0, 4) == "RIFF");
+            int peak = 0;
+            for (int i = 44; i + 1 < w.Length; i += 2) peak = Math.Max(peak, Math.Abs((int)BitConverter.ToInt16(w, i)));
+            True(s + " is soft (no clipping)", peak > 1000 && peak < 16000);
+            True(s + " has a name", Sounds.SoundName(s) != s);
+        }
+        foreach (var skin in Skin.All) True(skin.Name + " sound is built in", Array.IndexOf(Sounds.Builtin, skin.Sound) >= 0);
     }
 
     static void SkinTests()

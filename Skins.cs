@@ -16,7 +16,8 @@ class Skin
     public Color DiscCenter, DiscEdge;    // the disc behind the fish (the logo, About, the gallery)
     public Color Latin, Other;            // the letters icon in the tray: a Latin layout and another alphabet
     public bool TintTray;                 // the tray fish takes those colors too, instead of its blue and orange
-    public bool Hat, Bats, Night, Ghost;  // a witch's hat on the fish, bats instead of bubbles, the night aquarium, the ghostly "ooo"
+    public bool Hat, Bats, Night;         // a witch's hat on the fish, bats instead of bubbles, the night aquarium
+    public string Sound = "bloop";        // its correction sound (Sounds.Builtin)
 
     public string Name { get { return L.T(NameRu, NameEn); } }
     public string SeasonText { get { return Season == null ? null : L.T(SeasonRu, SeasonEn); } }
@@ -47,7 +48,7 @@ class Skin
         Accent = Color.FromArgb(232, 110, 20),
         DiscCenter = Color.FromArgb(255, 170, 70), DiscEdge = Color.FromArgb(214, 88, 18),
         Latin = Color.FromArgb(124, 70, 200), Other = Color.FromArgb(240, 120, 20),
-        TintTray = true, Hat = true, Bats = true, Night = true, Ghost = true,
+        TintTray = true, Hat = true, Bats = true, Night = true, Sound = "ghost",
     };
 
     public static readonly Skin[] All = { Classic, Halloween };

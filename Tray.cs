@@ -58,7 +58,9 @@ partial class App
         {
             seenCorrections = events;
             blinkTicks = 4;
-            if (playSound) Bubble.Play();   // a fix or a replacement, like the blink
+            // A fix or a replacement, like the blink; each with its own sound (Sounds)
+            if (playSound) Sounds.Play(watcher.TypoCount != seenTypos ? Sounds.Typo : corrections != savedCorrections ? Sounds.Fix : Sounds.Replacement);
+            seenTypos = watcher.TypoCount;
             if (corrections != savedCorrections)
             {
                 SetSetting("StatsTotal", statsBase + corrections);
@@ -67,6 +69,8 @@ partial class App
                 FirstCorrectionsTip();
             }
         }
+
+        if (watcher.UndoCount != seenUndos) { seenUndos = watcher.UndoCount; if (playSound) Sounds.Play(Sounds.Undo); }
 
         bool ru = showLayout && currentRu;
         if (trayLetters && currentLayoutName.Length > 0)
@@ -189,6 +193,7 @@ partial class App
         if (!autoCorrect) return;
         pausedUntil = pausedUntil == DateTime.MinValue ? DateTime.Now.AddHours(1) : DateTime.MinValue;
         ApplyEnabled();
+        if (playSound) Sounds.Play(Sounds.Pause);
         if (tell)
             tray.ShowBalloonTip(2500, "KeyFish", pausedUntil != DateTime.MinValue ? PausedText : L.T("Исправление снова включено.", "Correcting again."), ToolTipIcon.Info);
         UpdateTrayIcon();
