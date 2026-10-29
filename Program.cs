@@ -168,6 +168,7 @@ partial class App : ApplicationContext
     }
 
     readonly HotkeyWindow hotkeys = new HotkeyWindow();
+    bool hotkeysOff;   // a hotkey field in Settings is listening for keys
     readonly NotifyIcon tray = new NotifyIcon();
     readonly KeyboardWatcher watcher;
     bool busy;
@@ -369,7 +370,7 @@ partial class App : ApplicationContext
         var ui = SynchronizationContext.Current;
         watcher.QuickFix += () => ui.Post(_ =>
         {
-            if (settingsForm == null && W.GetForegroundWindow() != IntPtr.Zero) OnHotkey(HkLayout);
+            if (!hotkeysOff && W.GetForegroundWindow() != IntPtr.Zero) OnHotkey(HkLayout);
         }, null);
         LoadAppLayouts();
 
@@ -506,8 +507,14 @@ partial class App : ApplicationContext
         // The gallery marks the look in use, a holiday's own one on its days too: choosing another one is then seen
         int shownSkin = Theme.Contrast ? Theme.Chosen : Theme.Skin.Number;
 
-        // Global hotkeys are off while the window is open, otherwise they couldn't be assigned
-        hotkeys.UnregisterAll();
+        // Global hotkeys are off only while a hotkey field listens for keys, otherwise they couldn't be assigned:
+        // the window applies changes at once and may stay open, and the hotkeys keep working meanwhile
+        Action<bool> recording = on =>
+        {
+            hotkeysOff = on;
+            if (on) hotkeys.UnregisterAll(); else RegisterHotkeys();
+        };
+        HotkeyBox.RecordingChanged += recording;
         try
         {
             // Apply keeps the window open, and a look applies as soon as it is picked
@@ -516,7 +523,10 @@ partial class App : ApplicationContext
             bool backedUp = false;
             settingsForm.Apply = f =>
             {
+                var keysBefore = Enumerable.Range(0, HotkeyDefaults.Length).Select(GetHotkey).ToArray();
                 bool rebuild = ApplySettings(f, shownSkin, ignoredBefore, learnedBefore, !backedUp || f.Replacing);
+                // New hotkeys take effect at once; one taken by another app is said when it is chosen
+                if (!hotkeysOff && !keysBefore.SequenceEqual(Enumerable.Range(0, HotkeyDefaults.Length).Select(GetHotkey))) WarnHotkeys(RegisterHotkeys());
                 backedUp = true;
                 // The next Apply starts from this one: the word lists as they were in the window, the look now in use
                 ignoredBefore = f.Ignored;
@@ -535,9 +545,10 @@ partial class App : ApplicationContext
         }
         finally
         {
+            HotkeyBox.RecordingChanged -= recording;
             if (settingsForm != null) settingsForm.Dispose();
             settingsForm = null;
-            WarnHotkeys(RegisterHotkeys());
+            if (hotkeysOff) { hotkeysOff = false; RegisterHotkeys(); }
         }
     }
 

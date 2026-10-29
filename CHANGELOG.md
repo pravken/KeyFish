@@ -1,3 +1,7 @@
+2.2.1 2026-10-30
+Fixed:
+• Hotkeys did not work while the Settings window was open
+
 2.2.0 2026-10-30
 New:
 • A text actions menu on Ctrl+Shift+F2: case, layout, spaces, lines, a name for code

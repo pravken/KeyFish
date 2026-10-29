@@ -1621,6 +1621,9 @@ class HotkeyBox : TextBox
     bool recording;
     public event EventHandler ValueChanged;
 
+    // A field starts or stops listening for keys: KeyFish's own hotkeys are off meanwhile, or they couldn't be assigned
+    public static event Action<bool> RecordingChanged;
+
     [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool HideCaret(IntPtr hwnd);
 
     public HotkeyBox()
@@ -1653,6 +1656,7 @@ class HotkeyBox : TextBox
 
     void Record(bool on)
     {
+        if (recording != on && RecordingChanged != null) RecordingChanged(on);
         recording = on;
         BackColor = on ? Theme.SelectionBack : Theme.Input;
         ForeColor = on ? Theme.OnSelected : Theme.Text;
