@@ -12,8 +12,9 @@ class AboutForm : Form
     const string ProjectUrl = "https://github.com/pravken/KeyFish";
     const string SupportUrl = "https://ko-fi.com/pravken";
 
-    // layouts: the installed keyboard layouts, for the easter egg
-    public AboutForm(string stats, string changelog, ICollection<LayoutTable> layouts = null, UpdateInfo updates = null)
+    // layouts: the installed keyboard layouts, for the easter egg; recent: caught today, in a week, in a month, and the
+    // minutes that saved (null: not shown)
+    public AboutForm(string stats, string changelog, ICollection<LayoutTable> layouts = null, UpdateInfo updates = null, int[] recent = null)
     {
         Text = L.T("О программе", "About KeyFish");
         StartPosition = FormStartPosition.CenterScreen;
@@ -45,9 +46,22 @@ class AboutForm : Form
         var count = Theme.Wrapped(stats, 337, Theme.Body);
         count.Location = new Point(139, what.Bottom + 2);
         Controls.Add(count);
+        Control above = count;
+        if (recent != null)
+        {
+            var strip = new StatsStrip(new[]
+            {
+                Tuple.Create(recent[0].ToString("N0", L.Culture), L.T("сегодня", "today")),
+                Tuple.Create(recent[1].ToString("N0", L.Culture), L.T("за неделю", "this week")),
+                Tuple.Create(recent[2].ToString("N0", L.Culture), L.T("за месяц", "this month")),
+                Tuple.Create(L.F("≈{0} мин", "≈{0} min", recent[3].ToString("N0", L.Culture)), L.T("сэкономлено", "saved"))
+            }) { Location = new Point(139, count.Bottom + 10), Size = new Size(337, 46) };
+            Controls.Add(strip);
+            above = strip;
+        }
 
         var link = Theme.Label("github.com/pravken/KeyFish", Theme.Body, Theme.AccentFill);
-        link.Location = new Point(139, count.Bottom + 2);
+        link.Location = new Point(139, above.Bottom + (recent != null ? 10 : 2));
         link.Cursor = Cursors.Hand;
         var underlined = new Font(Theme.Body, FontStyle.Underline);
         FormClosed += (s, e) => underlined.Dispose();
@@ -416,5 +430,35 @@ class IntroForm : Form
     {
         if (disposing) { fishEn.Dispose(); fishRu.Dispose(); }
         base.Dispose(disposing);
+    }
+}
+
+// The statistics in About as a row of numbers with a caption under each, split by thin lines
+class StatsStrip : Control
+{
+    readonly Tuple<string, string>[] items;
+
+    public StatsStrip(Tuple<string, string>[] items)
+    {
+        this.items = items;
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint |
+                 ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
+        BackColor = Color.Transparent;
+        AccessibleRole = AccessibleRole.StaticText;
+        AccessibleName = string.Join(", ", items.Select(i => i.Item1 + " " + i.Item2));
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        float w = (float)Width / items.Length, valueH = Height * 0.56f;
+        for (int i = 0; i < items.Length; i++)
+        {
+            float x = i * w;
+            if (i > 0)
+                using (var p = new Pen(Theme.InputBorder)) g.DrawLine(p, x, Height * 0.15f, x, Height * 0.85f);
+            Theme.SmoothText(g, items[i].Item1, Theme.Section, new RectangleF(x, 0, w, valueH), Theme.Text, true);
+            Theme.SmoothText(g, items[i].Item2, Theme.Small, new RectangleF(x, valueH - 2, w, Height - valueH), Theme.SubText, true, false);
+        }
     }
 }

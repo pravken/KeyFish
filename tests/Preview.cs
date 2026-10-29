@@ -88,8 +88,8 @@ static class Preview
                     typeof(IntroForm).GetMethod("Show", BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { typeof(int) }, null)
                         .Invoke(form, new object[] { int.Parse(arg.Substring(5)) });
         }
-        else form = new AboutForm("Рыбка поймала 1 234 ошибки с 12.03.2026\nСегодня 12 · за неделю 85 · за месяц 310 · сэкономлено примерно 82 мин", "2.0.0\n• Новое\n\n1.8.3\n• Старое\n", LayoutTable.Installed(),
-                                  FakeUpdates(args));
+        else form = new AboutForm("Рыбка поймала 1 234 ошибки с 12.03.2026", "2.0.0\n• Новое\n\n1.8.3\n• Старое\n", LayoutTable.Installed(),
+                                  FakeUpdates(args), new[] { 12, 85, 310, 82 });
         string outPath = args[args[0] == "settings" ? 2 : 1];
         int at = 3200; foreach (string a in args) if (a.StartsWith("at=")) at = int.Parse(a.Substring(3));   // aquarium: when to take the shot, ms
         var timer = new Timer { Interval = args[0] == "aquarium" || Array.Exists(args, x => x.StartsWith("at=")) ? at : 700 };

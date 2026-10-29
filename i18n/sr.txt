@@ -175,3 +175,8 @@ Start	Почни
 Next	Даље
 Today {0} · week {1} · month {2} · about {3} min saved	Данас {0} · недеља {1} · месец {2} · уштеђено око {3} мин
 Interface	Интерфејс
+today	данас
+this week	ове недеље
+this month	овог месеца
+≈{0} min	≈{0} мин
+saved	уштеђено

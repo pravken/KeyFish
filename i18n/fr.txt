@@ -175,3 +175,8 @@ Start	Commencer
 Next	Suivant
 Today {0} · week {1} · month {2} · about {3} min saved	Aujourd'hui {0} · semaine {1} · mois {2} · environ {3} min gagnées
 Interface	Interface
+today	aujourd'hui
+this week	cette semaine
+this month	ce mois-ci
+≈{0} min	≈{0} min
+saved	gagnées

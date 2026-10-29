@@ -392,15 +392,13 @@ class App : ApplicationContext
         try { SetText("StatsDays", string.Join(";", d.OrderBy(kv => kv.Key).Select(kv => kv.Key + "=" + kv.Value))); } catch { }
     }
 
-    // Caught today, in the last 7 and 30 days, and the time that saved: erasing a word, switching the layout and
+    // Caught today, in the last 7 and 30 days, and the minutes that saved: erasing a word, switching the layout and
     // typing it again takes about 4 seconds
-    string RecentStats(int total)
+    int[] RecentStats(int total)
     {
         var d = Daily();
         Func<int, int> last = days => d.Where(kv => kv.Key >= DayKey(DateTime.Today.AddDays(1 - days))).Sum(kv => kv.Value);
-        int minutes = (int)Math.Round(total * 4 / 60.0);
-        return L.F("Сегодня {0} · за неделю {1} · за месяц {2} · сэкономлено примерно {3} мин",
-                   "Today {0} · week {1} · month {2} · about {3} min saved", last(1), last(7), last(30), minutes.ToString("N0", L.Culture));
+        return new[] { last(1), last(7), last(30), (int)Math.Round(total * 4 / 60.0) };
     }
 
     static string StatsLine(int total)
@@ -435,10 +433,9 @@ class App : ApplicationContext
         else stats = StatsLine(total) + (since > 0 ? L.F("", " (since {0})", sinceText) : "");   // no plural forms needed this way
 
         SaveStats();
-        stats += "\n" + RecentStats(total);
 
         if (aboutForm != null) { aboutForm.Activate(); return; }
-        using (aboutForm = new AboutForm(stats, changes, new List<LayoutTable>(watcher.Layouts.All), updates) { Icon = iconEn })
+        using (aboutForm = new AboutForm(stats, changes, new List<LayoutTable>(watcher.Layouts.All), updates, RecentStats(total)) { Icon = iconEn })
             aboutForm.ShowDialog(owner);
         aboutForm = null;
     }

@@ -175,3 +175,8 @@ Start	Empezar
 Next	Siguiente
 Today {0} · week {1} · month {2} · about {3} min saved	Hoy {0} · semana {1} · mes {2} · unos {3} min ahorrados
 Interface	Interfaz
+today	hoy
+this week	esta semana
+this month	este mes
+≈{0} min	≈{0} min
+saved	ahorrados
