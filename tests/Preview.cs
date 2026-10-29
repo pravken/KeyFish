@@ -100,6 +100,8 @@ static class Preview
                     while (stack.Count > 0)
                     {
                         var c = stack.Pop();
+                        var bar = c as VScrollBar;   // the changelog scrolls with a bar of its own
+                        if (bar != null && bar.Enabled) { bar.Value = Math.Min(int.Parse(arg.Substring(7)), bar.Maximum - bar.LargeChange + 1); break; }
                         var sp = c as ScrollableControl;
                         if (sp != null && sp.AutoScroll && c != form && c.Visible) { sp.AutoScrollPosition = new Point(0, int.Parse(arg.Substring(7))); break; }
                         foreach (Control child in c.Controls) stack.Push(child);

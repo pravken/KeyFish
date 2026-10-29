@@ -155,7 +155,7 @@ class AboutForm : Form
 // The full changelog in a scrollable window
 class ChangelogForm : Form
 {
-    readonly Panel list;
+    readonly ChangelogView list;
 
     public ChangelogForm(string changelog)
     {
@@ -171,25 +171,11 @@ class ChangelogForm : Form
             Location = new Point(16, 16), Size = new Size(568, 418),
             Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
         };
-        // The text is drawn by KeyFish itself, like in its other windows: smooth, and with 🐟 and ⇄ shown from another
-        // font when the main one lacks them (the system text box left empty squares there)
-        list = new Panel
+        list = new ChangelogView(changelog)
         {
-            AutoScroll = true, BackColor = Theme.Card, Location = new Point(16, 12), Size = new Size(540, 396),
+            Location = new Point(16, 12), Size = new Size(544, 396),
             Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
         };
-        Theme.DarkScrollbars(list);
-        // A line that is just "1.8.2" becomes a "Version 1.8.2" heading; versions are already separated by blank lines
-        foreach (string line in changelog.Replace("\r\n", "\n").Trim().Split('\n'))
-        {
-            bool isHeading = Regex.IsMatch(line, @"^\d+\.\d+\.\d+$");
-            if (line.Trim().Length == 0) continue;
-            list.Controls.Add(new SmoothLabel
-            {
-                Text = isHeading ? L.T("Версия ", "Version ") + line : line, Font = isHeading ? Theme.Section : Theme.Body,
-                ForeColor = Theme.Text, BackColor = Theme.Card, AutoSize = false, Tag = isHeading
-            });
-        }
         card.Controls.Add(list);
         Controls.Add(card);
         var close = new RoundButton
@@ -203,38 +189,133 @@ class ChangelogForm : Form
         KeyDown += (s, e) =>
         {
             if (e.KeyCode == Keys.Escape) Close();
-            // The keys scroll the list like a text box would
-            int line = Theme.S(24), page = list.ClientSize.Height - line, y = -list.AutoScrollPosition.Y;
-            if (e.KeyCode == Keys.Down) y += line;
-            else if (e.KeyCode == Keys.Up) y -= line;
-            else if (e.KeyCode == Keys.PageDown || e.KeyCode == Keys.Space) y += page;
-            else if (e.KeyCode == Keys.PageUp) y -= page;
-            else if (e.KeyCode == Keys.Home) y = 0;
-            else if (e.KeyCode == Keys.End) y = int.MaxValue / 2;
-            else return;
-            list.AutoScrollPosition = new Point(0, Math.Max(0, y));
-            e.Handled = true;
+            else if (list.Key(e.KeyCode)) e.Handled = true;
         };
-        list.Resize += (s, e) => Arrange();
-        Shown += (s, e) => { Arrange(); close.Focus(); };
+        Shown += (s, e) => close.Focus();
         Theme.ScaleWindow(this);
     }
+}
 
-    // Lines one under another at the list's current width; called again when the window is resized
+// The changelog drawn as one picture: one control paints all the lines into one buffer and scrolls by redrawing,
+// so nothing flickers while the window opens or while scrolling (a label per line did both). The text is drawn by
+// KeyFish itself, smooth like its other windows, and a line with 🐟 or ⇄ by Windows, which takes them from another font
+class ChangelogView : Control
+{
+    class Block { public string Text; public bool Heading; public int Top, Height; }
+
+    readonly List<Block> blocks = new List<Block>();
+    readonly VScrollBar bar = new VScrollBar();
+    int laidOutWidth = -1, total;
+
+    public ChangelogView(string changelog)
+    {
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint |
+                 ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
+        BackColor = Theme.Card;
+        // A line that is just "1.8.2" becomes a "Version 1.8.2" heading; versions are already separated by blank lines
+        foreach (string line in changelog.Replace("\r\n", "\n").Trim().Split('\n'))
+        {
+            if (line.Trim().Length == 0) continue;
+            bool heading = Regex.IsMatch(line, @"^\d+\.\d+\.\d+$");
+            blocks.Add(new Block { Text = heading ? L.T("Версия ", "Version ") + line : line, Heading = heading });
+        }
+        bar.Dock = DockStyle.Right;
+        bar.ValueChanged += (s, e) => Invalidate();
+        Theme.DarkScrollbars(bar);
+        Controls.Add(bar);
+    }
+
+    static Font FontOf(Block b) { return b.Heading ? Theme.Section : Theme.Body; }
+
+    int TextWidth { get { return Math.Max(50, ClientSize.Width - bar.Width - Theme.S(8)); } }
+
+    // Heights of the lines at the current width, measured the way they are drawn
     void Arrange()
     {
-        list.SuspendLayout();
-        int width = list.ClientSize.Width - SystemInformation.VerticalScrollBarWidth - Theme.S(4);
-        int y = 0, top = list.AutoScrollPosition.Y;
-        foreach (Control c in list.Controls)
+        int width = TextWidth;
+        if (width == laidOutWidth) return;
+        laidOutWidth = width;
+        int y = 0;
+        using (var g = CreateGraphics())
         {
-            bool heading = (bool)c.Tag;
-            if (heading && y > 0) y += Theme.S(14);   // a gap before each version
-            c.Width = width;
-            c.Height = c.GetPreferredSize(new Size(width, 0)).Height + Theme.S(2);
-            c.Location = new Point(0, y + top);
-            y += c.Height + Theme.S(heading ? 4 : 3);
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+            foreach (var b in blocks)
+            {
+                if (b.Heading && y > 0) y += Theme.S(14);   // a gap before each version
+                var font = FontOf(b);
+                int h = Theme.HasEmoji(b.Text)
+                    ? TextRenderer.MeasureText(g, b.Text, font, new Size(width, 0), TextFormatFlags.WordBreak | TextFormatFlags.NoPadding).Height
+                    : (int)Math.Ceiling(g.MeasureString(b.Text, font, width).Height);
+                b.Top = y;
+                b.Height = h + Theme.S(2);
+                y += b.Height + Theme.S(b.Heading ? 4 : 3);
+            }
         }
-        list.ResumeLayout();
+        total = y;
+        UpdateBar();
+    }
+
+    void UpdateBar()
+    {
+        int view = ClientSize.Height;
+        bar.Enabled = total > view;
+        bar.Minimum = 0;
+        bar.Maximum = Math.Max(0, total - 1);
+        bar.LargeChange = Math.Max(1, view);
+        bar.SmallChange = Theme.S(24);
+        bar.Value = Math.Max(0, Math.Min(bar.Value, Math.Max(0, total - view)));
+    }
+
+    protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Arrange(); }
+    protected override void OnResize(EventArgs e) { base.OnResize(e); if (IsHandleCreated) { Arrange(); UpdateBar(); } }
+
+    void ScrollTo(int y) { bar.Value = Math.Max(0, Math.Min(y, Math.Max(0, total - ClientSize.Height))); }
+
+    // Arrows, Page Up/Down, Space, Home and End scroll like in a text box; false for other keys
+    public bool Key(Keys key)
+    {
+        int line = Theme.S(24), page = ClientSize.Height - line, y = bar.Value;
+        if (key == Keys.Down) y += line;
+        else if (key == Keys.Up) y -= line;
+        else if (key == Keys.PageDown || key == Keys.Space) y += page;
+        else if (key == Keys.PageUp) y -= page;
+        else if (key == Keys.Home) y = 0;
+        else if (key == Keys.End) y = total;
+        else return false;
+        ScrollTo(y);
+        return true;
+    }
+
+    protected override void OnMouseWheel(MouseEventArgs e)
+    {
+        ScrollTo(bar.Value - e.Delta * SystemInformation.MouseWheelScrollLines * Theme.S(20) / 120);
+        base.OnMouseWheel(e);
+    }
+
+    protected override void OnMouseEnter(EventArgs e) { Focus(); base.OnMouseEnter(e); }   // the wheel goes to the control in focus
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        g.Clear(BackColor);
+        int width = TextWidth, offset = bar.Value;
+        using (var brush = new SolidBrush(Theme.Text))
+            foreach (var b in blocks)
+            {
+                int top = b.Top - offset;
+                if (top + b.Height < e.ClipRectangle.Top || top > e.ClipRectangle.Bottom) continue;
+                var font = FontOf(b);
+                if (Theme.HasEmoji(b.Text))
+                {
+                    TextRenderer.DrawText(g, b.Text, font, new Rectangle(0, top, width, b.Height), Theme.Text, BackColor,
+                                          TextFormatFlags.WordBreak | TextFormatFlags.NoPadding);
+                    continue;
+                }
+                g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+                g.TextContrast = Theme.TextContrastFor(Theme.Text);
+                var r = new RectangleF(0, top, width, b.Height);
+                g.DrawString(b.Text, font, brush, r);
+                g.DrawString(b.Text, font, brush, new RectangleF(r.X + Theme.Heavier, r.Y, r.Width, r.Height));   // a touch heavier, see Theme.Heavier
+            }
     }
 }
