@@ -1,3 +1,9 @@
+2.1.5 2026-10-29
+Improved:
+• Remote desktop clients other than mstsc are excluded by default
+Fixed:
+• A crash with the clipboard of a remote desktop session
+
 2.1.4 2026-10-29
 Fixed:
 • The week and month statistics in About counted only the days recorded so far

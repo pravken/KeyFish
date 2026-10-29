@@ -79,7 +79,7 @@ partial class App : ApplicationContext
                        "# Apps where auto-correction is off.\r\n" +
                        "# One process name per line, as in Task Manager (.exe is optional).\r\n") +
                    "Code\r\ndevenv\r\ncmd\r\npowershell\r\npwsh\r\nWindowsTerminal\r\nidea64\r\npycharm64\r\nrider64\r\n" +
-                   "KeePass\r\nKeePassXC\r\n1Password\r\nmstsc\r\n" + string.Join("\r\n", AddedExclusions) + "\r\n";
+                   "KeePass\r\nKeePassXC\r\n1Password\r\nmstsc\r\n" + string.Join("\r\n", AddedExclusions.Concat(AddedExclusions3)) + "\r\n";
         }
     }
 
@@ -92,12 +92,21 @@ partial class App : ApplicationContext
         "Tabby", "Hyper", "vmware", "vmplayer", "VirtualBoxVM", "vmconnect", "AnyDesk", "TeamViewer", "rustdesk", "parsecd",
         "Bitwarden", "Enpass"
     };
-    const int ExclusionsVersion = 2;
+
+    // Added in 2.1.5: remote desktop clients other than mstsc — the Windows App and the Remote Desktop app (msrdc),
+    // connection managers and VNC viewers. What is typed there goes to another computer with its own layout
+    static readonly string[] AddedExclusions3 =
+    {
+        "msrdc", "msrdcw", "Windows365", "RDCMan", "mRemoteNG", "RoyalTS", "RemoteDesktopManager", "RemoteDesktopManager64",
+        "vncviewer", "tvnviewer"
+    };
+    const int ExclusionsVersion = 3;
 
     // Adds the new default exclusions to an older list, once: if the user removes one later, it stays removed
     void AddNewExclusions()
     {
-        if (GetSetting("ExclusionsVersion", 1) >= ExclusionsVersion) return;
+        int version = GetSetting("ExclusionsVersion", 1);
+        if (version >= ExclusionsVersion) return;
         try
         {
             var have = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -108,7 +117,9 @@ partial class App : ApplicationContext
                 have.Add(s);
             }
             var add = new StringBuilder();
-            foreach (string name in AddedExclusions) if (!have.Contains(name)) add.Append(name).Append("\r\n");
+            // Each list once: a name the user removed after an earlier list was added stays removed
+            var added = (version < 2 ? AddedExclusions : new string[0]).Concat(AddedExclusions3);
+            foreach (string name in added) if (!have.Contains(name)) add.Append(name).Append("\r\n");
             string text = File.ReadAllText(exclusionsPath, Encoding.UTF8);
             if (add.Length > 0) File.WriteAllText(exclusionsPath, text + (text.Length == 0 || text.EndsWith("\n") ? "" : "\r\n") + add, Encoding.UTF8);
             SetSetting("ExclusionsVersion", ExclusionsVersion);

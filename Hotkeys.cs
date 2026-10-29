@@ -145,7 +145,7 @@ partial class App
 
     void TransformSelection(Func<string, string> transform)
     {
-        IDataObject saved = SaveClipboard();
+        Clip.Saved saved = SaveClipboard();
         string text = GetSelectionOrLastWord();
         if (!string.IsNullOrEmpty(text))
         {
@@ -158,7 +158,7 @@ partial class App
     // The selection pasted back as plain text (PlainText), even when its letters stay the same
     void PlainSelection()
     {
-        IDataObject saved = SaveClipboard();
+        Clip.Saved saved = SaveClipboard();
         string text = GetSelectionOrLastWord();
         if (!string.IsNullOrEmpty(text)) Paste(PlainText.Clean(text));
         RestoreClipboard(saved);
@@ -166,7 +166,7 @@ partial class App
 
     void ChangeCase()
     {
-        IDataObject saved = SaveClipboard();
+        Clip.Saved saved = SaveClipboard();
 
         string text = GetSelectionOrLastWord();
         if (!string.IsNullOrEmpty(text))
@@ -232,7 +232,7 @@ partial class App
     void ConvertLine()
     {
         IntPtr target = Native.GetForegroundWindow();
-        IDataObject saved = SaveClipboard();
+        Clip.Saved saved = SaveClipboard();
         if (!SameWindow()) { RestoreClipboard(saved); return; }
         Native.Chord(Native.VK_SHIFT, Native.VK_HOME);
         Pump(30);
@@ -252,7 +252,7 @@ partial class App
     void ConvertClipboard()
     {
         string text = null;
-        try { if (Clipboard.ContainsText()) text = Clipboard.GetText(); } catch { }
+        try { text = Clip.Text(); } catch { }
         if (string.IsNullOrEmpty(text) || text.Length > 100000)
         {
             tray.ShowBalloonTip(3000, "KeyFish", L.T("В буфере обмена нет текста.", "There is no text in the clipboard."), ToolTipIcon.Info);
@@ -266,7 +266,7 @@ partial class App
             return;
         }
         // Pasteable as usual, but kept out of the clipboard history and cloud sync, like KeyFish's other text
-        try { Clipboard.SetDataObject(Private(new DataObject(DataFormats.UnicodeText, result)), true); } catch { return; }
+        try { if (!Clip.PutText(result)) return; } catch { return; }
         textChanged = true;
         tray.ShowBalloonTip(3000, "KeyFish", L.F("Текст в буфере обмена преобразован в раскладку {0}.",
             "The text in the clipboard has been converted to the {0} layout.", (layout.Name ?? "").Split('-')[0].ToUpperInvariant()), ToolTipIcon.Info);
@@ -276,7 +276,7 @@ partial class App
     {
         IntPtr target = Native.GetForegroundWindow();
 
-        IDataObject saved = SaveClipboard();
+        Clip.Saved saved = SaveClipboard();
 
         string text = GetSelectionOrLastWord();
         if (!string.IsNullOrEmpty(text))
@@ -339,7 +339,7 @@ partial class App
                 for (int attempt = 0; attempt < 10; attempt++)
                 {
                     Pump(20);
-                    try { return Clipboard.ContainsText() && !IsLineCopy() ? Clipboard.GetText() : null; }
+                    try { return Clip.HasText() && !IsLineCopy() ? Clip.Text() : null; }
                     catch { }
                 }
                 return null;
@@ -352,94 +352,47 @@ partial class App
     // converting and pasting it would add a converted copy of the line, so the last word is taken instead
     static bool IsLineCopy()
     {
-        var data = Clipboard.GetDataObject();
-        if (data == null) return false;
-        foreach (string f in data.GetFormats(false))
+        var formats = Clip.Named(f => f == "VisualStudioEditorOperationsLineCutCopyClipboardTag" || f == "MSDEVLineSelect" ||
+                                      f.IndexOf("vscode-editor-data", StringComparison.OrdinalIgnoreCase) >= 0 || f == "Chromium Web Custom MIME Data Format");
+        foreach (var kv in formats)
         {
-            if (f == "VisualStudioEditorOperationsLineCutCopyClipboardTag" || f == "MSDEVLineSelect") return true;
-            if (f.IndexOf("vscode-editor-data", StringComparison.OrdinalIgnoreCase) < 0 && f != "Chromium Web Custom MIME Data Format") continue;
-            try
-            {
-                object raw = data.GetData(f, false);
-                var stream = raw as MemoryStream;
-                string s = raw as string ?? (stream == null ? "" : Encoding.UTF8.GetString(stream.ToArray()) + Encoding.Unicode.GetString(stream.ToArray()));
-                if (s.Replace(" ", "").IndexOf("\"isFromEmptySelection\":true", StringComparison.Ordinal) >= 0) return true;
-            }
-            catch { }
+            if (kv.Key == "VisualStudioEditorOperationsLineCutCopyClipboardTag" || kv.Key == "MSDEVLineSelect") return true;
+            if (kv.Value == null) continue;
+            string s = Encoding.UTF8.GetString(kv.Value) + Encoding.Unicode.GetString(kv.Value);
+            if (s.Replace(" ", "").IndexOf("\"isFromEmptySelection\":true", StringComparison.Ordinal) >= 0) return true;
         }
         return false;
     }
 
+    // KeyFish's text, kept out of the clipboard history and cloud sync (see Clip.Put)
     static bool SetClipboardText(string text)
     {
-        var data = new DataObject();
-        data.SetData(DataFormats.UnicodeText, text);
         for (int i = 0; i < 5; i++)
         {
-            try { Clipboard.SetDataObject(Private(data), true); return true; }
-            catch { Pump(30); }
+            try { if (Clip.PutText(text)) return true; }
+            catch { }
+            Pump(30);
         }
         return false;
     }
 
-    // KeyFish puts text on the clipboard only for a moment: keep it out of clipboard history (Win+V)
-    // and cloud clipboard sync, the way password managers do
-    static IDataObject Private(IDataObject data)
-    {
-        data.SetData("ExcludeClipboardContentFromMonitorProcessing", new MemoryStream(new byte[4]));
-        data.SetData("CanIncludeInClipboardHistory", new MemoryStream(new byte[4]));
-        data.SetData("CanUploadToCloudClipboard", new MemoryStream(new byte[4]));
-        return data;
-    }
-
-    static readonly HashSet<string> KeptFormats = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-    {
-        DataFormats.UnicodeText, DataFormats.Text, DataFormats.OemText, DataFormats.Rtf, DataFormats.Html, DataFormats.CommaSeparatedValue,
-        DataFormats.FileDrop, "FileName", "FileNameW", "Locale", "Shell IDList Array", "Preferred DropEffect",
-        DataFormats.Bitmap, DataFormats.Dib, "Format17", "PNG"
-    };
-
-    static IDataObject SaveClipboard()
+    static Clip.Saved SaveClipboard()
     {
         FlushRestore();   // the previous hotkey's restore first, or its text would be saved as the user's
-        try
-        {
-            var src = Clipboard.GetDataObject();
-            if (src == null) return null;
-            var copy = new DataObject();
-            long kept = 0;
-            foreach (string f in src.GetFormats(false))
-            {
-                // Only what people copy and paste between apps: an app's own formats (a spreadsheet's Biff12, an
-                // embedded object) can be made on demand and run to hundreds of megabytes, freezing the hotkey
-                if (!KeptFormats.Contains(f)) continue;
-                try
-                {
-                    var d = src.GetData(f, false);
-                    if (d == null) continue;
-                    var stream = d as Stream;
-                    long size = stream != null ? stream.Length : d is string ? ((string)d).Length * 2 : 0;
-                    if (kept + size > 64L * 1024 * 1024) continue;
-                    kept += size;
-                    copy.SetData(f, false, d);
-                }
-                catch { }
-            }
-            return copy;
-        }
+        try { return Clip.Save(64L * 1024 * 1024); }
         catch { return null; }
     }
 
     // The user's clipboard is given back a second later, not right after Ctrl+V: a slow app (a remote desktop, a busy
     // Electron window) may read the clipboard after that and would paste the old contents instead of the fix.
     // If anything else is copied in that second, the user's copy wins and nothing is put back
-    static IDataObject restoreData;
+    static Clip.Saved restoreData;
 
     static uint restoreSeq;
 
     static System.Windows.Forms.Timer restoreTimer;
 
-    static void RestoreClipboard(IDataObject saved)
+    static void RestoreClipboard(Clip.Saved saved)
     {
         FlushRestore();
         restoreData = saved;
@@ -465,17 +418,208 @@ partial class App
         if (Native.GetClipboardSequenceNumber() == seq) PutBack(saved);
     }
 
-    static void PutBack(IDataObject saved)
+    static void PutBack(Clip.Saved saved)
     {
         for (int i = 0; i < 5; i++)
         {
             try
             {
-                if (saved == null || saved.GetFormats().Length == 0) Clipboard.Clear();
-                else Clipboard.SetDataObject(Private(saved), true);   // already in the history from the user's own copy
-                return;
+                if (saved == null || saved.Formats.Count == 0) { Clip.Clear(); return; }
+                if (Clip.Put(saved)) return;   // already in the history from the user's own copy
             }
-            catch { Pump(30); }
+            catch { }
+            Pump(30);
         }
     }
+}
+
+// The clipboard through Windows' own clipboard functions, not OLE: what another app put there is read as bytes and
+// never turned into a .NET object. A broken COM object an app had put on the clipboard took KeyFish down with .NET's
+// own error (0xc0000005 in clr.dll, GetCCWFromIUnknown), which nothing in KeyFish could catch
+static class Clip
+{
+    const uint CF_TEXT = 1, CF_DIB = 8, CF_OEMTEXT = 7, CF_UNICODETEXT = 13, CF_HDROP = 15, CF_LOCALE = 16, CF_DIBV5 = 17;
+
+    // What is kept over a hotkey: what people copy and paste between apps, all of it plain memory. An app's own
+    // formats (a spreadsheet's Biff12, an embedded object) can be made on demand and run to hundreds of megabytes
+    static readonly uint[] KeptStandard = { CF_UNICODETEXT, CF_TEXT, CF_OEMTEXT, CF_LOCALE, CF_DIB, CF_DIBV5, CF_HDROP };
+    static readonly HashSet<string> KeptNamed = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "Rich Text Format", "HTML Format", "Csv", "FileName", "FileNameW", "Shell IDList Array", "Preferred DropEffect", "PNG"
+    };
+
+    // A copy of the clipboard: the formats kept, as bytes, in the order the app offered them
+    public sealed class Saved
+    {
+        public readonly List<KeyValuePair<uint, byte[]>> Formats = new List<KeyValuePair<uint, byte[]>>();
+    }
+
+    // The window that owns what KeyFish puts on the clipboard: a message-only one, made once on the window thread
+    static NativeWindow owner;
+    static IntPtr Owner
+    {
+        get
+        {
+            if (owner == null) { owner = new NativeWindow(); owner.CreateHandle(new CreateParams { Parent = new IntPtr(-3) }); }   // HWND_MESSAGE
+            return owner.Handle;
+        }
+    }
+
+    // Another app may hold the clipboard open for a moment
+    static bool Open()
+    {
+        for (int i = 0; i < 20; i++)
+        {
+            if (OpenClipboard(Owner)) return true;
+            Thread.Sleep(10);
+        }
+        return false;
+    }
+
+    public static bool HasText() { return IsClipboardFormatAvailable(CF_UNICODETEXT); }
+
+    // The text on the clipboard, or null
+    public static string Text()
+    {
+        if (!HasText() || !Open()) return null;
+        try
+        {
+            byte[] b = Read(GetClipboardData(CF_UNICODETEXT));
+            if (b == null) return null;
+            string s = Encoding.Unicode.GetString(b);
+            int end = s.IndexOf('\0');
+            return end >= 0 ? s.Substring(0, end) : s;
+        }
+        finally { CloseClipboard(); }
+    }
+
+    // The names of the formats on the clipboard and the bytes of the ones asked for (by name)
+    public static Dictionary<string, byte[]> Named(Func<string, bool> wanted)
+    {
+        var found = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+        if (!Open()) return found;
+        try
+        {
+            for (uint f = EnumClipboardFormats(0); f != 0; f = EnumClipboardFormats(f))
+            {
+                string name = Name(f);
+                if (name != null && wanted(name)) found[name] = HasMemory(f) ? Read(GetClipboardData(f)) : null;
+            }
+        }
+        finally { CloseClipboard(); }
+        return found;
+    }
+
+    public static Saved Save(long limit)
+    {
+        var saved = new Saved();
+        if (!Open()) return null;
+        try
+        {
+            long kept = 0;
+            for (uint f = EnumClipboardFormats(0); f != 0; f = EnumClipboardFormats(f))
+            {
+                if (Array.IndexOf(KeptStandard, f) < 0 && !(f >= 0xC000 && KeptNamed.Contains(Name(f) ?? ""))) continue;
+                IntPtr h = GetClipboardData(f);
+                if (h == IntPtr.Zero) continue;
+                long size = (long)GlobalSize(h);
+                if (size <= 0 || kept + size > limit) continue;
+                byte[] b = Read(h);
+                if (b == null) continue;
+                kept += b.Length;
+                saved.Formats.Add(new KeyValuePair<uint, byte[]>(f, b));
+            }
+        }
+        finally { CloseClipboard(); }
+        return saved;
+    }
+
+    // Puts the formats on the clipboard in place of what is there, kept out of the clipboard history (Win+V) and cloud
+    // sync, the way password managers do: KeyFish's text is there only for a moment, and the user's own copy is
+    // already in the history
+    public static bool Put(Saved data)
+    {
+        if (!Open()) return false;
+        try
+        {
+            if (!EmptyClipboard()) return false;
+            foreach (var kv in data.Formats) Set(kv.Key, kv.Value);
+            byte[] no = new byte[4];
+            Set(RegisterClipboardFormat("ExcludeClipboardContentFromMonitorProcessing"), no);
+            Set(RegisterClipboardFormat("CanIncludeInClipboardHistory"), no);
+            Set(RegisterClipboardFormat("CanUploadToCloudClipboard"), no);
+            return true;
+        }
+        finally { CloseClipboard(); }
+    }
+
+    public static bool PutText(string text)
+    {
+        var data = new Saved();
+        data.Formats.Add(new KeyValuePair<uint, byte[]>(CF_UNICODETEXT, Encoding.Unicode.GetBytes(text + "\0")));
+        return Put(data);
+    }
+
+    public static void Clear()
+    {
+        if (!Open()) return;
+        try { EmptyClipboard(); }
+        finally { CloseClipboard(); }
+    }
+
+    // Standard formats by number; the registered ones (0xC000 and up) by name
+    static string Name(uint f)
+    {
+        if (f < 0xC000) return null;
+        var sb = new StringBuilder(256);
+        return GetClipboardFormatName(f, sb, sb.Capacity) > 0 ? sb.ToString() : null;
+    }
+
+    // Formats whose data is a GDI object or a metafile, not memory: never read as bytes
+    static bool HasMemory(uint f)
+    {
+        return !(f == 2 || f == 3 || f == 9 || f == 14 || (f >= 0x80 && f <= 0x8E) || (f >= 0x200 && f <= 0x3FF));
+    }
+
+    static byte[] Read(IntPtr h)
+    {
+        if (h == IntPtr.Zero) return null;
+        long size = (long)GlobalSize(h);
+        if (size <= 0 || size > int.MaxValue) return null;
+        IntPtr p = GlobalLock(h);
+        if (p == IntPtr.Zero) return null;
+        try
+        {
+            var b = new byte[size];
+            Marshal.Copy(p, b, 0, b.Length);
+            return b;
+        }
+        finally { GlobalUnlock(h); }
+    }
+
+    static void Set(uint format, byte[] b)
+    {
+        IntPtr h = GlobalAlloc(0x0002, (UIntPtr)Math.Max(1, b.Length));   // GMEM_MOVEABLE
+        if (h == IntPtr.Zero) return;
+        IntPtr p = GlobalLock(h);
+        if (p == IntPtr.Zero) { GlobalFree(h); return; }
+        Marshal.Copy(b, 0, p, b.Length);
+        GlobalUnlock(h);
+        if (SetClipboardData(format, h) == IntPtr.Zero) GlobalFree(h);   // taken by Windows only if set
+    }
+
+    [DllImport("user32.dll", SetLastError = true)] static extern bool OpenClipboard(IntPtr owner);
+    [DllImport("user32.dll")] static extern bool CloseClipboard();
+    [DllImport("user32.dll")] static extern bool EmptyClipboard();
+    [DllImport("user32.dll")] static extern bool IsClipboardFormatAvailable(uint format);
+    [DllImport("user32.dll")] static extern uint EnumClipboardFormats(uint format);
+    [DllImport("user32.dll")] static extern IntPtr GetClipboardData(uint format);
+    [DllImport("user32.dll")] static extern IntPtr SetClipboardData(uint format, IntPtr data);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClipboardFormatName(uint format, StringBuilder name, int max);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern uint RegisterClipboardFormat(string name);
+    [DllImport("kernel32.dll")] static extern IntPtr GlobalAlloc(uint flags, UIntPtr bytes);
+    [DllImport("kernel32.dll")] static extern IntPtr GlobalLock(IntPtr h);
+    [DllImport("kernel32.dll")] static extern bool GlobalUnlock(IntPtr h);
+    [DllImport("kernel32.dll")] static extern UIntPtr GlobalSize(IntPtr h);
+    [DllImport("kernel32.dll")] static extern IntPtr GlobalFree(IntPtr h);
 }

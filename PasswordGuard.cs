@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO.MemoryMappedFiles;
 using System.Threading;
 using System.Windows.Forms;
@@ -10,10 +11,16 @@ using System.Windows.Forms;
 // Shared memory: one 64-bit value, written and read in one go so a verdict is never paired with another check's time.
 // Low half: 1 if focus is in a password field. High half: Environment.TickCount taken right before the focus was read,
 // never 0 — 0 means no check has been made yet.
+// The guard also finds the text caret of browsers and Electron apps for the layout tag (accessibility objects, MSAA):
+// an app's broken accessibility object took the whole process down the same way. Bytes 8–15: the window asked about,
+// 16–19: the question's number; 20–23: the number answered, 24–39: the caret (left, top, width, height; height 0: none).
 static class GuardNames
 {
+    public const int Size = 40;
     public static string Memory(int pid) { return "Local\\KeyFish_Guard_" + pid; }
     public static string Signal(int pid) { return "Local\\KeyFish_GuardCheck_" + pid; }
+    public static string CaretAsk(int pid) { return "Local\\KeyFish_GuardCaret_" + pid; }
+    public static string CaretAnswer(int pid) { return "Local\\KeyFish_GuardCaretDone_" + pid; }
 }
 
 // Main process side: starts the guard, restarts it if it dies, and reads its verdict
@@ -22,8 +29,11 @@ class PasswordGuardClient
     readonly int pid = Process.GetCurrentProcess().Id;
     readonly MemoryMappedFile memory;
     readonly MemoryMappedViewAccessor view;
-    readonly EventWaitHandle signal;
-    readonly object sync = new object();
+    readonly EventWaitHandle signal, caretAsk, caretAnswer;
+    readonly object sync = new object(), caretSync = new object();
+    int caretQuestion;
+
+    public static PasswordGuardClient Current;   // the one KeyFish runs, for the layout tag's caret
     Process guard;
     DateTime guardStarted;
     DateTime windowStart = DateTime.UtcNow;
@@ -31,10 +41,41 @@ class PasswordGuardClient
 
     public PasswordGuardClient()
     {
-        memory = MemoryMappedFile.CreateNew(GuardNames.Memory(pid), 8);
-        view = memory.CreateViewAccessor(0, 8);
+        memory = MemoryMappedFile.CreateNew(GuardNames.Memory(pid), GuardNames.Size);
+        view = memory.CreateViewAccessor(0, GuardNames.Size);
         signal = new EventWaitHandle(false, EventResetMode.AutoReset, GuardNames.Signal(pid));
+        caretAsk = new EventWaitHandle(false, EventResetMode.AutoReset, GuardNames.CaretAsk(pid));
+        caretAnswer = new EventWaitHandle(false, EventResetMode.AutoReset, GuardNames.CaretAnswer(pid));
         Start();
+        Current = this;
+    }
+
+    // The text caret of a window, on screen, as its accessibility object reports it; asked of the guard, so a broken
+    // object can only take the guard down. False with no answer in time: the app is slow, or the guard is busy or
+    // restarting (the tag then goes next to the mouse pointer)
+    public bool Caret(IntPtr hwnd, int timeoutMs, out Rectangle caret)
+    {
+        caret = Rectangle.Empty;
+        int question;
+        lock (caretSync)
+        {
+            question = ++caretQuestion;
+            view.Write(8, hwnd.ToInt64());
+            view.Write(16, question);
+        }
+        caretAnswer.Reset();
+        caretAsk.Set();
+        int until = Environment.TickCount + timeoutMs;
+        while (true)
+        {
+            int left = until - Environment.TickCount;
+            if (left <= 0 || !caretAnswer.WaitOne(left)) return false;
+            if (view.ReadInt32(20) != question) continue;   // a late answer to an earlier question
+            int x = view.ReadInt32(24), y = view.ReadInt32(28), w = view.ReadInt32(32), h = view.ReadInt32(36);
+            if (h <= 0) return false;
+            caret = new Rectangle(x, y, w, h);
+            return true;
+        }
     }
 
     // The last verdict and when the focus was read for it (0: never)
@@ -128,18 +169,45 @@ static class PasswordGuardProcess
     public static void Run(int parentPid)
     {
         MemoryMappedViewAccessor view;
-        EventWaitHandle signal;
+        EventWaitHandle signal, caretAsk, caretAnswer;
         Process parent;
         try
         {
-            view = MemoryMappedFile.OpenExisting(GuardNames.Memory(parentPid)).CreateViewAccessor(0, 8);
+            view = MemoryMappedFile.OpenExisting(GuardNames.Memory(parentPid)).CreateViewAccessor(0, GuardNames.Size);
             signal = EventWaitHandle.OpenExisting(GuardNames.Signal(parentPid));
+            caretAsk = EventWaitHandle.OpenExisting(GuardNames.CaretAsk(parentPid));
+            caretAnswer = EventWaitHandle.OpenExisting(GuardNames.CaretAnswer(parentPid));
             parent = Process.GetProcessById(parentPid);
         }
         catch { return; }
 
         // Leave together with KeyFish
         new Thread(() => { parent.WaitForExit(); Environment.Exit(0); }) { IsBackground = true }.Start();
+
+        // Where's the caret: each question on a thread of its own, so an app that never answers holds up only its own
+        // question. The answer's number is written last, after the caret
+        new Thread(() =>
+        {
+            while (true)
+            {
+                caretAsk.WaitOne();
+                IntPtr hwnd = new IntPtr(view.ReadInt64(8));
+                int question = view.ReadInt32(16);
+                var ask = new Thread(() =>
+                {
+                    Rectangle r;
+                    if (!LayoutBadge.AccessibleCaret(hwnd, out r)) r = Rectangle.Empty;
+                    lock (view)
+                    {
+                        view.Write(24, r.X); view.Write(28, r.Y); view.Write(32, r.Width); view.Write(36, r.Height);
+                        view.Write(20, question);
+                    }
+                    caretAnswer.Set();
+                }) { IsBackground = true };
+                ask.SetApartmentState(ApartmentState.MTA);
+                ask.Start();
+            }
+        }) { IsBackground = true }.Start();
 
         // Subscribing to focus changes can take from seconds to over a minute with many heavy windows open
         // (browsers, Electron apps, editors): UI Automation visits all of them. Done on its own thread, so the checks
