@@ -182,3 +182,21 @@ saved	зэканомлена
 Holiday look	Святочнае афармленне
 For Halloween (October 24 to November 2): pumpkin colors, a hat on the fish, bats. Takes effect after saving.	На Хэлоўін (24 кастрычніка — 2 лістапада): гарбузовыя колеры, капялюш у рыбкі, кажаны. Ужыецца пасля захавання.
 The word is now in "Never correct".	Слова дададзена ў «Не выпраўляць».
+Why wasn't it corrected?	Чаму не выправілася?
+Nothing left alone yet	Пакуль усё выпраўлялася як трэба
+the app is excluded	праграма ў выключэннях
+Correct in {0}	Выпраўляць у {0}
+a game or full screen	гульня або поўнаэкранны рэжым
+Don't stay quiet in full screen	Не маўчаць у поўнаэкранных праграмах
+the app runs as administrator	праграма запушчана ад імя адміністратара
+a password field	поле пароля
+the password-field check hadn't answered	праверка палёў пароляў яшчэ не адказала
+no dictionary for this layout	для гэтай раскладкі няма слоўніка
+digits or symbols in the word	у слове лічбы або сімвалы
+looks like a link, a path or code	падобна на спасылку, шлях або код
+"{0}" is in Never correct	«{0}» у спісе «Не выпраўляць»
+Take it out of Never correct	Прыбраць з «Не выпраўляць»
+"{0}": not sure it's a mistake	«{0}» — не ўпэўнены, што гэта памылка
+Correct this word	Выпраўляць гэтае слова
+Pause corrections for an hour / resume	Паўза выпраўленняў на гадзіну / зняць паўзу
+Correcting again.	Выпраўленне зноў уключана.

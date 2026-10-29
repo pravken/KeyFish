@@ -183,3 +183,21 @@ saved	уштеђено
 Holiday look	Празнични изглед
 For Halloween (October 24 to November 2): pumpkin colors, a hat on the fish, bats. Takes effect after saving.	За Ноћ вештица (24. октобар — 2. новембар): боје бундеве, шешир на рибици, слепи мишеви. Примениће се након чувања.
 The word is now in "Never correct".	Реч је додата у „Не исправљај“.
+Why wasn't it corrected?	Зашто није исправљено?
+Nothing left alone yet	Засад је све исправљено
+the app is excluded	програм је у изузецима
+Correct in {0}	Исправљај у {0}
+a game or full screen	игра или цео екран
+Don't stay quiet in full screen	Не ћути на целом екрану
+the app runs as administrator	програм ради као администратор
+a password field	поље лозинке
+the password-field check hadn't answered	провера поља лозинки још није одговорила
+no dictionary for this layout	нема речника за овај распоред
+digits or symbols in the word	у речи су цифре или симболи
+looks like a link, a path or code	личи на линк, путању или код
+"{0}" is in Never correct	„{0}“ је у „Не исправљај“
+Take it out of Never correct	Уклони из „Не исправљај“
+"{0}": not sure it's a mistake	„{0}“: нисам сигуран да је грешка
+Correct this word	Исправљај ову реч
+Pause corrections for an hour / resume	Пауза исправки на сат / настави
+Correcting again.	Исправљање је поново укључено.

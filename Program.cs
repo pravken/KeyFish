@@ -263,7 +263,7 @@ class App : ApplicationContext
         {
             // Letters in a circle: the layout's color, white while blinking after a fix, grey while not correcting
             bool off = !watcher.Enabled || (watcher.Enabled && !watcher.GuardAnswering) || foregroundNoRights;
-            int kind = off ? 2 : blinkTicks > 0 && blinkTicks % 2 == 0 ? 1 : 0;
+            int kind = pausedUntil != DateTime.MinValue ? 3 : off ? 2 : blinkTicks > 0 && blinkTicks % 2 == 0 ? 1 : 0;
             if (blinkTicks > 0) blinkTicks--;
             var letters = LettersIcon(currentLayoutName, TintFor(currentLayoutName, ru, showLayout), kind);
             if (tray.Icon != letters) tray.Icon = letters;
@@ -275,7 +275,8 @@ class App : ApplicationContext
         bool guardDown = watcher.Enabled && !watcher.GuardAnswering;
         bool blink = blinkTicks > 0 && blinkTicks % 2 == 0;
         Color custom;
-        Icon want = !watcher.Enabled || guardDown || foregroundNoRights ? iconOff
+        Icon want = pausedUntil != DateTime.MinValue ? iconPaused
+                  : !watcher.Enabled || guardDown || foregroundNoRights ? iconOff
                   : showLayout && layoutColors.TryGetValue(currentLayoutName, out custom) ? FishIcon(custom, blink)
                   : Theme.Holiday ? FishIcon(ru ? LetterIcon.Other : LetterIcon.Latin, blink)
                   : blink ? (ru ? blinkRu : blinkEn) : (ru ? iconRu : iconEn);
@@ -324,9 +325,13 @@ class App : ApplicationContext
         if (letterIcons.TryGetValue(key, out icon)) return icon;
         int size = SystemInformation.SmallIconSize.Width;
         Color onTint = LetterIcon.InkOn(tint);   // white, or dark on a light color
-        Color fill = kind == 2 ? LetterIcon.Off : kind == 1 ? onTint : tint;
-        Color ink = kind == 1 ? tint : kind == 2 ? Color.White : onTint;
-        using (var bmp = LetterIcon.Render(text, fill, ink, size)) icon = Icon.FromHandle(bmp.GetHicon());
+        Color fill = kind >= 2 ? LetterIcon.Off : kind == 1 ? onTint : tint;
+        Color ink = kind == 1 ? tint : kind >= 2 ? Color.White : onTint;
+        using (var bmp = LetterIcon.Render(text, fill, ink, size))
+        {
+            if (kind == 3) using (var g = Graphics.FromImage(bmp)) PauseSign(g, size);   // paused: grey with a pause sign
+            icon = Icon.FromHandle(bmp.GetHicon());
+        }
         letterIcons[key] = icon;
         return icon;
     }
@@ -387,6 +392,17 @@ class App : ApplicationContext
     DateTime pausedUntil = DateTime.MinValue;
 
     void ApplyEnabled() { watcher.Enabled = autoCorrect && pausedUntil == DateTime.MinValue; }
+
+    // An hour without corrections, or back to correcting; from the hotkey it says which, since nothing else shows it
+    void TogglePause(bool tell)
+    {
+        if (!autoCorrect) return;
+        pausedUntil = pausedUntil == DateTime.MinValue ? DateTime.Now.AddHours(1) : DateTime.MinValue;
+        ApplyEnabled();
+        if (tell)
+            tray.ShowBalloonTip(2500, "KeyFish", pausedUntil != DateTime.MinValue ? PausedText : L.T("Исправление снова включено.", "Correcting again."), ToolTipIcon.Info);
+        UpdateTrayIcon();
+    }
 
     string PausedText { get { return L.F("Пауза до {0}", "Paused until {0}", pausedUntil.ToString("t", L.Culture)); } }
 
@@ -507,16 +523,18 @@ class App : ApplicationContext
                 L.T("Регистр выделенного текста (aa → Aa → AA)", "Change case of selected text (aa → Aa → AA)"),
                 L.T("Транслитерация (привет ⇄ privet)", "Transliterate (привет ⇄ privet)"),
                 L.T("Раскладка всей строки до курсора", "Switch layout of the whole line before the cursor"),
-                L.T("Раскладка текста в буфере обмена (скопируйте, нажмите, вставьте)", "Switch layout of the text in the clipboard (copy, press, paste)")
+                L.T("Раскладка текста в буфере обмена (скопируйте, нажмите, вставьте)", "Switch layout of the text in the clipboard (copy, press, paste)"),
+                L.T("Пауза исправлений на час / снять паузу", "Pause corrections for an hour / resume")
             };
         }
     }
     public static readonly Keys[] HotkeyDefaults =
     {
         Keys.Pause, Keys.Control | Keys.Shift | Keys.Space, Keys.Shift | Keys.F3, Keys.Shift | Keys.Pause, Keys.Alt | Keys.Pause,
-        Keys.None   // the clipboard: off until the user picks keys for it
+        Keys.None,   // the clipboard: off until the user picks keys for it
+        Keys.None    // pause: the same
     };
-    const int HkLayout = 1, HkLayoutAlt = 2, HkCase = 3, HkTranslit = 4, HkLine = 5, HkClipboard = 6;
+    const int HkLayout = 1, HkLayoutAlt = 2, HkCase = 3, HkTranslit = 4, HkLine = 5, HkClipboard = 6, HkPause = 7;
 
     static Keys GetHotkey(int i) { return (Keys)GetSetting("Hotkey" + (i + 1), (int)HotkeyDefaults[i]); }
 
@@ -561,11 +579,7 @@ class App : ApplicationContext
 
         // An hour without corrections, for a game, a password typed in plain view or text in a third language
         var pauseItem = new ToolStripMenuItem();
-        pauseItem.Click += (s, e) =>
-        {
-            pausedUntil = pausedUntil == DateTime.MinValue ? DateTime.Now.AddHours(1) : DateTime.MinValue;
-            ApplyEnabled();
-        };
+        pauseItem.Click += (s, e) => TogglePause(false);
 
         // The last auto-fixes: picking one means "this shouldn't have been corrected"
         var recentItem = new ToolStripMenuItem(L.T("Последние исправления", "Recent corrections"));
@@ -592,6 +606,10 @@ class App : ApplicationContext
         menu.Items.Add(autoItem);
         menu.Items.Add(pauseItem);
         menu.Items.Add(recentItem);
+        var whyItem = new ToolStripMenuItem(L.T("Почему не исправилось?", "Why wasn't it corrected?"));
+        ThemedMenuRenderer.Apply(whyItem.DropDown);
+        whyItem.DropDownItems.Add("…");   // filled when the menu opens
+        menu.Items.Add(whyItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(typosItem);
         menu.Items.Add(typographyItem);
@@ -606,6 +624,7 @@ class App : ApplicationContext
                                                                : L.F("Продолжить исправлять (пауза до {0})", "Resume (paused until {0})", pausedUntil.ToString("t", L.Culture));
             recentItem.Visible = watcher.KeepRecent;
             FillRecent(recentItem);
+            FillWhy(whyItem);
             typosItem.Checked = watcher.FixTypos;
             typographyItem.Checked = watcher.Typography;
             soundItem.Checked = playSound;
@@ -628,6 +647,82 @@ class App : ApplicationContext
             return name.Length > 0 ? char.ToUpper(name[0]) + name.Substring(1) : currentLayoutName;
         }
         catch { return currentLayoutName.Length > 0 ? currentLayoutName : "—"; }
+    }
+
+    // The last words KeyFish left alone and why, each with what can be done about it
+    void FillWhy(ToolStripMenuItem parent)
+    {
+        foreach (ToolStripItem old in parent.DropDownItems.Cast<ToolStripItem>().ToList()) old.Dispose();
+        parent.DropDownItems.Clear();
+        var list = watcher.Verdicts;
+        if (list.Count == 0)
+        {
+            parent.DropDownItems.Add(new ToolStripMenuItem(L.T("Пока всё исправлялось как надо", "Nothing left alone yet")) { Enabled = false });
+            return;
+        }
+        foreach (var v in list)
+        {
+            string app = v.App.Length > 0 ? v.App : "?";
+            string head = v.At.ToString("t", L.Culture) + " · " + app + " · ";
+            string reason, action = null;
+            Action act = null;
+            var verdict = v;
+            switch (v.Reason)
+            {
+                case "excluded":
+                    reason = L.T("программа в исключениях", "the app is excluded");
+                    action = L.F("Исправлять в {0}", "Correct in {0}", app);
+                    act = () => IncludeApp(verdict.App);
+                    break;
+                case "fullscreen":
+                    reason = L.T("игра или полноэкранный режим", "a game or full screen");
+                    if (watcher.QuietFullscreen)
+                    {
+                        action = L.T("Не молчать в полноэкранных программах", "Don't stay quiet in full screen");
+                        act = () => { watcher.QuietFullscreen = false; SetSetting("QuietFullscreen", 0); };
+                    }
+                    break;
+                case "admin": reason = L.T("программа запущена от имени администратора", "the app runs as administrator"); break;
+                case "password": reason = L.T("поле пароля", "a password field"); break;
+                case "not-checked": reason = L.T("проверка полей паролей ещё не ответила", "the password-field check hadn't answered"); break;
+                case "no-model": reason = L.T("для этой раскладки нет словаря", "no dictionary for this layout"); break;
+                case "symbols": reason = L.T("в слове цифры или символы", "digits or symbols in the word"); break;
+                case "code": reason = L.T("похоже на ссылку, путь или код", "looks like a link, a path or code"); break;
+                case "ignored":
+                    reason = L.F("«{0}» в списке «Не исправлять»", "\"{0}\" is in Never correct", v.Word);
+                    action = L.T("Убрать из «Не исправлять»", "Take it out of Never correct");
+                    act = () => watcher.Unignore(verdict.Word);
+                    break;
+                default:   // "unsure"
+                    reason = L.F("«{0}» — не уверен, что это ошибка", "\"{0}\": not sure it's a mistake", v.Word);
+                    action = L.T("Исправлять это слово", "Correct this word");
+                    act = () => watcher.LearnWord(verdict.Word);
+                    break;
+            }
+            var item = new ToolStripMenuItem(head + reason);
+            if (act != null)
+            {
+                ThemedMenuRenderer.Apply(item.DropDown);
+                var fix = new ToolStripMenuItem(action);
+                fix.Click += (s, e) => act();
+                item.DropDownItems.Add(fix);
+            }
+            else item.Enabled = false;
+            parent.DropDownItems.Add(item);
+        }
+    }
+
+    // "Correct in Code": the app leaves the exclusions (the line with its name is removed, the rest of the file stays)
+    void IncludeApp(string app)
+    {
+        try
+        {
+            var kept = ReadText(exclusionsPath).Replace("\r\n", "\n").Split('\n')
+                .Where(l => !string.Equals(SettingsForm.StripExe(l.Trim()), app, StringComparison.OrdinalIgnoreCase));
+            File.WriteAllText(exclusionsPath, string.Join("\r\n", kept), Encoding.UTF8);
+            watcher.ReloadSoon();
+        }
+        catch { }
     }
 
     void FillRecent(ToolStripMenuItem parent)
@@ -674,6 +769,14 @@ class App : ApplicationContext
         var old = tray.ContextMenuStrip;
         tray.ContextMenuStrip = BuildMenu();
         if (old != null) old.Dispose();
+    }
+
+    // The computer was locked (or another user switched in): what KeyFish remembers about recent typing is forgotten —
+    // the word being typed, the last words, recent corrections and why words were left alone
+    void OnSessionSwitch(object sender, SessionSwitchEventArgs e)
+    {
+        if (e.Reason == SessionSwitchReason.SessionLock || e.Reason == SessionSwitchReason.ConsoleDisconnect || e.Reason == SessionSwitchReason.RemoteDisconnect)
+            try { watcher.ClearMemory(); } catch { }
     }
 
     // Before 1.6.0 the app was called LayoutFix: carry over its settings and autostart
@@ -757,12 +860,14 @@ class App : ApplicationContext
 
         var menu = BuildMenu();
         SystemEvents.UserPreferenceChanged += OnSystemPreference;
+        SystemEvents.SessionSwitch += OnSessionSwitch;
 
         iconEn = MakeIcon("fish.ico");
         iconRu = MakeIcon("fish-ru.ico");
         blinkEn = MakeIcon("fish-blink.ico");
         blinkRu = MakeIcon("fish-ru-blink.ico");
         iconOff = Grey(iconEn);
+        iconPaused = Paused(iconEn);
 
         tray.Icon = iconEn;
         tray.Text = "KeyFish " + Application.ProductVersion;
@@ -1122,12 +1227,13 @@ class App : ApplicationContext
         {
             // The clipboard is converted in place: nothing is copied from or typed into the window, so it works anywhere
             if (id == HkClipboard) { ConvertClipboard(); return; }
+            if (id == HkPause) { TogglePause(true); return; }
             if (W.HasMoreRights(hotkeyWindow)) { NoRightsHere(hotkeyWindow); return; }
             if (id == HkLayout && watcher.Undo()) return;
             if (!watcher.HotkeyAllowed(hotkeyWindow)) return;   // an excluded app or a password field
             if (!Native.WaitModifiersReleased()) return;      // keys still held: Ctrl+C would become Ctrl+Shift+C
             if (id == HkCase) ChangeCase();
-            else if (id == HkTranslit) TransformSelection(Transliterator.Convert);
+            else if (id == HkTranslit) { string lang = TranslitLanguage(); TransformSelection(s => Transliterator.Convert(s, lang)); }
             else if (id == HkLine) ConvertLine();
             else ConvertSelection();
         }
@@ -1220,6 +1326,27 @@ class App : ApplicationContext
         return text;
     }
 
+    // From Latin, transliteration goes into the language of the user's other alphabet: the window's layout if it isn't
+    // Latin, otherwise the first such layout installed (Russian if there is none)
+    string TranslitLanguage()
+    {
+        var current = watcher.Layouts.Get(W.LayoutHkl(hotkeyWindow));
+        if (current != null && current.Script != "Latin" && current.Lang != null) return current.Lang;
+        var other = watcher.AllLayouts.FirstOrDefault(t => t.Script != null && t.Script != "Latin" && t.Lang != null);
+        return other != null ? other.Lang : "ru";
+    }
+
+    // The last selection switched with Pause, for going on to the next layout with Pause again
+    class LayoutCycle
+    {
+        public IntPtr Hwnd;
+        public LayoutTable Source;
+        public string Original, Result;
+        public int At;
+        public readonly List<IntPtr> Tried = new List<IntPtr>();
+    }
+    LayoutCycle cycle;
+
     // A whole phrase typed in the wrong layout: select from the cursor to the start of the line and switch it
     void ConvertLine()
     {
@@ -1272,12 +1399,32 @@ class App : ApplicationContext
         string text = GetSelectionOrLastWord();
         if (!string.IsNullOrEmpty(text))
         {
-            LayoutTable layout;
-            string result = watcher.ConvertText(text, target, out layout);
+            LayoutTable layout, source;
+            string result;
+            // Pause again on what Pause just made: the same keys in the next installed layout, round to the original
+            var c = cycle;
+            if (c != null && c.Hwnd == target && Environment.TickCount - c.At < 15000 && text == c.Result)
+            {
+                var next = watcher.AllLayouts.FirstOrDefault(t => t.Hkl != c.Source.Hkl && !c.Tried.Contains(t.Hkl));
+                layout = next ?? c.Source;
+                result = next != null ? KeyboardWatcher.Retype(c.Original, c.Source, next) : c.Original;
+                source = c.Source;
+                text = c.Original;
+            }
+            else
+            {
+                result = watcher.ConvertText(text, target, out layout, out source);
+                c = null;
+            }
             if (result != null && Paste(result))
             {
                 W.SwitchLayout(target, layout.Hkl);
                 watcher.Learn(text, result, layout.Lang);
+                if (c == null) cycle = new LayoutCycle { Hwnd = target, Source = source, Original = text };
+                cycle.Result = result;
+                cycle.At = Environment.TickCount;
+                cycle.Tried.Add(layout.Hkl);
+                if (layout.Hkl == cycle.Source.Hkl) cycle = null;   // back to the start: the round is over
             }
         }
 
@@ -1492,6 +1639,32 @@ class App : ApplicationContext
     }
 
     // The fish without color, for when KeyFish isn't correcting
+    Icon iconPaused;   // grey fish with a pause sign: paused from the menu or the hotkey
+
+    // The grey icon with a pause sign (two bars) in the lower right corner
+    static Icon Paused(Icon icon)
+    {
+        using (var grey = Grey(icon))
+        using (var bmp = grey.ToBitmap())
+        {
+            using (var g = Graphics.FromImage(bmp)) PauseSign(g, bmp.Width);
+            return Icon.FromHandle(bmp.GetHicon());
+        }
+    }
+
+    static void PauseSign(Graphics g, int size)
+    {
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        float d = size * 0.56f, x = size - d, y = size - d;
+        using (var b = new SolidBrush(Color.FromArgb(235, 40, 40, 40))) g.FillEllipse(b, x, y, d, d);
+        float bw = d * 0.17f, bh = d * 0.46f, gap = d * 0.12f;
+        using (var b = new SolidBrush(Color.White))
+        {
+            g.FillRectangle(b, x + d / 2 - gap / 2 - bw, y + (d - bh) / 2, bw, bh);
+            g.FillRectangle(b, x + d / 2 + gap / 2, y + (d - bh) / 2, bw, bh);
+        }
+    }
+
     static Icon Grey(Icon icon)
     {
         using (var bmp = icon.ToBitmap())
@@ -1512,6 +1685,7 @@ class App : ApplicationContext
     protected override void ExitThreadCore()
     {
         SystemEvents.UserPreferenceChanged -= OnSystemPreference;   // a static event: it would keep KeyFish's objects alive
+        SystemEvents.SessionSwitch -= OnSessionSwitch;
         SaveStats();
         FlushRestore();
         FileQueue.Flush(2000);

@@ -183,3 +183,21 @@ saved	gespart
 Holiday look	Festliches Aussehen
 For Halloween (October 24 to November 2): pumpkin colors, a hat on the fish, bats. Takes effect after saving.	Zu Halloween (24. Oktober bis 2. November): Kürbisfarben, ein Hut für den Fisch, Fledermäuse. Wird nach dem Speichern übernommen.
 The word is now in "Never correct".	Das Wort steht jetzt unter „Nie korrigieren“.
+Why wasn't it corrected?	Warum wurde nicht korrigiert?
+Nothing left alone yet	Bisher wurde alles korrigiert
+the app is excluded	die App ist ausgenommen
+Correct in {0}	In {0} korrigieren
+a game or full screen	ein Spiel oder Vollbild
+Don't stay quiet in full screen	Im Vollbild nicht still sein
+the app runs as administrator	die App läuft als Administrator
+a password field	ein Passwortfeld
+the password-field check hadn't answered	die Passwortfeld-Prüfung hatte noch nicht geantwortet
+no dictionary for this layout	kein Wörterbuch für dieses Layout
+digits or symbols in the word	Ziffern oder Symbole im Wort
+looks like a link, a path or code	sieht aus wie ein Link, ein Pfad oder Code
+"{0}" is in Never correct	„{0}“ steht unter „Nie korrigieren“
+Take it out of Never correct	Aus „Nie korrigieren“ entfernen
+"{0}": not sure it's a mistake	„{0}“: nicht sicher, ob es ein Fehler ist
+Correct this word	Dieses Wort korrigieren
+Pause corrections for an hour / resume	Korrekturen für eine Stunde pausieren / fortsetzen
+Correcting again.	Korrigiert wieder.

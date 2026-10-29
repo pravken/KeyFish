@@ -183,3 +183,21 @@ saved	gagnées
 Holiday look	Décor de fête
 For Halloween (October 24 to November 2): pumpkin colors, a hat on the fish, bats. Takes effect after saving.	Pour Halloween (du 24 octobre au 2 novembre) : couleurs citrouille, un chapeau pour le poisson, des chauves-souris. S'applique après l'enregistrement.
 The word is now in "Never correct".	Le mot est maintenant dans « Ne jamais corriger ».
+Why wasn't it corrected?	Pourquoi pas de correction ?
+Nothing left alone yet	Tout a été corrigé jusqu'ici
+the app is excluded	l'application est exclue
+Correct in {0}	Corriger dans {0}
+a game or full screen	un jeu ou le plein écran
+Don't stay quiet in full screen	Ne pas se taire en plein écran
+the app runs as administrator	l'application s'exécute en administrateur
+a password field	un champ de mot de passe
+the password-field check hadn't answered	la vérification des mots de passe n'avait pas encore répondu
+no dictionary for this layout	pas de dictionnaire pour cette disposition
+digits or symbols in the word	des chiffres ou symboles dans le mot
+looks like a link, a path or code	ressemble à un lien, un chemin ou du code
+"{0}" is in Never correct	« {0} » est dans « Ne jamais corriger »
+Take it out of Never correct	Retirer de « Ne jamais corriger »
+"{0}": not sure it's a mistake	« {0} » : pas sûr que ce soit une erreur
+Correct this word	Corriger ce mot
+Pause corrections for an hour / resume	Mettre les corrections en pause une heure / reprendre
+Correcting again.	Les corrections reprennent.

@@ -183,3 +183,21 @@ saved	oszczędzone
 Holiday look	Świąteczny wygląd
 For Halloween (October 24 to November 2): pumpkin colors, a hat on the fish, bats. Takes effect after saving.	Na Halloween (24 października — 2 listopada): dyniowe kolory, kapelusz dla rybki, nietoperze. Zadziała po zapisaniu.
 The word is now in "Never correct".	Słowo dodano do „Nie poprawiaj”.
+Why wasn't it corrected?	Dlaczego nie poprawiono?
+Nothing left alone yet	Na razie wszystko poprawiono
+the app is excluded	program jest wykluczony
+Correct in {0}	Poprawiaj w {0}
+a game or full screen	gra lub pełny ekran
+Don't stay quiet in full screen	Nie milcz na pełnym ekranie
+the app runs as administrator	program działa jako administrator
+a password field	pole hasła
+the password-field check hadn't answered	sprawdzanie pól haseł jeszcze nie odpowiedziało
+no dictionary for this layout	brak słownika dla tego układu
+digits or symbols in the word	cyfry lub symbole w słowie
+looks like a link, a path or code	wygląda na link, ścieżkę lub kod
+"{0}" is in Never correct	„{0}” jest na liście „Nie poprawiaj”
+Take it out of Never correct	Usuń z „Nie poprawiaj”
+"{0}": not sure it's a mistake	„{0}”: nie jestem pewien, czy to błąd
+Correct this word	Poprawiaj to słowo
+Pause corrections for an hour / resume	Wstrzymaj poprawki na godzinę / wznów
+Correcting again.	Poprawianie znowu włączone.

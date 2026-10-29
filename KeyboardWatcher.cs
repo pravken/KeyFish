@@ -37,6 +37,37 @@ class KeyboardWatcher
 
     public void ClearRecent() { lock (sync) recent.Clear(); }
 
+    // Why words were left alone, for "Why wasn't it corrected?" in the tray menu: the last five, in memory only.
+    // Ordinary words typed right aren't kept, and a word is kept only where it helps put things right
+    // (it is in Never correct, or KeyFish wasn't sure about it); never in a password field
+    public class Verdict { public DateTime At; public string App, Word, Reason; }
+    readonly List<Verdict> verdicts = new List<Verdict>();
+    public List<Verdict> Verdicts { get { lock (verdicts) return new List<Verdict>(verdicts); } }
+
+    void Explain(IntPtr hwnd, string reason, string word = null)
+    {
+        string app = W.ProcessName(hwnd);
+        lock (verdicts)
+        {
+            // Every word in an excluded app or a game has the same reason: one line for them, the time moving on
+            var top = verdicts.Count > 0 ? verdicts[0] : null;
+            if (top != null && top.App == app && top.Reason == reason && top.Word == word) { top.At = DateTime.Now; return; }
+            verdicts.Insert(0, new Verdict { At = DateTime.Now, App = app, Word = word, Reason = reason });
+            if (verdicts.Count > 5) verdicts.RemoveAt(5);
+        }
+    }
+
+    // Everything KeyFish remembers about recent typing, gone at once (the session was locked)
+    public void ClearMemory()
+    {
+        lock (sync) { ResetAll(); last = null; erasedKeys = null; eraseSnapshot = null; eraseRec = null; recent.Clear(); }
+        lock (verdicts) verdicts.Clear();
+    }
+
+    // From "Why wasn't it corrected?": take a word out of Never correct, or teach KeyFish to correct it
+    public void Unignore(string word) { lock (sync) ignored.Remove(word); }
+    public void LearnWord(string word) { lock (sync) { learned.Add(word); ignored.Remove(word); } }
+
     // The user picked a fix in the tray menu: its words are never corrected again
     public void NeverCorrect(RecentFix fix)
     {
@@ -634,7 +665,15 @@ class KeyboardWatcher
     // ties go to the one used last. Returns null if no installed layout fits
     public string ConvertText(string text, IntPtr hwnd, out LayoutTable target)
     {
+        LayoutTable source;
+        return ConvertText(text, hwnd, out target, out source);
+    }
+
+    // source: the layout the text was typed in, as KeyFish figured it out
+    public string ConvertText(string text, IntPtr hwnd, out LayoutTable target, out LayoutTable source)
+    {
         target = null;
+        source = null;
         var counts = new Dictionary<string, int>();
         foreach (char ch in text)
         {
@@ -649,7 +688,7 @@ class KeyboardWatcher
 
         var all = new List<LayoutTable>(Layouts.All);
         // The text was typed in the window's layout if that has the right alphabet, otherwise in the one used last
-        LayoutTable source = Layouts.Get(W.LayoutHkl(hwnd));
+        source = Layouts.Get(W.LayoutHkl(hwnd));
         if (source == null || source.Script != script)
         {
             var same = all.FindAll(t => t.Script == script);
@@ -667,14 +706,7 @@ class KeyboardWatcher
         for (int i = 0; i < others.Count; i++)
         {
             var t = others[i];
-            var sb = new StringBuilder(text.Length);
-            foreach (char ch in text)
-            {
-                var keys = source.Keys(ch.ToString());
-                string r = keys == null ? null : t.Type(keys);
-                sb.Append(r == null || r.IndexOf('\uFFFD') >= 0 ? ch.ToString() : r);
-            }
-            string s = sb.ToString();
+            string s = Retype(text, source, t);
             double score = i == recent ? 0.5 : 0;
             var model = Detector.Loaded(t.Lang);
             if (model != null)
@@ -688,6 +720,21 @@ class KeyboardWatcher
         if (target != null) lock (sync) UsedLayout(target.Hkl);
         return best;
     }
+
+    // The text as the same keys type it in another layout; characters that layout can't make stay as they are
+    public static string Retype(string text, LayoutTable from, LayoutTable to)
+    {
+        var sb = new StringBuilder(text.Length);
+        foreach (char ch in text)
+        {
+            var keys = from.Keys(ch.ToString());
+            string r = keys == null ? null : to.Type(keys);
+            sb.Append(r == null || r.IndexOf('\uFFFD') >= 0 ? ch.ToString() : r);
+        }
+        return sb.ToString();
+    }
+
+    public List<LayoutTable> AllLayouts { get { return new List<LayoutTable>(Layouts.All); } }
 
     // The user fixed a word with Pause, so it gets corrected automatically next time
     public void Learn(string typed, string result, string resultLang)
@@ -749,11 +796,20 @@ class KeyboardWatcher
                       !verified ? "focus not checked yet" : IsOwnWindow(hwnd) ? "KeyFish window" : IsExcluded(hwnd) ? "excluded app" :
                       W.HasMoreRights(hwnd) ? "app run as administrator" :
                       IsPasswordField(hwnd) ? "password field (Win32)" : QuietFullscreen && IsFullscreen(hwnd) ? "full screen" : null;
-        if (skip != null) { Diagnose(hwnd, skip); history.Clear(); return false; }
+        if (skip != null)
+        {
+            Diagnose(hwnd, skip);
+            // Editing in the middle of a word or a very long one isn't a question anyone asks; the rest are kept, wordless
+            if (!wasPartial && skip != "too long" && skip != "KeyFish window")
+                Explain(hwnd, password || skip.StartsWith("password") ? "password" : skip == "focus not checked yet" ? "not-checked" :
+                              skip == "excluded app" ? "excluded" : skip == "app run as administrator" ? "admin" : "fullscreen");
+            history.Clear();
+            return false;
+        }
 
         var current = Layouts.Get(W.LayoutHkl(hwnd));
         var T = current == null ? null : Detector.Loaded(current.Lang);
-        if (T == null) { Diagnose(hwnd, "no language model for the layout"); history.Clear(); return false; }
+        if (T == null) { Diagnose(hwnd, "no language model for the layout"); Explain(hwnd, "no-model"); history.Clear(); return false; }
 
         string typed = Build(word, current);
 
@@ -851,8 +907,8 @@ class KeyboardWatcher
 
         // Numbers, e-mails, identifiers aren't words to fix (an abbreviation like "addr1" was expanded above)
         foreach (char c in typed)
-            if (char.IsDigit(c) || c == '@' || c == '_') { Diagnose(hwnd, "digits or symbols"); history.Clear(); return false; }
-        if (Detector.LooksLikeCode(typed)) { Diagnose(hwnd, "link, path or code"); history.Clear(); return false; }
+            if (char.IsDigit(c) || c == '@' || c == '_') { Diagnose(hwnd, "digits or symbols"); Explain(hwnd, "symbols"); history.Clear(); return false; }
+        if (Detector.LooksLikeCode(typed)) { Diagnose(hwnd, "link, path or code"); Explain(hwnd, "code"); history.Clear(); return false; }
 
         // Which layout did the user mean? A word they taught KeyFish goes to their usual other layout
         int chosen = -1;
@@ -903,6 +959,9 @@ class KeyboardWatcher
         if (!convert && fixedCase == result)
         {
             Diagnose(hwnd, IsIgnored(typed) ? "in Never correct" : "looks right as typed");
+            string typedCore = Detector.Core(typed, current.Lang);
+            if (IsIgnored(typed)) Explain(hwnd, "ignored", typed);
+            else if (!string.IsNullOrEmpty(typedCore) && T.Count(typedCore) == 0 && others.Count > 0) Explain(hwnd, "unsure", typed);   // not a word KeyFish knows
             PushHistory(rec);
             // Typos are checked after the space without holding it; Enter may already have sent a message
             // The spell check can take a while (Windows loads the dictionary on first use), so typing isn't held
