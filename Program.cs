@@ -225,7 +225,8 @@ partial class App : ApplicationContext
 
     static void SetText(string name, string value)
     {
-        using (var k = Registry.CurrentUser.CreateSubKey(SettingsKey)) k.SetValue(name, value ?? "", RegistryValueKind.String);
+        using (var k = Registry.CurrentUser.CreateSubKey(SettingsKey))
+            if (!((value ?? "").Equals(k.GetValue(name) as string))) k.SetValue(name, value ?? "", RegistryValueKind.String);
     }
 
     LayoutBadge badge;
@@ -252,9 +253,15 @@ partial class App : ApplicationContext
         catch { return def; }
     }
 
+    // Settings apply at every change in the window: a value that is already there isn't written again
     static void SetSetting(string name, int value)
     {
-        using (var k = Registry.CurrentUser.CreateSubKey(SettingsKey)) k.SetValue(name, value, RegistryValueKind.DWord);
+        using (var k = Registry.CurrentUser.CreateSubKey(SettingsKey))
+        {
+            object old = k.GetValue(name);
+            if (old is int && (int)old == value) return;
+            k.SetValue(name, value, RegistryValueKind.DWord);
+        }
     }
 
     readonly string exclusionsPath, ignoredPath, replacementsPath, learnedPath, appLayoutsPath, backupDir;
@@ -405,7 +412,7 @@ partial class App : ApplicationContext
         tray.BalloonTipClicked += (s, e) => { if (pendingRelease != null) OfferUpdate(pendingRelease); };
         if (updated)
             tray.ShowBalloonTip(5000, "KeyFish " + Application.ProductVersion,
-                L.T("Обновление установлено 🐟", "Update installed 🐟"), ToolTipIcon.Info);
+                L.T("Обновление установлено", "Update installed"), ToolTipIcon.Info);
         updateTimer.Interval = 30 * 1000;
         updateTimer.Tick += (s, e) =>
         {
@@ -445,10 +452,10 @@ partial class App : ApplicationContext
     {
         string report = "KeyFish " + Application.ProductVersion + "\r\n\r\n" + record;
         int choice = ThemedMessage.Choose(
-            L.T("В прошлый раз KeyFish закрылся из-за ошибки. Отправьте отчёт автору — это поможет её исправить. В нём только описание ошибки от Windows, без набранного текста; на GitHub вы увидите его перед отправкой.",
-                "KeyFish closed because of an error last time. Please send the report to the author: it helps fix it. It holds only Windows' description of the error, no typed text, and on GitHub you see it before sending."),
+            L.T("Предыдущий сеанс KeyFish завершился с ошибкой. Рекомендуется отправить отчёт разработчику. Отчёт содержит только описание ошибки от Windows и не содержит набранного текста; перед отправкой его можно просмотреть на GitHub.",
+                "The previous KeyFish session ended with an error. Sending a report to the developer is recommended. The report contains only Windows' description of the error and no typed text; it can be reviewed on GitHub before sending."),
             "KeyFish", MessageBoxIcon.Warning,
-            L.T("Открыть на GitHub", "Open on GitHub"), L.T("Скопировать", "Copy"), L.T("Не надо", "No, thanks"));
+            L.T("Открыть на GitHub", "Open on GitHub"), L.T("Копировать", "Copy"), L.T("Не отправлять", "Don't send"));
         try
         {
             if (choice == 0) Process.Start(IssueUrl(report));
@@ -472,115 +479,160 @@ partial class App : ApplicationContext
 
     static string ReadText(string path) { return File.Exists(path) ? File.ReadAllText(path, Encoding.UTF8) : ""; }
 
+    static void WriteIfChanged(string path, string text)
+    {
+        if (!File.Exists(path) || ReadText(path) != text) File.WriteAllText(path, text, Encoding.UTF8);
+    }
+
     void OpenSettings()
     {
         if (settingsForm != null) { settingsForm.Activate(); return; }
         FileQueue.Flush(2000);   // words KeyFish has just learned reach the files before Settings reads them
         string ignoredBefore = ReadText(ignoredPath), learnedBefore = ReadText(learnedPath);
 
-        var keys = new Keys[HotkeyDefaults.Length];
-        for (int i = 0; i < keys.Length; i++) keys[i] = GetHotkey(i);
         // The gallery marks the look in use, a holiday's own one on its days too: choosing another one is then seen
         int shownSkin = Theme.Contrast ? Theme.Chosen : Theme.Skin.Number;
-        settingsForm = new SettingsForm
-        {
-            OpenAbout = owner => ShowAbout(owner), Updates = updates,
-            BackupDir = backupDir, TrayLetters = trayLetters, LayoutColors = new Dictionary<string, Color>(layoutColors, StringComparer.OrdinalIgnoreCase), AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, SoundMap = new Dictionary<string, string>(Sounds.Map), SoundsDir = Sounds.Dir, RecentMenu = watcher.KeepRecent, Typography = watcher.Typography, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
-            CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting, ThemeMode = Theme.Mode, SkinNumber = shownSkin, Holiday = Theme.Holidays, SkinLogo = Theme.SkinLogo, SkinSound = Theme.SkinSound, CustomAccent = Skin.Custom.Accent, CustomFish = Skin.Custom.Latin,
-            Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ignoredBefore, Learned = learnedBefore,
-            AppLayouts = ReadText(appLayoutsPath), InstalledLayouts = new List<LayoutTable>(watcher.Layouts.All)
-        };
-        settingsForm.Icon = iconEn;
 
         // Global hotkeys are off while the window is open, otherwise they couldn't be assigned
         hotkeys.UnregisterAll();
         try
         {
-            if (settingsForm.ShowDialog() == DialogResult.OK)
+            // Apply keeps the window open, and a look applies as soon as it is picked
+            settingsForm = NewSettingsForm(shownSkin, ignoredBefore, learnedBefore);
+            // Settings apply at every change: the copy is made once, before the first of them, and again before an import
+            bool backedUp = false;
+            settingsForm.Apply = f =>
             {
-                var f = settingsForm;
-                // What was there before this save goes to backups\, the newest ten are kept
-                Backup(ignoredBefore, learnedBefore);
-                autoCorrect = f.AutoCorrect; ApplyEnabled(); SetSetting("AutoCorrect", f.AutoCorrect ? 1 : 0);
-                showBadge = f.LayoutBadge; SetSetting("LayoutBadge", f.LayoutBadge ? 1 : 0);
-                playSound = f.Sound; SetSetting("Sound", f.Sound ? 1 : 0);
-                Sounds.Load(f.SoundMap); SetText("Sounds", Sounds.Format(f.SoundMap)); Sounds.Forget();
-                trayLetters = f.TrayLetters; SetSetting("TrayLetters", f.TrayLetters ? 1 : 0);
-                layoutColors = f.LayoutColors; SetText("LayoutColors", LayoutColors.Format(f.LayoutColors));
-                watcher.KeepRecent = f.RecentMenu; SetSetting("RecentMenu", f.RecentMenu ? 1 : 0);
-                watcher.Typography = f.Typography; SetSetting("Typography", f.Typography ? 1 : 0);
-                if (!f.RecentMenu) watcher.ClearRecent();
-                watcher.QuickKey = f.QuickKey; SetSetting("QuickKey", f.QuickKey);
-                watcher.FixTypos = f.Typos; SetSetting("Typos", f.Typos ? 1 : 0);
-                watcher.QuietFullscreen = f.QuietFullscreen; SetSetting("QuietFullscreen", f.QuietFullscreen ? 1 : 0);
-                watcher.UndoWithCtrlZ = f.UndoCtrlZ; SetSetting("UndoCtrlZ", f.UndoCtrlZ ? 1 : 0);
-                showLayout = f.LayoutColor; SetSetting("LayoutColor", f.LayoutColor ? 1 : 0);
-                SetSetting("CheckUpdates", f.CheckUpdates ? 1 : 0);
-                if (f.Autostart != IsAutostart()) SetAutostart(f.Autostart);
-                for (int i = 0; i < f.Hotkeys.Length; i++) SetSetting("Hotkey" + (i + 1), (int)f.Hotkeys[i]);
-                File.WriteAllText(replacementsPath, f.Replacements, Encoding.UTF8);
-                File.WriteAllText(exclusionsPath, f.Exclusions, Encoding.UTF8);
-                // KeyFish keeps learning while the window is open: keep those changes along with the user's edits
-                FileQueue.Flush(2000);
-                File.WriteAllText(ignoredPath, MergeWords(f.Ignored, ignoredBefore, ReadText(ignoredPath)), Encoding.UTF8);
-                File.WriteAllText(learnedPath, MergeWords(f.Learned, learnedBefore, ReadText(learnedPath)), Encoding.UTF8);
-                File.WriteAllText(appLayoutsPath, f.AppLayouts, Encoding.UTF8);
-                LoadAppLayouts();
-                watcher.ReloadSoon();
-                bool themeChanged = false;
-                if (f.ThemeMode != Theme.Mode)
-                {
-                    Theme.Mode = f.ThemeMode;
-                    SetSetting("Theme", f.ThemeMode);
-                    themeChanged = Theme.Refresh();
-                }
-                if (f.Holiday != Theme.Holidays || f.SkinNumber != shownSkin)
-                {
-                    SetSetting("Holiday", f.Holiday ? 1 : 0);
-                    Theme.Holidays = f.Holiday;
-                    if (f.SkinNumber != shownSkin)
-                    {
-                        // Another look chosen on a holiday's days wins over the holiday's own one until they end
-                        SetSetting("Skin", f.SkinNumber);
-                        Theme.Chosen = f.SkinNumber;
-                        Theme.Declined = Skin.Declines(f.SkinNumber, DateTime.Today);
-                        SetSetting("HolidayDeclined", Theme.Declined == DateTime.MinValue ? 0 : int.Parse(Theme.Declined.ToString("yyyyMMdd")));
-                    }
-                    if (Theme.Refresh()) themeChanged = true;
-                }
-                Color accent = f.CustomAccent, fish = f.CustomFish;
-                if (accent.ToArgb() != Skin.Custom.Accent.ToArgb() || fish.ToArgb() != Skin.Custom.Latin.ToArgb())
-                {
-                    SetSetting("CustomAccent", accent.ToArgb());
-                    SetSetting("CustomFish", fish.ToArgb());
-                    Skin.SetCustom(accent, fish);
-                    Theme.Refresh();
-                    themeChanged = true;
-                }
-                if (f.SkinLogo != Theme.SkinLogo || f.SkinSound != Theme.SkinSound)
-                {
-                    SetSetting("SkinLogo", f.SkinLogo ? 1 : 0);
-                    SetSetting("SkinSound", f.SkinSound ? 1 : 0);
-                    Theme.SkinLogo = f.SkinLogo;
-                    Theme.SkinSound = f.SkinSound;
-                    themeChanged = true;
-                }
-                if (f.Language != L.Setting || themeChanged)
-                {
-                    L.Setting = f.Language;
-                    SetSetting("Language", f.Language);
-                    var old = tray.ContextMenuStrip;
-                    tray.ContextMenuStrip = BuildMenu();
-                    old.Dispose();
-                }
-            }
+                bool rebuild = ApplySettings(f, shownSkin, ignoredBefore, learnedBefore, !backedUp || f.Replacing);
+                backedUp = true;
+                // The next Apply starts from this one: the word lists as they were in the window, the look now in use
+                ignoredBefore = f.Ignored;
+                learnedBefore = f.Learned;
+                shownSkin = Theme.Contrast ? Theme.Chosen : Theme.Skin.Number;
+                return rebuild;
+            };
+            settingsForm.ApplyLook = f =>
+            {
+                if (!backedUp) { Backup(ignoredBefore, learnedBefore); backedUp = true; }
+                bool rebuild = ApplyLook(f, shownSkin);
+                shownSkin = Theme.Contrast ? Theme.Chosen : Theme.Skin.Number;
+                return rebuild;
+            };
+            settingsForm.ShowDialog();
         }
         finally
         {
-            settingsForm.Dispose();
+            if (settingsForm != null) settingsForm.Dispose();
             settingsForm = null;
             WarnHotkeys(RegisterHotkeys());
         }
+    }
+
+    SettingsForm NewSettingsForm(int shownSkin, string ignored, string learned)
+    {
+        var keys = new Keys[HotkeyDefaults.Length];
+        for (int i = 0; i < keys.Length; i++) keys[i] = GetHotkey(i);
+        var form = new SettingsForm
+        {
+            OpenAbout = owner => ShowAbout(owner), Updates = updates,
+            BackupDir = backupDir, TrayLetters = trayLetters, LayoutColors = new Dictionary<string, Color>(layoutColors, StringComparer.OrdinalIgnoreCase), AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, SoundMap = new Dictionary<string, string>(Sounds.Map), SoundsDir = Sounds.Dir, RecentMenu = watcher.KeepRecent, Typography = watcher.Typography, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
+            CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting, ThemeMode = Theme.Mode, SkinNumber = shownSkin, Holiday = Theme.Holidays, SkinLogo = Theme.SkinLogo, SkinSound = Theme.SkinSound, CustomAccent = Skin.Custom.Accent, CustomFish = Skin.Custom.Latin,
+            Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ignored, Learned = learned,
+            AppLayouts = ReadText(appLayoutsPath), InstalledLayouts = new List<LayoutTable>(watcher.Layouts.All)
+        };
+        form.Icon = iconEn;
+        return form;
+    }
+
+    // Settings → Apply: KeyFish takes the window's values and keeps them. True if the window has to be opened again
+    // to show them (another language, theme or look)
+    bool ApplySettings(SettingsForm f, int shownSkin, string ignoredBefore, string learnedBefore, bool backup)
+    {
+        // What was there before the first change in the window goes to backups\, the newest ten are kept
+        if (backup) Backup(ignoredBefore, learnedBefore);
+        autoCorrect = f.AutoCorrect; ApplyEnabled(); SetSetting("AutoCorrect", f.AutoCorrect ? 1 : 0);
+        showBadge = f.LayoutBadge; SetSetting("LayoutBadge", f.LayoutBadge ? 1 : 0);
+        playSound = f.Sound; SetSetting("Sound", f.Sound ? 1 : 0);
+        Sounds.Load(f.SoundMap); SetText("Sounds", Sounds.Format(f.SoundMap)); Sounds.Forget();
+        trayLetters = f.TrayLetters; SetSetting("TrayLetters", f.TrayLetters ? 1 : 0);
+        layoutColors = new Dictionary<string, Color>(f.LayoutColors, StringComparer.OrdinalIgnoreCase); SetText("LayoutColors", LayoutColors.Format(f.LayoutColors));
+        watcher.KeepRecent = f.RecentMenu; SetSetting("RecentMenu", f.RecentMenu ? 1 : 0);
+        watcher.Typography = f.Typography; SetSetting("Typography", f.Typography ? 1 : 0);
+        if (!f.RecentMenu) watcher.ClearRecent();
+        watcher.QuickKey = f.QuickKey; SetSetting("QuickKey", f.QuickKey);
+        watcher.FixTypos = f.Typos; SetSetting("Typos", f.Typos ? 1 : 0);
+        watcher.QuietFullscreen = f.QuietFullscreen; SetSetting("QuietFullscreen", f.QuietFullscreen ? 1 : 0);
+        watcher.UndoWithCtrlZ = f.UndoCtrlZ; SetSetting("UndoCtrlZ", f.UndoCtrlZ ? 1 : 0);
+        showLayout = f.LayoutColor; SetSetting("LayoutColor", f.LayoutColor ? 1 : 0);
+        SetSetting("CheckUpdates", f.CheckUpdates ? 1 : 0);
+        if (f.Autostart != IsAutostart()) SetAutostart(f.Autostart);
+        for (int i = 0; i < f.Hotkeys.Length; i++) SetSetting("Hotkey" + (i + 1), (int)f.Hotkeys[i]);
+        // Only what changed is written: settings apply at every change in the window
+        WriteIfChanged(replacementsPath, f.Replacements);
+        WriteIfChanged(exclusionsPath, f.Exclusions);
+        // KeyFish keeps learning while the window is open: keep those changes along with the user's edits. A list
+        // the user didn't touch stays as KeyFish keeps it
+        if (f.Ignored != ignoredBefore || f.Learned != learnedBefore) FileQueue.Flush(2000);
+        if (f.Ignored != ignoredBefore) WriteIfChanged(ignoredPath, MergeWords(f.Ignored, ignoredBefore, ReadText(ignoredPath)));
+        if (f.Learned != learnedBefore) WriteIfChanged(learnedPath, MergeWords(f.Learned, learnedBefore, ReadText(learnedPath)));
+        WriteIfChanged(appLayoutsPath, f.AppLayouts);
+        LoadAppLayouts();
+        watcher.ReloadSoon();
+        bool themeChanged = ApplyLook(f, shownSkin);
+        if (f.Language == L.Setting) return themeChanged;
+        L.Setting = f.Language;
+        SetSetting("Language", f.Language);
+        RebuildMenu();
+        return true;
+    }
+
+    // The look's part of Settings, applied as soon as it is picked there. True if anything about it changed
+    bool ApplyLook(SettingsForm f, int shownSkin)
+    {
+        bool themeChanged = false;
+        if (f.ThemeMode != Theme.Mode)
+        {
+            Theme.Mode = f.ThemeMode;
+            SetSetting("Theme", f.ThemeMode);
+            themeChanged = Theme.Refresh();
+        }
+        if (f.Holiday != Theme.Holidays || f.SkinNumber != shownSkin)
+        {
+            SetSetting("Holiday", f.Holiday ? 1 : 0);
+            Theme.Holidays = f.Holiday;
+            if (f.SkinNumber != shownSkin)
+            {
+                // Another look chosen on a holiday's days wins over the holiday's own one until they end
+                SetSetting("Skin", f.SkinNumber);
+                Theme.Chosen = f.SkinNumber;
+                Theme.Declined = Skin.Declines(f.SkinNumber, DateTime.Today);
+                SetSetting("HolidayDeclined", Theme.Declined == DateTime.MinValue ? 0 : int.Parse(Theme.Declined.ToString("yyyyMMdd")));
+            }
+            if (Theme.Refresh()) themeChanged = true;
+        }
+        Color accent = f.CustomAccent, fish = f.CustomFish;
+        if (accent.ToArgb() != Skin.Custom.Accent.ToArgb() || fish.ToArgb() != Skin.Custom.Latin.ToArgb())
+        {
+            SetSetting("CustomAccent", accent.ToArgb());
+            SetSetting("CustomFish", fish.ToArgb());
+            Skin.SetCustom(accent, fish);
+            Theme.Refresh();
+            themeChanged = true;
+        }
+        bool fishOnly = false;
+        if (f.SkinLogo != Theme.SkinLogo)
+        {
+            SetSetting("SkinLogo", f.SkinLogo ? 1 : 0);
+            Theme.SkinLogo = f.SkinLogo;
+            fishOnly = true;   // the fish only: the Settings window just redraws it
+        }
+        if (f.SkinSound != Theme.SkinSound)
+        {
+            SetSetting("SkinSound", f.SkinSound ? 1 : 0);
+            Theme.SkinSound = f.SkinSound;
+        }
+        if (themeChanged || fishOnly) RebuildMenu();
+        return themeChanged;
     }
 
     void Backup(string ignoredBefore, string learnedBefore)

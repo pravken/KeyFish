@@ -108,8 +108,8 @@ static class Updater
         }
         catch (UnauthorizedAccessException)
         {
-            return L.T("Нет прав на запись в папку программы. Скачайте новую версию вручную.",
-                       "No permission to write to the app folder. Please download the new version manually.");
+            return L.T("Нет прав на запись в папку программы. Загрузите новую версию вручную.",
+                       "No permission to write to the app folder. Download the new version manually.");
         }
         catch (Exception ex)
         {
@@ -193,8 +193,8 @@ static class Dictionaries
                     if (actual != expected)
                     {
                         File.Delete(temp);
-                        return L.T("Скачанный словарь не совпал с контрольной суммой — он не установлен.",
-                                   "The downloaded dictionary doesn't match its checksum, so it wasn't installed.");
+                        return L.T("Загруженный словарь не совпал с контрольной суммой и не установлен.",
+                                   "The downloaded dictionary does not match its checksum and was not installed.");
                     }
                     if (File.Exists(PathOf(lang))) File.Delete(PathOf(lang));
                     File.Move(temp, PathOf(lang));
@@ -205,7 +205,7 @@ static class Dictionaries
         catch (Exception ex)
         {
             try { if (current != null && File.Exists(PathOf(current) + ".download")) File.Delete(PathOf(current) + ".download"); } catch { }
-            return L.T("Не удалось скачать словарь: ", "Couldn't download the dictionary: ") + ex.Message;
+            return L.T("Не удалось загрузить словарь: ", "Could not download the dictionary: ") + ex.Message;
         }
     }
 

@@ -29,7 +29,7 @@ foreach ($n in $numbers) {
         $row = @()
         foreach ($what in 'settings', 'about', 'aquarium') {
             $out = "$tmp\$n-$theme-$what.png"
-            $a = if ($what -eq 'settings') { @('settings', '0', $out, $theme, $lang, "skin=$n", 'scroll=340', 'at=1500') } else { @($what, $out, $theme, $lang, "skin=$n") }
+            $a = if ($what -eq 'settings') { @('settings', '1', $out, $theme, $lang, "skin=$n", 'at=1500') } else { @($what, $out, $theme, $lang, "skin=$n") }
             Start-Process tests\bin\Preview.exe -ArgumentList $a -Wait
             $row += $out
         }

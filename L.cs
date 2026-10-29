@@ -26,7 +26,7 @@ static class L
     {
         get
         {
-            var list = new List<string> { T("Как в Windows", "Same as Windows") };
+            var list = new List<string> { T("Язык системы", "System language") };
             list.AddRange(Names);
             return list.ToArray();
         }

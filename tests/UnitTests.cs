@@ -277,6 +277,19 @@ static class UnitTests
         Is("Halloween picked: nothing declined", Skin.Declines(1, halloween), DateTime.MinValue);
         Is("picked outside holidays: nothing declined", Skin.Declines(0, summer), DateTime.MinValue);
         Is("an unknown number is Classic", Skin.Find(99), Skin.Classic);
+        // Layout colors: blue for the first Latin layout, orange for the first of another alphabet, then each its own
+        var layouts = new[] { new LayoutTable { Name = "en-US", Script = "Latin" }, new LayoutTable { Name = "ru-RU", Script = "Cyrillic" },
+                              new LayoutTable { Name = "uk-UA", Script = "Cyrillic" }, new LayoutTable { Name = "de-DE", Script = "Latin" } };
+        var none = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);
+        Is("first Latin is blue", LayoutColors.For("EN", false, layouts, none), LetterIcon.Latin);
+        Is("first Cyrillic is orange", LayoutColors.For("RU", true, layouts, none), LetterIcon.Other);
+        var uk = LayoutColors.For("UK", true, layouts, none);
+        var de = LayoutColors.For("DE", false, layouts, none);
+        True("the third has its own color", uk != LetterIcon.Latin && uk != LetterIcon.Other);
+        True("the fourth has another one", de != uk && de != LetterIcon.Latin && de != LetterIcon.Other);
+        var chosen = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase) { { "RU", uk } };
+        Is("a chosen color stays", LayoutColors.For("RU", true, layouts, chosen), uk);
+        True("and no other layout gets it", LayoutColors.For("UK", true, layouts, chosen) != uk);
         Is("the days: Oct 24", Skin.Halloween.Season(new DateTime(2026, 10, 24)), true);
         Is("the days: Nov 3", Skin.Halloween.Season(new DateTime(2026, 11, 3)), false);
         True("numbers are unique", Skin.All.Select(k => k.Number).Distinct().Count() == Skin.All.Length);

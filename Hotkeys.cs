@@ -20,16 +20,16 @@ partial class App
         {
             return new[]
             {
-                L.T("Раскладка выделенного текста; сразу после автоисправления — отмена (как и Ctrl+Z)",
-                    "Switch layout of selected text; right after an auto-fix — undo it (as does Ctrl+Z)"),
-                L.T("Раскладка выделенного текста — запасное сочетание", "Switch layout of selected text — alternative keys"),
-                L.T("Регистр выделенного текста (aa → Aa → AA)", "Change case of selected text (aa → Aa → AA)"),
-                L.T("Транслитерация (привет ⇄ privet)", "Transliterate (привет ⇄ privet)"),
-                L.T("Раскладка всей строки до курсора", "Switch layout of the whole line before the cursor"),
-                L.T("Раскладка текста в буфере обмена (скопируйте, нажмите, вставьте)", "Switch layout of the text in the clipboard (copy, press, paste)"),
-                L.T("Пауза исправлений на час / снять паузу", "Pause corrections for an hour / resume"),
-                L.T("Убрать форматирование выделенного текста: жирный, курсив, ссылки, 𝐬𝐭𝐲𝐥𝐞𝐝 буквы",
-                    "Clear the formatting of selected text: bold, italics, links, 𝐬𝐭𝐲𝐥𝐞𝐝 letters")
+                L.T("Смена раскладки выделенного текста; сразу после автоисправления — его отмена (как Ctrl+Z)",
+                    "Switch the layout of selected text; right after an auto-correction, undo it (as Ctrl+Z does)"),
+                L.T("Смена раскладки выделенного текста (дополнительное сочетание)", "Switch the layout of selected text (alternative hotkey)"),
+                L.T("Смена регистра выделенного текста (aa → Aa → AA)", "Change case of selected text (aa → Aa → AA)"),
+                L.T("Транслитерация выделенного текста (привет ⇄ privet)", "Transliterate selected text (привет ⇄ privet)"),
+                L.T("Смена раскладки строки до курсора", "Switch the layout of the line before the cursor"),
+                L.T("Смена раскладки текста в буфере обмена", "Switch the layout of the text in the clipboard"),
+                L.T("Приостановить исправление на 1 час / возобновить", "Pause correction for 1 hour / resume"),
+                L.T("Удаление форматирования выделенного текста: полужирный, курсив, ссылки, стилизованные символы",
+                    "Clear the formatting of selected text: bold, italic, links, styled characters")
             };
         }
     }
@@ -71,11 +71,11 @@ partial class App
     {
         var text = new List<string>();
         if (failed.Count > 0)
-            text.Add(L.F("Эти сочетания заняты другой программой: {0}.", "These hotkeys are taken by another app: {0}.", string.Join(", ", failed)));
+            text.Add(L.F("Следующие сочетания клавиш используются другой программой: {0}.", "The following hotkeys are in use by another app: {0}.", string.Join(", ", failed)));
         if (notAllowed.Count > 0)
-            text.Add(L.F("Эти сочетания не подходят для горячих клавиш и выключены: {0}.", "These keys can't be hotkeys and are off: {0}.", string.Join(", ", notAllowed)));
+            text.Add(L.F("Следующие сочетания клавиш недопустимы и отключены: {0}.", "The following hotkeys are not allowed and have been turned off: {0}.", string.Join(", ", notAllowed)));
         if (text.Count > 0)
-            tray.ShowBalloonTip(4000, "KeyFish", string.Join(" ", text) + " " + L.T("Их можно поменять в настройках.", "You can change them in Settings."), ToolTipIcon.Warning);
+            tray.ShowBalloonTip(4000, "KeyFish", string.Join(" ", text) + " " + L.T("Их можно изменить в настройках.", "They can be changed in Settings."), ToolTipIcon.Warning);
     }
 
     void OnHotkey(int id)
@@ -119,8 +119,8 @@ partial class App
         string app = W.ProcessName(hwnd);
         if (!toldNoRights.Add(app)) return;
         tray.ShowBalloonTip(8000, "KeyFish",
-            L.F("{0} запущена от имени администратора, и Windows не даёт KeyFish видеть и менять в ней текст. Чтобы KeyFish работал и там, запустите его тоже от имени администратора.",
-                "{0} runs as administrator, and Windows doesn't let KeyFish see or change text in it. To make KeyFish work there too, run KeyFish as administrator as well.",
+            L.F("{0} запущена от имени администратора. Windows не разрешает KeyFish читать и изменять текст в этой программе. Для работы в ней запустите KeyFish от имени администратора.",
+                "{0} is running as administrator. Windows does not allow KeyFish to read or change text in it. To work in it, run KeyFish as administrator.",
                 app.Length > 0 ? app : L.T("Эта программа", "This app")), ToolTipIcon.Info);
     }
 
@@ -262,14 +262,14 @@ partial class App
         string result = watcher.ConvertText(text, hotkeyWindow, out layout);
         if (result == null)
         {
-            tray.ShowBalloonTip(3000, "KeyFish", L.T("Не удалось понять, в какую раскладку перевести текст.", "Couldn't tell which layout to switch the text to."), ToolTipIcon.Info);
+            tray.ShowBalloonTip(3000, "KeyFish", L.T("Не удалось определить целевую раскладку текста.", "Could not determine the target layout for the text."), ToolTipIcon.Info);
             return;
         }
         // Pasteable as usual, but kept out of the clipboard history and cloud sync, like KeyFish's other text
         try { Clipboard.SetDataObject(Private(new DataObject(DataFormats.UnicodeText, result)), true); } catch { return; }
         textChanged = true;
-        tray.ShowBalloonTip(3000, "KeyFish", L.F("Текст в буфере обмена переведён в раскладку {0} — его можно вставить.",
-            "The text in the clipboard is now in the {0} layout, ready to paste.", (layout.Name ?? "").Split('-')[0].ToUpperInvariant()), ToolTipIcon.Info);
+        tray.ShowBalloonTip(3000, "KeyFish", L.F("Текст в буфере обмена преобразован в раскладку {0}.",
+            "The text in the clipboard has been converted to the {0} layout.", (layout.Name ?? "").Split('-')[0].ToUpperInvariant()), ToolTipIcon.Info);
     }
 
     void ConvertSelection()

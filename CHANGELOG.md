@@ -1,3 +1,15 @@
+2.1.3 2026-10-29
+New:
+• Settings apply as soon as they are changed
+• Each layout from the third one on gets a color of its own
+Improved:
+• Settings sections reordered: Correction first, System last
+• The same buttons in all lists
+• Layout colors and the layout icons in one setting
+• Formal wording throughout the interface
+• Pictures in Settings play once and follow the Windows animation setting
+• Unavailable controls are clearly grey
+
 2.1.2 2026-10-29
 Improved:
 • Extended dictionary: a switch and a picture, like the other settings

@@ -25,8 +25,8 @@ partial class App
         if (installing) return;
         if (!r.CanInstall)
         {
-            if (ThemedMessage.Show(L.F("Вышла версия {0} (у вас {1}).\n\nОткрыть страницу загрузки?",
-                                    "Version {0} is out (you have {1}).\n\nOpen the download page?", r.Tag, Application.ProductVersion),
+            if (ThemedMessage.Show(L.F("Доступна версия {0} (установлена {1}).\n\nОткрыть страницу загрузки?",
+                                    "Version {0} is available (installed: {1}).\n\nOpen the download page?", r.Tag, Application.ProductVersion),
                     L.T("Обновление KeyFish", "KeyFish update"), MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
                 Process.Start(r.Url);
             return;
@@ -42,7 +42,7 @@ partial class App
         if (answer != DialogResult.Yes) return;
 
         installing = true;
-        tray.ShowBalloonTip(3000, "KeyFish", L.T("Скачиваю обновление…", "Downloading the update…"), ToolTipIcon.Info);
+        tray.ShowBalloonTip(3000, "KeyFish", L.T("Загрузка обновления…", "Downloading the update…"), ToolTipIcon.Info);
         var ui = SynchronizationContext.Current;
         ThreadPool.QueueUserWorkItem(_ =>
         {
@@ -107,14 +107,14 @@ partial class App
                     pendingRelease = latest;
                     if (manual) OfferUpdate(latest);
                     else
-                        tray.ShowBalloonTip(10000, L.F("Вышла версия {0}", "KeyFish {0} is out", latest.Tag),
+                        tray.ShowBalloonTip(10000, L.F("Доступна версия {0}", "KeyFish {0} is available", latest.Tag),
                             L.T("Нажмите, чтобы обновить.", "Click to update."), ToolTipIcon.Info);
                 }
                 else if (manual)
                 {
-                    ThemedMessage.Show(latest == null ? L.T("Не удалось связаться с GitHub. Проверьте интернет и попробуйте позже.",
-                                                         "Couldn't reach GitHub. Check your connection and try again later.")
-                                                   : L.F("У вас последняя версия: {0}.", "You have the latest version: {0}.", Application.ProductVersion),
+                    ThemedMessage.Show(latest == null ? L.T("Не удалось подключиться к GitHub. Проверьте подключение к интернету и повторите попытку позже.",
+                                                         "Could not connect to GitHub. Check the internet connection and try again later.")
+                                                   : L.F("Установлена последняя версия: {0}.", "The latest version is installed: {0}.", Application.ProductVersion),
                         L.T("Обновление KeyFish", "KeyFish update"), MessageBoxButtons.OK, latest == null ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
                 }
             }
@@ -137,13 +137,13 @@ class UpdateInfo
     {
         get
         {
-            if (Checking) return L.T("Проверяю…", "Checking…");
-            if (NewVersion) return L.F("Вышла версия {0} (у вас {1})", "Version {0} is out (you have {1})", Latest.Tag, Application.ProductVersion);
-            if (Failed) return L.T("Не удалось связаться с GitHub. Проверьте интернет и попробуйте позже.", "Couldn't reach GitHub. Check your connection and try again later.");
+            if (Checking) return L.T("Проверка…", "Checking…");
+            if (NewVersion) return L.F("Доступна версия {0} (установлена {1})", "Version {0} is available (installed: {1})", Latest.Tag, Application.ProductVersion);
+            if (Failed) return L.T("Не удалось подключиться к GitHub. Проверьте подключение к интернету и повторите попытку позже.", "Could not connect to GitHub. Check the internet connection and try again later.");
             if (Latest != null)
-                return L.F("У вас последняя версия: {0}.", "You have the latest version: {0}.", Application.ProductVersion) + " " +
+                return L.F("Установлена последняя версия: {0}.", "The latest version is installed: {0}.", Application.ProductVersion) + " " +
                        L.F("Проверено в {0}.", "Checked at {0}.", CheckedAt.ToString(CheckedAt.Date == DateTime.Today ? "t" : "g", L.Culture));
-            return L.F("Версия {0}. Нажмите «Проверить», чтобы узнать, не вышла ли новая.", "Version {0}. Click Check to see whether a newer one is out.", Application.ProductVersion);
+            return L.F("Версия {0}. Чтобы проверить наличие новой версии, нажмите «Проверить».", "Version {0}. Click Check to look for a newer version.", Application.ProductVersion);
         }
     }
 }

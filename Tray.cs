@@ -88,10 +88,12 @@ partial class App
         // so the fish is grey and says why, instead of looking as if all is well
         bool guardDown = watcher.Enabled && !watcher.GuardAnswering;
         bool blink = blinkTicks > 0 && blinkTicks % 2 == 0;
-        Color custom;
+        // A layout with a color of its own (chosen, or the third and further layouts) gets the fish in it
+        Color custom = TintFor(currentLayoutName, ru, true);
+        bool own = layoutColors.ContainsKey(currentLayoutName) || (custom.ToArgb() != LetterIcon.Latin.ToArgb() && custom.ToArgb() != LetterIcon.Other.ToArgb());
         Icon want = pausedUntil != DateTime.MinValue ? iconPaused
                   : !watcher.Enabled || guardDown || foregroundNoRights ? iconOff
-                  : showLayout && layoutColors.TryGetValue(currentLayoutName, out custom) ? FishIcon(custom, blink)
+                  : showLayout && own ? FishIcon(custom, blink)
                   : Theme.LogoSkin.TintTray ? FishIcon(ru ? LetterIcon.Other : LetterIcon.Latin, blink)
                   : blink ? (ru ? blinkRu : blinkEn) : (ru ? iconRu : iconEn);
         if (blinkTicks > 0) blinkTicks--;
@@ -108,8 +110,8 @@ partial class App
         if (shown >= 2) return;
         SetSetting("CorrectionTips", shown + 1);
         string undo = SettingsForm.Format(GetHotkey(0)) + (watcher.UndoWithCtrlZ ? L.T(" или Ctrl+Z", " or Ctrl+Z") : "");
-        string text = L.F("Слово было набрано не в той раскладке — KeyFish его исправил. Если исправлять было не нужно, нажмите {0} сразу после: слово вернётся, и KeyFish его запомнит.",
-                          "That word was typed in the wrong layout, so KeyFish fixed it. If it shouldn't have, press {0} right after: the word comes back, and KeyFish remembers it.", undo);
+        string text = L.F("Слово, набранное в неверной раскладке, исправлено. Чтобы отменить исправление, нажмите {0} сразу после него: исходное слово будет восстановлено и добавлено в список «Не исправлять».",
+                          "A word typed in the wrong layout was corrected. To undo the correction, press {0} right after it: the original word is restored and added to the Never correct list.", undo);
         // A Windows notification with a button that takes the fix back; the tray balloon where there are none
         IntPtr window = W.GetForegroundWindow();
         var ui = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
@@ -127,8 +129,8 @@ partial class App
         SetForegroundWindow(window);
         for (int i = 0; i < 40 && W.GetForegroundWindow() != window; i++) Pump(25);
         if (!watcher.Undo())
-            tray.ShowBalloonTip(3000, "KeyFish", L.T("Отменить уже нельзя: после исправления набирался текст или открыто другое окно.",
-                                                     "It can't be undone now: something was typed after the fix, or another window is in front."), ToolTipIcon.Info);
+            tray.ShowBalloonTip(3000, "KeyFish", L.T("Отмена недоступна: после исправления был введён текст или активировано другое окно.",
+                                                     "Undo is unavailable: text was typed after the correction, or another window was activated."), ToolTipIcon.Info);
     }
 
     void SetTrayText(int corrections)
@@ -136,7 +138,7 @@ partial class App
         bool guardDown = watcher.Enabled && !watcher.GuardAnswering;
         string text = "KeyFish " + Application.ProductVersion + (showLayout && currentLayoutName.Length > 0 ? " — " + currentLayoutName : "") +
                       "\n" + (guardDown ? L.T("Проверка полей паролей запускается…", "The password-field check is starting…")
-                               : foregroundNoRights ? L.T("Не работает в программе от администратора", "Can't work in an app run as admin")
+                               : foregroundNoRights ? L.T("Недоступно в программе, запущенной от имени администратора", "Unavailable in an app running as administrator")
                                : pausedUntil != DateTime.MinValue ? PausedText : StatsLine(statsBase + corrections));
         if (text.Length > 63) text = text.Substring(0, 63);
         if (tray.Text != text) tray.Text = text;
@@ -160,16 +162,14 @@ partial class App
         return icon;
     }
 
-    // Colors the user chose for layouts (Settings → Layout colors); the others keep blue for Latin, orange for the rest
+    // Colors the user chose for layouts (Settings → Icon and sounds); the others get theirs from LayoutColors.For
     Dictionary<string, Color> layoutColors = new Dictionary<string, Color>();
 
     // useColors: false when "Fish color shows the layout" is off (the tray stays blue); the layout tag always uses colors
     Color TintFor(string name, bool other, bool useColors)
     {
-        Color c;
         if (!useColors) return LetterIcon.Latin;
-        if (layoutColors.TryGetValue(name, out c)) return c;
-        return other ? LetterIcon.Other : LetterIcon.Latin;
+        return LayoutColors.For(name, other, watcher.Layouts.All, layoutColors);
     }
 
     // The tray fish in a chosen color, made once per color; on Halloween it wears a witch's hat
@@ -210,15 +210,15 @@ partial class App
         if (!autoCorrect)
         {
             // From the hotkey: say why nothing happens
-            if (tell) tray.ShowBalloonTip(2500, "KeyFish", L.T("Исправление при наборе выключено в настройках — ставить на паузу нечего.",
-                                                                "Fixing as you type is off in Settings, so there is nothing to pause."), ToolTipIcon.Info);
+            if (tell) tray.ShowBalloonTip(2500, "KeyFish", L.T("Исправление при наборе отключено в настройках.",
+                                                                "Correction while typing is turned off in Settings."), ToolTipIcon.Info);
             return;
         }
         pausedUntil = pausedUntil == DateTime.MinValue ? DateTime.Now.AddHours(1) : DateTime.MinValue;
         ApplyEnabled();
         if (playSound) Sounds.Play(Sounds.Pause);
         if (tell)
-            tray.ShowBalloonTip(2500, "KeyFish", pausedUntil != DateTime.MinValue ? PausedText : L.T("Исправление снова включено.", "Correcting again."), ToolTipIcon.Info);
+            tray.ShowBalloonTip(2500, "KeyFish", pausedUntil != DateTime.MinValue ? PausedText : L.T("Исправление возобновлено.", "Correction resumed."), ToolTipIcon.Info);
         UpdateTrayIcon();
     }
 
@@ -270,15 +270,7 @@ partial class App
 
     static string StatsLine(int total)
     {
-        return L.F("Поймано ошибок: {0}", "Mistakes caught: {0}", total.ToString("N0", L.Culture));
-    }
-
-    static string Plural(int n, string one, string few, string many)
-    {
-        int m10 = n % 10, m100 = n % 100;
-        if (m10 == 1 && m100 != 11) return one;
-        if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
-        return many;
+        return L.F("Исправлено ошибок: {0}", "Mistakes corrected: {0}", total.ToString("N0", L.Culture));
     }
 
     // owner: the window it opens over (Settings), or none when opened from the tray
@@ -293,11 +285,7 @@ partial class App
         string sinceText = "";
         try { if (since > 0) sinceText = new DateTime(since / 10000, since / 100 % 100, since % 100).ToString("d", L.Culture); }
         catch { since = 0; }
-        string count = total.ToString("N0", L.Culture);
-        string stats;
-        if (L.Ru) stats = "Рыбка поймала " + count + " " + Plural(total, "ошибку", "ошибки", "ошибок") + (since > 0 ? " с " + sinceText : "");
-        else if (L.Code == "en") stats = "The fish has caught " + count + (total == 1 ? " mistake" : " mistakes") + (since > 0 ? " since " + sinceText : "");
-        else stats = StatsLine(total) + (since > 0 ? L.F("", " (since {0})", sinceText) : "");   // no plural forms needed this way
+        string stats = StatsLine(total) + (since > 0 ? L.F(" (с {0})", " (since {0})", sinceText) : "");   // no plural forms needed this way
 
         SaveStats();
 
@@ -350,7 +338,7 @@ partial class App
         menu.Items.Add(autoItem);
         menu.Items.Add(pauseItem);
         menu.Items.Add(recentItem);
-        var whyItem = new ToolStripMenuItem(L.T("Почему не исправилось?", "Why wasn't it corrected?"));
+        var whyItem = new ToolStripMenuItem(L.T("Почему слово не исправлено?", "Why wasn't the word corrected?"));
         ThemedMenuRenderer.Apply(whyItem.DropDown);
         whyItem.DropDownItems.Add("…");   // filled when the menu opens
         menu.Items.Add(whyItem);
@@ -365,7 +353,7 @@ partial class App
             autoItem.Checked = autoCorrect;
             pauseItem.Enabled = autoCorrect;
             pauseItem.Text = pausedUntil == DateTime.MinValue ? L.T("Пауза на 1 час", "Pause for 1 hour")
-                                                               : L.F("Продолжить исправлять (пауза до {0})", "Resume (paused until {0})", pausedUntil.ToString("t", L.Culture));
+                                                               : L.F("Возобновить исправление (пауза до {0})", "Resume correction (paused until {0})", pausedUntil.ToString("t", L.Culture));
             recentItem.Visible = watcher.KeepRecent;
             FillRecent(recentItem);
             FillWhy(whyItem);
@@ -401,7 +389,7 @@ partial class App
         var list = watcher.Verdicts;
         if (list.Count == 0)
         {
-            parent.DropDownItems.Add(new ToolStripMenuItem(L.T("Пока всё исправлялось как надо", "Nothing left alone yet")) { Enabled = false });
+            parent.DropDownItems.Add(new ToolStripMenuItem(L.T("Пропущенных слов нет", "No skipped words")) { Enabled = false });
             return;
         }
         foreach (var v in list)
@@ -422,24 +410,24 @@ partial class App
                     reason = L.T("игра или полноэкранный режим", "a game or full screen");
                     if (watcher.QuietFullscreen)
                     {
-                        action = L.T("Не молчать в полноэкранных программах", "Don't stay quiet in full screen");
+                        action = L.T("Исправлять в полноэкранных программах", "Correct in full-screen apps");
                         act = () => { watcher.QuietFullscreen = false; SetSetting("QuietFullscreen", 0); };
                     }
                     break;
                 case "admin": reason = L.T("программа запущена от имени администратора", "the app runs as administrator"); break;
                 case "password": reason = L.T("поле пароля", "a password field"); break;
-                case "not-checked": reason = L.T("проверка полей паролей ещё не ответила", "the password-field check hadn't answered"); break;
+                case "not-checked": reason = L.T("проверка поля пароля не завершена", "the password field check had not finished"); break;
                 case "no-model": reason = L.T("для этой раскладки нет словаря", "no dictionary for this layout"); break;
                 case "symbols": reason = L.T("в слове цифры или символы", "digits or symbols in the word"); break;
                 case "code": reason = L.T("похоже на ссылку, путь или код", "looks like a link, a path or code"); break;
-                case "unknown": reason = L.T("слово не читается как известное ни в одной раскладке", "the word isn't a known word in any layout"); break;
+                case "unknown": reason = L.T("слово не найдено в словарях раскладок", "the word is not in any layout's dictionary"); break;
                 case "ignored":
                     reason = L.F("«{0}» в списке «Не исправлять»", "\"{0}\" is in Never correct", v.Word);
-                    action = L.T("Убрать из «Не исправлять»", "Take it out of Never correct");
+                    action = L.T("Удалить из «Не исправлять»", "Remove from Never correct");
                     act = () => watcher.Unignore(verdict.Word);
                     break;
                 default:   // "unsure"
-                    reason = L.F("«{0}» — не уверен, что это ошибка", "\"{0}\": not sure it's a mistake", v.Word);
+                    reason = L.F("«{0}»: ошибка не подтверждена", "\"{0}\": the mistake is not certain", v.Word);
                     action = L.T("Исправлять это слово", "Correct this word");
                     act = () => watcher.LearnWord(verdict.Word);
                     break;
@@ -480,7 +468,7 @@ partial class App
             parent.DropDownItems.Add(new ToolStripMenuItem(L.T("Пока ничего не исправлено", "Nothing corrected yet")) { Enabled = false });
             return;
         }
-        parent.DropDownItems.Add(new ToolStripMenuItem(L.T("Нажмите, чтобы больше так не исправлять:", "Click one to never correct it again:")) { Enabled = false });
+        parent.DropDownItems.Add(new ToolStripMenuItem(L.T("Выберите исправление, чтобы больше его не выполнять:", "Select a correction to stop making it:")) { Enabled = false });
         foreach (var fix in fixes)
         {
             var f = fix;

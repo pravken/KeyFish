@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 // Screenshots of KeyFish windows for checking the design, without starting KeyFish itself.
-// Usage: Preview.exe settings <page 0-4>|about|aquarium|message|changelog <out.png> [dark|light] [language code] [menu]
+// Usage: Preview.exe settings <page 0-7>|about|aquarium|message|changelog <out.png> [dark|light] [language code] [menu]
 static class Preview
 {
     [DllImport("user32.dll")] static extern bool PrintWindow(IntPtr hwnd, IntPtr hdc, uint flags);
@@ -145,7 +145,7 @@ static class Preview
                     typeof(IntroForm).GetMethod("Show", BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { typeof(int) }, null)
                         .Invoke(form, new object[] { int.Parse(arg.Substring(5)) });
         }
-        else form = new AboutForm("Рыбка поймала 1 234 ошибки с 12.03.2026", "2.0.0\n• Новое\n\n1.8.3\n• Старое\n", LayoutTable.Installed(),
+        else form = new AboutForm("Исправлено ошибок: 1 234 (с 12.03.2026)", "2.0.0\n• Новое\n\n1.8.3\n• Старое\n", LayoutTable.Installed(),
                                   FakeUpdates(args), new[] { 12, 85, 310, 82 });
         string outPath = args[args[0] == "settings" ? 2 : 1];
         int at = 3200; foreach (string a in args) if (a.StartsWith("at=")) at = int.Parse(a.Substring(3));   // aquarium: when to take the shot, ms
@@ -185,6 +185,14 @@ static class Preview
                 var sw = Find<ColorSwatch>(form);
                 if (sw != null) sw.GetType().GetMethod("OnClick", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(sw, new object[] { EventArgs.Empty });
             }
+            // "pick=N": pick look N in the gallery, as a click does: the window applies it at once and is built again
+            foreach (string arg in args)
+                if (arg.StartsWith("pick=") && form is SettingsForm)
+                {
+                    ((SettingsForm)form).ApplyLook = f => { Theme.Skin = Skin.Find(f.SkinNumber); if (!Theme.Skin.Accent.IsEmpty) Theme.Accent = Theme.Skin.Accent; Theme.Dark = f.ThemeMode == 2; return true; };
+                    var gallery = Find<SkinGallery>(form);   // as a click does: Choose raises SelectedChanged
+                    if (gallery != null) typeof(SkinGallery).GetMethod("Choose", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(gallery, new object[] { int.Parse(arg.Substring(5)) });
+                }
             // "focus": click into the first hotkey field, to see the recording state
             if (Array.IndexOf(args, "focus") >= 0) { var hk = Find<HotkeyBox>(form); if (hk != null) hk.Focus(); }
             if (args[0] == "aquarium")

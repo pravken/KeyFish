@@ -79,8 +79,8 @@ class AboutForm : Form
             Action refresh = () =>
             {
                 bool act = !updates.Checking && (updates.NewVersion || updates.Latest == null);
-                update.Text = updates.Checking ? L.T("Проверяю…", "Checking…")
-                            : updates.NewVersion ? L.F("Вышла версия {0} — обновить", "Version {0} is out — update", updates.Latest.Tag)
+                update.Text = updates.Checking ? L.T("Проверка…", "Checking…")
+                            : updates.NewVersion ? L.F("Доступна версия {0} — обновить", "Version {0} is available — update", updates.Latest.Tag)
                             : updates.Latest == null && !updates.Failed ? L.T("Проверить обновления", "Check for updates")
                             : updates.Status;
                 update.ForeColor = act ? Theme.AccentFill : Theme.SubText;
@@ -102,7 +102,7 @@ class AboutForm : Form
         // A quiet way to support the project: only here and in Settings, never as a reminder
         var support = new RoundButton
         {
-            Text = L.T("Поддержать ☕", "Support ☕").Replace("☕", "").Trim(), Glyph = "", GlyphColor = Color.FromArgb(232, 72, 85),
+            Text = L.T("Поддержать", "Donate"), Glyph = "", GlyphColor = Color.FromArgb(232, 72, 85),
             Location = new Point(24, 0), Size = new Size(150, 34)
         };
         support.Click += (s, e) => { try { Process.Start(SupportUrl); } catch { } };
@@ -110,7 +110,7 @@ class AboutForm : Form
 
         var changes = new RoundButton { Text = L.T("Что нового", "What's new"), Location = new Point(246, 0), Size = new Size(124, 34) };
         changes.Click += (s, e) => { using (var f = new ChangelogForm(changelog)) f.ShowDialog(this); };
-        var ok = new RoundButton { Text = "OK", AccentStyle = true, Location = new Point(378, 0), Size = new Size(98, 34) };
+        var ok = new RoundButton { Text = L.T("Закрыть", "Close"), AccentStyle = true, Location = new Point(378, 0), Size = new Size(98, 34) };
         ok.Click += (s, e) => Close();
         Controls.Add(changes);
         Controls.Add(ok);
@@ -395,7 +395,7 @@ class ChangelogView : Control
                 }
                 if (b.Current)
                 {
-                    string label = L.T("Ваша версия", "Your version");
+                    string label = L.T("Установлена", "Installed");
                     var size = g.MeasureString(label, Theme.Small);
                     var pill = new RectangleF(x, mid - size.Height / 2 - Theme.S(2), size.Width + Theme.S(12), size.Height + Theme.S(4));
                     using (var path = Theme.Rounded(pill, pill.Height / 2))
@@ -461,24 +461,24 @@ class IntroForm : Form
 
         titles = new[]
         {
-            L.T("KeyFish исправляет раскладку на лету", "KeyFish fixes the layout as you type"),
-            L.T("Если исправлять было не нужно", "If a fix wasn't wanted"),
-            L.T("Всё остальное — в настройках", "Everything else is in Settings")
+            L.T("Автоматическое исправление раскладки", "Automatic layout correction"),
+            L.T("Отмена исправления", "Undoing a correction"),
+            L.T("Настройки", "Settings")
         };
         texts = new[]
         {
-            L.T("Набрали слово не в той раскладке — после пробела KeyFish сам переведёт его: ghbdtn → привет.",
-                "Typed a word in the wrong layout? After the space KeyFish switches it: ghbdtn → привет."),
-            L.T("Нажмите Pause сразу после исправления: слово вернётся, а KeyFish запомнит его и больше не тронет.",
-                "Press Pause right after the fix: the word comes back, and KeyFish remembers it and leaves it alone."),
-            L.T("Двойной щелчок по рыбке в трее открывает настройки: горячие клавиши, автозамены, исключения, расширенный словарь. Рыбка показывает раскладку и сереет, когда KeyFish не исправляет.",
-                "Double-click the fish in the tray for Settings: hotkeys, replacements, exclusions, the extended dictionary. The fish shows the layout and turns grey while KeyFish isn't correcting.")
+            L.T("Слово, набранное в неверной раскладке, исправляется после ввода пробела: ghbdtn → привет.",
+                "A word typed in the wrong layout is corrected after a space: ghbdtn → привет."),
+            L.T("Чтобы отменить исправление, нажмите Pause сразу после него. Исходное слово будет восстановлено и добавлено в список «Не исправлять».",
+                "To undo a correction, press Pause right after it. The original word is restored and added to the Never correct list."),
+            L.T("Настройки открываются двойным щелчком по значку KeyFish в области уведомлений: сочетания клавиш, автозамены, исключения, расширенный словарь. Значок показывает текущую раскладку; серый цвет означает, что исправление отключено или приостановлено.",
+                "Double-click the KeyFish icon in the notification area to open Settings: hotkeys, replacements, exclusions, the extended dictionary. The icon shows the current layout; grey means correction is off or paused.")
         };
         pictures = new[]
         {
-            new FeaturePreview((g, r, ms) => Pictures.Typing(g, r, ms, "ghbdtn", "привет", false), Pictures.TypingLength("ghbdtn", false)),
-            new FeaturePreview((g, r, ms) => Pictures.Typing(g, r, ms, "ghbdtn", "привет", true, "Pause"), Pictures.TypingLength("ghbdtn", true)),
-            new FeaturePreview((g, r, ms) => Pictures.Switching(g, r, ms, () => fishEn, () => fishRu), Pictures.SwitchLength)
+            new FeaturePreview((g, r, ms) => Pictures.Typing(g, r, ms, "ghbdtn", "привет", false), Pictures.TypingLength("ghbdtn", false), Pictures.TypingRest("ghbdtn", false)),
+            new FeaturePreview((g, r, ms) => Pictures.Typing(g, r, ms, "ghbdtn", "привет", true, "Pause"), Pictures.TypingLength("ghbdtn", true), Pictures.TypingRest("ghbdtn", true)),
+            new FeaturePreview((g, r, ms) => Pictures.Switching(g, r, ms, () => fishEn, () => fishRu), Pictures.SwitchLength, Pictures.SwitchRest)
         };
         foreach (var p in pictures)
         {

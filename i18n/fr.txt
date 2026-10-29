@@ -1,32 +1,32 @@
 # KeyFish interface in French. Format: English text<TAB>translation; \n is a line break
 About KeyFish	À propos de KeyFish
 Fixes text typed in the wrong keyboard layout	Corrige le texte tapé dans la mauvaise disposition de clavier
-Support ☕	Soutenir ☕
+Donate	Faire un don
 What's new	Nouveautés
 What's new in KeyFish	Nouveautés de KeyFish
 Version 	Version
 Close	Fermer
-Mistakes caught: {0}	Erreurs attrapées : {0}
+Mistakes corrected: {0}	Erreurs corrigées : {0}
  (since {0})	 (depuis le {0})
-Switch layout of selected text; right after an auto-fix — undo it (as does Ctrl+Z)	Changer la disposition du texte sélectionné ; juste après une correction — l'annuler (comme Ctrl+Z)
-Switch layout of selected text — alternative keys	Changer la disposition du texte sélectionné — raccourci de secours
+Switch the layout of selected text; right after an auto-correction, undo it (as Ctrl+Z does)	Changer la disposition du texte sélectionné ; juste après une correction automatique, l'annuler (comme Ctrl+Z)
+Switch the layout of selected text (alternative hotkey)	Changer la disposition du texte sélectionné (raccourci secondaire)
 Change case of selected text (aa → Aa → AA)	Casse du texte sélectionné (aa → Aa → AA)
-Transliterate (привет ⇄ privet)	Translittération (привет ⇄ privet)
+Transliterate selected text (привет ⇄ privet)	Translittérer le texte sélectionné (привет ⇄ privet)
 Auto-correct while typing	Correction pendant la saisie
 Settings…	Paramètres…
 Check for updates	Rechercher des mises à jour
 About…	À propos…
 Exit	Quitter
-Update installed 🐟	Mise à jour installée 🐟
-Version {0} is out (you have {1}).\n\nOpen the download page?	La version {0} est sortie (vous avez la {1}).\n\nOuvrir la page de téléchargement ?
+Update installed	Mise à jour installée
+Version {0} is available (installed: {1}).\n\nOpen the download page?	Version {0} disponible (installée : {1}).\n\nOuvrir la page de téléchargement ?
 KeyFish update	Mise à jour de KeyFish
 Version {0} is out (you have {1}).\n\nUpdate now? KeyFish will download it from GitHub, verify the checksum and restart.\n\n"No" opens the download page to update manually.	La version {0} est sortie (vous avez la {1}).\n\nMettre à jour maintenant ? KeyFish va la télécharger depuis GitHub, vérifier la somme de contrôle et redémarrer.\n\n« Non » ouvre la page de téléchargement pour une mise à jour manuelle.
 Downloading the update…	Téléchargement de la mise à jour…
 Open the download page?	Ouvrir la page de téléchargement ?
-KeyFish {0} is out	KeyFish {0} est sorti
+KeyFish {0} is available	KeyFish {0} est disponible
 Click to update.	Cliquez pour mettre à jour.
-Couldn't reach GitHub. Check your connection and try again later.	Impossible de joindre GitHub. Vérifiez votre connexion et réessayez plus tard.
-You have the latest version: {0}.	Vous avez la dernière version : {0}.
+Could not connect to GitHub. Check the internet connection and try again later.	Impossible de se connecter à GitHub. Vérifiez la connexion Internet et réessayez plus tard.
+The latest version is installed: {0}.	La dernière version est installée : {0}.
 KeyFish settings	Paramètres de KeyFish
 General	Général
 Hotkeys	Raccourcis
@@ -36,21 +36,21 @@ Words	Mots
 Save	Enregistrer
 Cancel	Annuler
 Fix the keyboard layout as you type	Corriger la disposition pendant la saisie
-ghbdtn → привет, руддщ → hello. Replacements also work only while this is on.	ghbdtn → привет, руддщ → hello. Les remplacements ne fonctionnent aussi que si ceci est activé.
+Example: ghbdtn → привет, руддщ → hello. Replacements work only while this is on.	Exemple : ghbdtn → привет, руддщ → hello. Les remplacements ne fonctionnent que si cette option est activée.
 Fix typos	Corriger les fautes de frappe
-Experimental: recieve → receive, using Windows spell check.	Expérimental : avec le correcteur orthographique de Windows.
-Stay quiet in games and full-screen apps	Ne rien faire dans les jeux et les applications plein écran
-Ctrl+Z undoes an auto-fix	Ctrl+Z annule une correction
-Right after the fix, like Pause. The next Ctrl+Z works in the app as usual.	Juste après la correction, comme Pause. Le Ctrl+Z suivant agit normalement dans l'application.
-Fish color shows the layout	La couleur du poisson indique la disposition
-Blue — Latin, orange — another alphabet.	Bleu — alphabet latin, orange — un autre alphabet.
+Experimental. Uses Windows spell checking: recieve → receive.	Fonction expérimentale. Utilise la vérification orthographique de Windows.
+Don't correct in games and full-screen apps	Ne pas corriger dans les jeux et les applications en plein écran
+Undo auto-correction with Ctrl+Z	Annuler la correction automatique avec Ctrl+Z
+Works right after a correction, as Pause does. Pressing Ctrl+Z again works in the app as usual.	Agit juste après une correction, comme Pause. Un nouvel appui sur Ctrl+Z fonctionne dans l'application comme d'habitude.
+Icon color indicates the layout	La couleur de l'icône indique la disposition
+The notification area icon takes the color of the current layout; the same color is used for the layout code and the indicator at the cursor. To change a color, click the layout's icon.	L'icône de la zone de notification prend la couleur de la disposition actuelle ; la même couleur est utilisée pour le code de disposition et l'indicateur près du curseur. Pour changer une couleur, cliquez sur l'icône de la disposition.
 Start with Windows	Lancer avec Windows
-Once a day KeyFish asks GitHub whether a new version is out. Nothing else is sent.	Une fois par jour, KeyFish demande à GitHub si une nouvelle version est sortie. Rien d'autre n'est envoyé.
+Once a day KeyFish checks GitHub for a new version. No other data is sent.	Une fois par jour, KeyFish vérifie sur GitHub la disponibilité d'une nouvelle version. Aucune autre donnée n'est envoyée.
 Interface language	Langue de l'interface
-KeyFish is free	KeyFish est gratuit
-If it saves you time, you can buy the author a coffee.	S'il vous fait gagner du temps, vous pouvez offrir un café à l'auteur.
+KeyFish is free of charge	KeyFish est gratuit
+Development can be supported with a voluntary donation.	Le développement peut être soutenu par un don volontaire.
 Reset	Réinitialiser
-Type an abbreviation and a space, and KeyFish replaces it with the text. It works in the other layout too: "thx" expands even when typed as «ерч».	Tapez une abréviation et une espace, KeyFish la remplace par le texte. Cela marche aussi dans l'autre disposition : « stp » est remplacé même tapé « ыез ».
+An abbreviation followed by a space is replaced with the specified text. Abbreviations are recognized in the other layout too: "thx" expands even when typed as «ерч».	Une abréviation suivie d'une espace est remplacée par le texte défini. Les abréviations sont aussi reconnues dans l'autre disposition : « stp » est remplacé même saisi « ыез ».
 Abbreviation	Abréviation
 Text (Enter — new line)	Texte (Entrée — nouvelle ligne)
 thx	stp
@@ -58,54 +58,54 @@ Add	Ajouter
 Delete	Supprimer
 Text	Texte
 Don't change	Ne pas changer
-Pick a layout for an app, and KeyFish switches to it when you switch to that app's window. You can also turn auto-correction off here, for example in code editors and terminals.	Choisissez une disposition pour une application : KeyFish l'active quand vous passez à sa fenêtre. Vous pouvez aussi désactiver la correction ici, par exemple dans les éditeurs de code et les terminaux.
+A layout assigned to an app is turned on when its window becomes active. Auto-correction can also be turned off here for individual apps, such as code editors and terminals.	La disposition attribuée à une application est activée lorsque sa fenêtre devient active. La correction automatique peut aussi être désactivée ici pour certaines applications, comme les éditeurs de code et les terminaux.
 App (process name)	Application (nom du processus)
 Layout	Disposition
 Correct	Corriger
 Pick or type	Choisir ou saisir
 App	Application
-KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself (with Pause, or by erasing it and typing it again in the other layout) and it goes to "Always correct".	KeyFish apprend de vous : annulez ou effacez une correction et le mot va dans « Ne jamais corriger » ; corrigez un mot vous-même (avec Pause, ou en l'effaçant et en le retapant dans l'autre disposition) et il va dans « Toujours corriger ».
+The lists are filled automatically: an undone or erased correction adds the word to "Never correct", and a word corrected manually (with Pause, or by retyping it in the other layout) goes to "Always correct".	Les listes se remplissent automatiquement : une correction annulée ou effacée ajoute le mot à « Ne jamais corriger », et un mot corrigé manuellement (avec Pause ou en le retapant dans l'autre disposition) à « Toujours corriger ».
 Never correct	Ne jamais corriger
 Always correct	Toujours corriger
 New word	Nouveau mot
 off	désactivé
-add Ctrl or Alt	ajoutez Ctrl ou Alt
+Ctrl or Alt required	Ctrl ou Alt requis
 This release has no file for automatic update.	Cette version n'a pas de fichier pour la mise à jour automatique.
 The downloaded file doesn't match the release checksum — update cancelled.	Le fichier téléchargé ne correspond pas à la somme de contrôle — mise à jour annulée.
 The downloaded file has the wrong version — update cancelled.	Le fichier téléchargé n'a pas la bonne version — mise à jour annulée.
-No permission to write to the app folder. Please download the new version manually.	Pas le droit d'écrire dans le dossier de l'application. Téléchargez la nouvelle version manuellement.
+No permission to write to the app folder. Download the new version manually.	Aucune autorisation d'écriture dans le dossier de l'application. Téléchargez la nouvelle version manuellement.
 Update failed: 	Échec de la mise à jour :
-Same as Windows	Comme Windows
+System default	Par défaut du système
 Press the keys…	Appuyez sur les touches…
-Click a field and press the new keys. Esc cancels, Backspace turns a hotkey off.	Cliquez sur un champ et appuyez sur les nouvelles touches. Échap annule, Retour arrière désactive le raccourci.
+To change a hotkey, click its field and press the new keys. Esc cancels; Backspace turns the hotkey off.	Pour modifier un raccourci, cliquez sur son champ et appuyez sur les nouvelles touches. Échap annule ; Retour arrière désactive le raccourci.
 Paused until {0}	En pause jusqu'à {0}
 Pause for 1 hour	Pause d'une heure
-Resume (paused until {0})	Reprendre (en pause jusqu'à {0})
+Resume correction (paused until {0})	Reprendre la correction (en pause jusqu'à {0})
 Recent corrections	Corrections récentes
 Nothing corrected yet	Rien de corrigé pour l'instant
-Click one to never correct it again:	Cliquez sur une correction pour ne plus la faire :
+Select a correction to stop making it:	Sélectionnez une correction pour ne plus l'appliquer :
 "{0}" is now in "Never correct".	« {0} » est maintenant dans « Ne jamais corriger ».
 Clear the list	Vider la liste
 Show the layout at the cursor	Afficher la disposition près du curseur
-When the layout changes, EN, RU and so on appear next to the text cursor for a second, or next to the mouse pointer if the app doesn't tell where its cursor is.	Quand la disposition change, EN, FR, etc. s'affiche une seconde près du curseur de texte, ou près du pointeur si l'application n'indique pas son curseur.
-Recent corrections in the fish menu	Corrections récentes dans le menu du poisson
-Click a correction in the menu and KeyFish won't correct it again. The list is kept only in memory.	Cliquez sur une correction dans le menu et KeyFish ne la refera plus. La liste reste uniquement en mémoire.
+When the layout changes, its code (EN, RU, etc.) appears next to the text cursor for one second, or next to the mouse pointer if the app does not report the cursor position.	Lors d'un changement de disposition, son code (EN, RU, etc.) s'affiche une seconde près du curseur de texte, ou près du pointeur de la souris si l'application n'indique pas la position du curseur.
+Recent corrections in the icon menu	Corrections récentes dans le menu de l'icône
+Choosing a correction in the menu adds the word to the Never correct list. The list is kept in memory only.	Choisir une correction dans le menu ajoute le mot à la liste « Ne jamais corriger ». La liste est conservée uniquement en mémoire.
 Off	Désactivé
 Double Shift	Double Maj
-Fix the last word with one key	Corriger le dernier mot avec une touche
-Does the same as the first hotkey. Shift+Caps Lock still turns capital letters on and off.	Fait la même chose que le premier raccourci. Maj+Verr. Maj active toujours les majuscules.
+Fix the last word with a single key	Corriger le dernier mot avec une seule touche
+Performs the same action as the first hotkey. Shift+Caps Lock still turns capital letters on and off.	Effectue la même action que le premier raccourci. Maj+Verr. Maj active et désactive toujours les majuscules.
 Import…	Importer…
 Import	Importer
 Nothing to add was found in the file.	Rien à ajouter n'a été trouvé dans le fichier.
-Added: {0}. Already in the list: {1}. Click Save to keep the changes.	Ajoutés : {0}. Déjà dans la liste : {1}. Cliquez sur Enregistrer pour garder les changements.
+Added: {0}. Already in the list: {1}.	Ajoutés : {0}. Déjà dans la liste : {1}.
 Replacements (txt, csv, AutoHotkey, Espanso)	Remplacements (txt, csv, AutoHotkey, Espanso)
 All files	Tous les fichiers
 Word lists (txt, csv)	Listes de mots (txt, csv)
-Switch layout of the whole line before the cursor	Changer la disposition de toute la ligne avant le curseur
+Switch the layout of the line before the cursor	Changer la disposition de la ligne avant le curseur
 Export…	Exporter…
 Export	Exporter
-All settings in one file	Tous les paramètres dans un fichier
-To move to another computer. Before every save KeyFish puts a copy of the previous settings in the backups folder (the last 10), and those can be imported too.	Pour passer à un autre ordinateur. Avant chaque enregistrement, KeyFish met une copie des paramètres précédents dans le dossier backups (les 10 derniers) ; on peut aussi les importer.
+Export and import settings	Exporter et importer les paramètres
+All settings in one file, for moving to another computer. Before settings are changed, a copy of the previous ones is saved in the backups folder (the last 10 copies); these copies can also be imported.	Tous les paramètres dans un fichier, pour passer à un autre ordinateur. Avant toute modification des paramètres, une copie des précédents est enregistrée dans le dossier backups (les 10 dernières copies) ; ces copies peuvent aussi être importées.
 This isn't a KeyFish settings file.	Ce n'est pas un fichier de paramètres KeyFish.
 Replace all settings with the file's contents? The current ones are kept in the backups folder.	Remplacer tous les paramètres par le contenu du fichier ? Les actuels restent dans le dossier backups.
 Turn off	Désactiver
@@ -118,14 +118,14 @@ Updates	Mises à jour
 Check	Vérifier
 Update	Mettre à jour
 Checking…	Vérification…
-Version {0} is out (you have {1})	La version {0} est sortie (vous avez la {1})
+Version {0} is available (installed: {1})	Version {0} disponible (installée : {1})
 Checked at {0}.	Vérifié à {0}.
-Version {0}. Click Check to see whether a newer one is out.	Version {0}. Cliquez sur Vérifier pour voir si une plus récente est sortie.
-Version {0} is out — update	La version {0} est sortie — mettre à jour
-Layout letters instead of the fish	Lettres de la disposition au lieu du poisson
-The tray shows EN, RU and so on in a circle of the same color. While KeyFish isn't correcting, the circle is grey.	La zone de notification affiche EN, FR, etc. dans un cercle de la même couleur. Tant que KeyFish ne corrige pas, le cercle est gris.
+Version {0}. Click Check to look for a newer version.	Version {0}. Cliquez sur « Vérifier » pour rechercher une version plus récente.
+Version {0} is available — update	Version {0} disponible — mettre à jour
+Layout code instead of the icon	Code de disposition au lieu de l'icône
+The notification area shows the layout code (EN, RU, etc.) in the layout color. Grey means correction is off or paused.	La zone de notification affiche le code de la disposition (EN, RU, etc.) dans sa couleur. Le gris signifie que la correction est désactivée ou en pause.
 Layout colors	Couleurs des dispositions
-Click a circle to choose its color: the tray fish, the letters and the tag at the cursor will use it.	Cliquez sur un cercle pour choisir sa couleur : le poisson, les lettres et l'étiquette près du curseur l'utiliseront.
+The layout color is used for the notification area icon and the indicator at the cursor. Click a color to change it.	La couleur de la disposition est utilisée pour l'icône de la zone de notification et l'indicateur près du curseur. Cliquez sur une couleur pour la modifier.
 Default	Par défaut
 Other…	Autre…
 Color of {0}	Couleur de {0}
@@ -133,40 +133,40 @@ Theme	Thème
 Takes effect after saving.	S'applique après l'enregistrement.
 Light	Clair
 Dark	Sombre
-{0} runs as administrator, and Windows doesn't let KeyFish see or change text in it. To make KeyFish work there too, run KeyFish as administrator as well.	{0} s'exécute en tant qu'administrateur, et Windows empêche KeyFish d'y voir ou d'y modifier le texte. Pour que KeyFish y fonctionne aussi, exécutez-le également en tant qu'administrateur.
+{0} is running as administrator. Windows does not allow KeyFish to read or change text in it. To work in it, run KeyFish as administrator.	{0} s'exécute en tant qu'administrateur. Windows n'autorise pas KeyFish à lire ou modifier le texte dans cette application. Pour y travailler, exécutez KeyFish en tant qu'administrateur.
 This app	Cette application
-Can't work in an app run as admin	Inactif dans une appli admin
-KeyFish closed because of an error last time. Please send the report to the author: it helps fix it. It holds only Windows' description of the error, no typed text, and on GitHub you see it before sending.	KeyFish s'est fermé à cause d'une erreur la dernière fois. Envoyez le rapport à l'auteur : cela aide à la corriger. Il ne contient que la description de l'erreur par Windows, aucun texte saisi, et sur GitHub vous le voyez avant l'envoi.
+Unavailable in an app running as administrator	Indisponible dans une application exécutée en tant qu'administrateur
+The previous KeyFish session ended with an error. Sending a report to the developer is recommended. The report contains only Windows' description of the error and no typed text; it can be reviewed on GitHub before sending.	La session précédente de KeyFish s'est terminée par une erreur. Il est recommandé d'envoyer un rapport au développeur. Le rapport contient uniquement la description de l'erreur fournie par Windows et aucun texte saisi ; il peut être vérifié sur GitHub avant l'envoi.
 Open on GitHub	Ouvrir sur GitHub
 Copy	Copier
-No, thanks	Non merci
-That word was typed in the wrong layout, so KeyFish fixed it. If it shouldn't have, press {0} right after: the word comes back, and KeyFish remembers it.	Ce mot a été tapé dans la mauvaise disposition, KeyFish l'a corrigé. Si ce n'était pas voulu, appuyez sur {0} juste après : le mot revient, et KeyFish s'en souvient.
+Don't send	Ne pas envoyer
+A word typed in the wrong layout was corrected. To undo the correction, press {0} right after it: the original word is restored and added to the Never correct list.	Un mot saisi dans la mauvaise disposition a été corrigé. Pour annuler la correction, appuyez sur {0} juste après : le mot d'origine est rétabli et ajouté à la liste « Ne jamais corriger ».
  or Ctrl+Z	 ou Ctrl+Z
 Typography	Typographie
-A hyphen between words becomes a dash, three dots an ellipsis, (c) (r) (tm) become © ® ™.	Un trait d'union entre deux mots devient un tiret, trois points des points de suspension, (c) (r) (tm) deviennent © ® ™.
+A hyphen between words is replaced with a dash, three dots with an ellipsis, (c) (r) (tm) with © ® ™.	Un trait d'union entre deux mots est remplacé par un tiret, trois points par des points de suspension, (c) (r) (tm) par © ® ™.
 Extended dictionary	Dictionnaire étendu
 Download	Télécharger
 Downloading…	Téléchargement…
 Remove	Supprimer
-About 100,000 more words per language ({0}): rare words, names, slang. Downloads from GitHub when turned on (1 MB).	Environ 100 000 mots de plus par langue ({0}) : mots rares, noms, argot. Téléchargé depuis GitHub à l'activation, environ 1 Mo.
-The downloaded dictionary doesn't match its checksum, so it wasn't installed.	Le dictionnaire téléchargé ne correspond pas à sa somme de contrôle, il n'a pas été installé.
-Couldn't download the dictionary: 	Impossible de télécharger le dictionnaire : 
+About 100,000 additional words per language ({0}): rare words, proper names, colloquial vocabulary. Downloaded from GitHub when turned on (about 1 MB).	Environ 100 000 mots supplémentaires par langue ({0}) : mots rares, noms propres, vocabulaire familier. Téléchargé depuis GitHub à l'activation (environ 1 Mo).
+The downloaded dictionary does not match its checksum and was not installed.	Le dictionnaire téléchargé ne correspond pas à sa somme de contrôle et n'a pas été installé.
+Could not download the dictionary: 	Impossible de télécharger le dictionnaire : 
 Correction	Correction
-Icon and cues	Icône et indications
+Icon and sounds	Icône et sons
 System	Système
 Sound on corrections	Son à chaque correction
 Layout: {0}	Disposition : {0}
-Switch layout of the text in the clipboard (copy, press, paste)	Disposition du texte du presse-papiers (copiez, appuyez, collez)
+Switch the layout of the text in the clipboard	Changer la disposition du texte du presse-papiers
 There is no text in the clipboard.	Le presse-papiers ne contient pas de texte.
-Couldn't tell which layout to switch the text to.	Impossible de savoir dans quelle disposition convertir le texte.
-The text in the clipboard is now in the {0} layout, ready to paste.	Le texte du presse-papiers est maintenant dans la disposition {0}, prêt à coller.
+Could not determine the target layout for the text.	Impossible de déterminer la disposition cible du texte.
+The text in the clipboard has been converted to the {0} layout.	Le texte du presse-papiers a été converti dans la disposition {0}.
 Welcome to KeyFish	Bienvenue dans KeyFish
-KeyFish fixes the layout as you type	KeyFish corrige la disposition pendant la frappe
-If a fix wasn't wanted	Si une correction n'était pas voulue
-Everything else is in Settings	Tout le reste est dans les paramètres
-Typed a word in the wrong layout? After the space KeyFish switches it: ghbdtn → привет.	Un mot tapé dans la mauvaise disposition ? Après l'espace, KeyFish le convertit : ghbdtn → привет.
-Press Pause right after the fix: the word comes back, and KeyFish remembers it and leaves it alone.	Appuyez sur Pause juste après la correction : le mot revient, et KeyFish s'en souvient et ne le touche plus.
-Double-click the fish in the tray for Settings: hotkeys, replacements, exclusions, the extended dictionary. The fish shows the layout and turns grey while KeyFish isn't correcting.	Un double-clic sur le poisson dans la zone de notification ouvre les paramètres : raccourcis, remplacements, exclusions, dictionnaire étendu. Le poisson montre la disposition et devient gris quand KeyFish ne corrige pas.
+Automatic layout correction	Correction automatique de la disposition
+Undoing a correction	Annuler une correction
+Settings	Paramètres
+A word typed in the wrong layout is corrected after a space: ghbdtn → привет.	Un mot saisi dans la mauvaise disposition est corrigé après une espace : ghbdtn → привет.
+To undo a correction, press Pause right after it. The original word is restored and added to the Never correct list.	Pour annuler une correction, appuyez sur Pause juste après. Le mot d'origine est rétabli et ajouté à la liste « Ne jamais corriger ».
+Double-click the KeyFish icon in the notification area to open Settings: hotkeys, replacements, exclusions, the extended dictionary. The icon shows the current layout; grey means correction is off or paused.	Les paramètres s'ouvrent par un double-clic sur l'icône KeyFish de la zone de notification : raccourcis, remplacements, exclusions, dictionnaire étendu. L'icône indique la disposition actuelle ; le gris signifie que la correction est désactivée ou en pause.
 Back	Retour
 Start	Commencer
 Next	Suivant
@@ -178,39 +178,39 @@ this month	ce mois-ci
 ≈{0} min	≈{0} min
 saved	gagnées
 The word is now in "Never correct".	Le mot est maintenant dans « Ne jamais corriger ».
-Why wasn't it corrected?	Pourquoi pas de correction ?
-Nothing left alone yet	Tout a été corrigé jusqu'ici
+Why wasn't the word corrected?	Pourquoi le mot n'a-t-il pas été corrigé ?
+No skipped words	Aucun mot ignoré
 the app is excluded	l'application est exclue
 Correct in {0}	Corriger dans {0}
 a game or full screen	un jeu ou le plein écran
-Don't stay quiet in full screen	Ne pas se taire en plein écran
+Correct in full-screen apps	Corriger dans les applications en plein écran
 the app runs as administrator	l'application s'exécute en administrateur
 a password field	un champ de mot de passe
-the password-field check hadn't answered	la vérification des mots de passe n'avait pas encore répondu
+the password field check had not finished	la vérification du champ de mot de passe n'était pas terminée
 no dictionary for this layout	pas de dictionnaire pour cette disposition
 digits or symbols in the word	des chiffres ou symboles dans le mot
 looks like a link, a path or code	ressemble à un lien, un chemin ou du code
 "{0}" is in Never correct	« {0} » est dans « Ne jamais corriger »
-Take it out of Never correct	Retirer de « Ne jamais corriger »
-"{0}": not sure it's a mistake	« {0} » : pas sûr que ce soit une erreur
+Remove from Never correct	Retirer de « Ne jamais corriger »
+"{0}": the mistake is not certain	« {0} » : l'erreur n'est pas certaine
 Correct this word	Corriger ce mot
-Pause corrections for an hour / resume	Mettre les corrections en pause une heure / reprendre
-Correcting again.	Les corrections reprennent.
-Clear the formatting of selected text: bold, italics, links, 𝐬𝐭𝐲𝐥𝐞𝐝 letters	Effacer la mise en forme du texte sélectionné : gras, italique, liens, lettres 𝐬𝐭𝐲𝐥𝐞𝐝
+Pause correction for 1 hour / resume	Suspendre la correction pendant 1 heure / reprendre
+Correction resumed.	Correction reprise.
+Clear the formatting of selected text: bold, italic, links, styled characters	Effacer la mise en forme du texte sélectionné : gras, italique, liens, caractères stylisés
 Sounds	Sons
-KeyFish plays a sound when it fixes or changes text. Pick a sound for each event or turn it off. You can add your own sounds: .wav files in the sounds folder.	KeyFish joue un son quand il corrige ou modifie du texte. Choisissez un son pour chaque événement ou coupez-le. Vos propres sons : des fichiers .wav dans le dossier des sons.
-Listen: {0}	Écouter : {0}
+Sound signals when text is corrected or changed. A sound can be chosen or turned off for each event. Custom sounds are added to the sounds folder as .wav files.	Signaux sonores lors de la correction ou de la modification du texte. Un son peut être choisi ou désactivé pour chaque événement. Les sons personnels s'ajoutent au dossier des sons au format .wav.
+Play: {0}	Écouter : {0}
 Sounds folder	Dossier des sons
-Look	Apparence
-Light or dark, window colors, the fish, the icons and the sound. Takes effect after saving.	Clair ou sombre, couleurs des fenêtres, le poisson, les icônes et le son. S'applique après l'enregistrement.
-How it will look	Aperçu
-High contrast is on: KeyFish's windows use the Windows colors, and no look applies.	Le contraste élevé est activé : les fenêtres de KeyFish prennent les couleurs de Windows, aucune apparence ne s'applique.
-The fish in the look's style	Le poisson au style de l'apparence
-The logo, the tray icon and the aquarium.	Le logo, l'icône de la zone de notification et l'aquarium.
-The look's sound	Son de l'apparence
-The correction sound.	Le son des corrections.
-Listen	Écouter
-Switch to a holiday look automatically	Activer automatiquement le décor de fête
+Appearance	Apparence
+Window colors, the notification area icon and the correction sound. Changes apply immediately.	Couleurs des fenêtres, icône de la zone de notification et son de correction. Les modifications s'appliquent immédiatement.
+Preview	Aperçu
+High contrast mode is on: KeyFish windows use system colors, and the theme does not apply.	Le mode de contraste élevé est activé : les fenêtres de KeyFish utilisent les couleurs du système et le thème ne s'applique pas.
+Themed icon	Icône au style du thème
+The logo and the notification area icon.	Le logo et l'icône de la zone de notification.
+Theme sound	Son du thème
+Used as the correction sound.	Utilisé comme son de correction.
+Play	Écouter
+Turn on holiday themes automatically	Activer automatiquement les thèmes de fête
 Layout fix	Correction de disposition
 Typo fix	Correction de faute de frappe
 Replacement and typography	Remplacement et typographie
@@ -218,28 +218,33 @@ Undoing a fix	Annulation d'une correction
 Hotkey	Raccourci
 Pause and resume	Pause et reprise
 No sound	Aucun son
-Bloop	Bloup
-Ooo	Hououu
+Splash	Clapotis
+Hum	Bourdonnement
 Drop	Goutte
 Click	Clic
 Chime	Clochette
-Bloop down	Bloup descendant
-Fixing as you type is off in Settings, so there is nothing to pause.	La correction pendant la frappe est désactivée dans les réglages : il n'y a rien à mettre en pause.
-the word isn't a known word in any layout	le mot n'est un mot connu dans aucune disposition
+Low splash	Clapotis grave
+Correction while typing is turned off in Settings.	La correction pendant la saisie est désactivée dans les paramètres.
+the word is not in any layout's dictionary	le mot ne figure dans le dictionnaire d'aucune disposition
 Choose	Choisir
-On now	En cours
-Classic	Classique
+Active	Actif
+Windows 11	Windows 11
 Halloween	Halloween
 October 24 to November 2	24 octobre — 2 novembre
 Oct 24 – Nov 2	24/10 – 2/11
-Your version	Votre version
-These hotkeys are taken by another app: {0}.	Ces raccourcis sont pris par une autre application : {0}.
-These keys can't be hotkeys and are off: {0}.	Ces touches ne peuvent pas servir de raccourcis et sont désactivées : {0}.
-You can change them in Settings.	Vous pouvez les modifier dans les réglages.
-Colors of the custom look:	Couleurs de l'apparence personnalisée :
-{0}: a color of the custom look	{0} : une couleur de l'apparence personnalisée
+Installed	Installée
+The following hotkeys are in use by another app: {0}.	Les raccourcis suivants sont utilisés par une autre application : {0}.
+The following hotkeys are not allowed and have been turned off: {0}.	Les raccourcis suivants ne sont pas autorisés et ont été désactivés : {0}.
+They can be changed in Settings.	Ils peuvent être modifiés dans les paramètres.
+Custom theme colors:	Couleurs du thème personnalisé :
+{0}: custom theme color	{0} : couleur du thème personnalisé
 Accent	Accent
-Fish	Poisson
+Icon	Icône
 Undo the fix	Annuler la correction
-It can't be undone now: something was typed after the fix, or another window is in front.	Impossible d'annuler maintenant : du texte a été tapé après la correction, ou une autre fenêtre est au premier plan.
-Custom	Personnalisé
+Undo is unavailable: text was typed after the correction, or another window was activated.	Annulation impossible : du texte a été saisi après la correction ou une autre fenêtre a été activée.
+Custom theme	Thème personnalisé
+Apply	Appliquer
+Apply the changes?	Appliquer les changements ?
+System language	Langue du système
+Color mode	Mode de couleur
+Word lists	Listes de mots

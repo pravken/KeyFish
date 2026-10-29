@@ -1,32 +1,32 @@
 # KeyFish interface in Belarusian. Format: English text<TAB>translation; \n is a line break
 About KeyFish	Пра праграму
 Fixes text typed in the wrong keyboard layout	Выпраўляе тэкст, набраны не ў той раскладцы
-Support ☕	Падтрымаць ☕
+Donate	Падтрымаць
 What's new	Што новага
 What's new in KeyFish	Што новага ў KeyFish
 Version 	Версія
 Close	Закрыць
-Mistakes caught: {0}	Злоўлена памылак: {0}
+Mistakes corrected: {0}	Выпраўлена памылак: {0}
  (since {0})	 (з {0})
-Switch layout of selected text; right after an auto-fix — undo it (as does Ctrl+Z)	Раскладка вылучанага тэксту; адразу пасля аўтавыпраўлення — адмена (як і Ctrl+Z)
-Switch layout of selected text — alternative keys	Раскладка вылучанага тэксту — запасное спалучэнне
+Switch the layout of selected text; right after an auto-correction, undo it (as Ctrl+Z does)	Змена раскладкі вылучанага тэксту; адразу пасля аўтавыпраўлення — яго адмена (як Ctrl+Z)
+Switch the layout of selected text (alternative hotkey)	Змена раскладкі вылучанага тэксту (дадатковае спалучэнне)
 Change case of selected text (aa → Aa → AA)	Рэгістр вылучанага тэксту (аа → Аа → АА)
-Transliterate (привет ⇄ privet)	Транслітарацыя (прывітанне ⇄ pryvitannie)
+Transliterate selected text (привет ⇄ privet)	Транслітарацыя вылучанага тэксту (прывітанне ⇄ pryvitannie)
 Auto-correct while typing	Аўтавыпраўленне пры наборы
 Settings…	Налады…
 Check for updates	Праверыць абнаўленні
 About…	Пра праграму…
 Exit	Выхад
-Update installed 🐟	Абнаўленне ўсталявана 🐟
-Version {0} is out (you have {1}).\n\nOpen the download page?	Выйшла версія {0} (у вас {1}).\n\nАдкрыць старонку спампоўкі?
+Update installed	Абнаўленне ўсталявана
+Version {0} is available (installed: {1}).\n\nOpen the download page?	Даступная версія {0} (усталявана {1}).\n\nАдкрыць старонку спампоўкі?
 KeyFish update	Абнаўленне KeyFish
 Version {0} is out (you have {1}).\n\nUpdate now? KeyFish will download it from GitHub, verify the checksum and restart.\n\n"No" opens the download page to update manually.	Выйшла версія {0} (у вас {1}).\n\nАбнавіць зараз? KeyFish спампуе новую версію з GitHub, праверыць кантрольную суму і перазапусціцца.\n\n«Не» — адкрыць старонку спампоўкі і абнавіцца ўручную.
 Downloading the update…	Спампоўваю абнаўленне…
 Open the download page?	Адкрыць старонку спампоўкі?
-KeyFish {0} is out	Выйшла версія KeyFish {0}
+KeyFish {0} is available	Даступная версія KeyFish {0}
 Click to update.	Націсніце, каб абнавіць.
-Couldn't reach GitHub. Check your connection and try again later.	Не ўдалося звязацца з GitHub. Праверце інтэрнэт і паспрабуйце пазней.
-You have the latest version: {0}.	У вас апошняя версія: {0}.
+Could not connect to GitHub. Check the internet connection and try again later.	Не ўдалося падключыцца да GitHub. Праверце падключэнне да інтэрнэту і паспрабуйце пазней.
+The latest version is installed: {0}.	Усталявана апошняя версія: {0}.
 KeyFish settings	Налады KeyFish
 General	Асноўнае
 Hotkeys	Спалучэнні клавіш
@@ -36,75 +36,75 @@ Words	Словы
 Save	Захаваць
 Cancel	Адмена
 Fix the keyboard layout as you type	Выпраўляць раскладку пры наборы
-ghbdtn → привет, руддщ → hello. Replacements also work only while this is on.	ghsdbnfyyt → прывітанне, руддщ → hello. Аўтазамены таксама працуюць, толькі калі гэта ўключана.
+Example: ghbdtn → привет, руддщ → hello. Replacements work only while this is on.	Прыклад: ghsdbnfyyt → прывітанне, руддщ → hello. Аўтазамены працуюць толькі пры ўключаным параметры.
 Fix typos	Выпраўляць памылкі друку
-Experimental: recieve → receive, using Windows spell check.	Эксперымент: праз праверку арфаграфіі Windows.
-Stay quiet in games and full-screen apps	Маўчаць у гульнях і поўнаэкранных праграмах
-Ctrl+Z undoes an auto-fix	Ctrl+Z адмяняе аўтавыпраўленне
-Right after the fix, like Pause. The next Ctrl+Z works in the app as usual.	Адразу пасля выпраўлення, як і Pause. Наступны Ctrl+Z працуе ў праграме як звычайна.
-Fish color shows the layout	Колер рыбкі паказвае раскладку
-Blue — Latin, orange — another alphabet.	Сіняя — лацініца, аранжавая — іншы алфавіт.
+Experimental. Uses Windows spell checking: recieve → receive.	Эксперыментальная функцыя. Выкарыстоўвае праверку арфаграфіі Windows.
+Don't correct in games and full-screen apps	Не выпраўляць у гульнях і поўнаэкранных праграмах
+Undo auto-correction with Ctrl+Z	Адмена аўтавыпраўлення клавішамі Ctrl+Z
+Works right after a correction, as Pause does. Pressing Ctrl+Z again works in the app as usual.	Дзейнічае адразу пасля выпраўлення, як Pause. Паўторны націск Ctrl+Z працуе ў праграме як звычайна.
+Icon color indicates the layout	Колер значка паказвае раскладку
+The notification area icon takes the color of the current layout; the same color is used for the layout code and the indicator at the cursor. To change a color, click the layout's icon.	Значок у вобласці апавяшчэнняў афарбоўваецца ў колер бягучай раскладкі; гэты ж колер выкарыстоўваецца для кода раскладкі і індыкатара каля курсора. Каб змяніць колер, націсніце на значок раскладкі.
 Start with Windows	Запускаць разам з Windows
-Once a day KeyFish asks GitHub whether a new version is out. Nothing else is sent.	Раз на дзень KeyFish пытае ў GitHub, ці выйшла новая версія. Больш нічога не адпраўляецца.
+Once a day KeyFish checks GitHub for a new version. No other data is sent.	Раз на суткі KeyFish запытвае ў GitHub звесткі пра новую версію. Іншыя даныя не перадаюцца.
 Interface language	Мова інтэрфейсу
-KeyFish is free	KeyFish бясплатны
-If it saves you time, you can buy the author a coffee.	Калі ён эканоміць вам час, можна пачаставаць аўтара кавай.
+KeyFish is free of charge	KeyFish распаўсюджваецца бясплатна
+Development can be supported with a voluntary donation.	Падтрымаць распрацоўку можна добраахвотным ахвяраваннем.
 Reset	Скінуць
-Type an abbreviation and a space, and KeyFish replaces it with the text. It works in the other layout too: "thx" expands even when typed as «ерч».	Набярыце скарачэнне і прабел — KeyFish заменіць яго на тэкст. Скарачэнне спрацоўвае і ў іншай раскладцы: «thx» заменіцца, нават калі набрана «ерч».
+An abbreviation followed by a space is replaced with the specified text. Abbreviations are recognized in the other layout too: "thx" expands even when typed as «ерч».	Скарачэнне, за якім ідзе прабел, замяняецца зададзеным тэкстам. Скарачэнне распазнаецца і ў іншай раскладцы: «thx» замяняецца, нават калі набрана «ерч».
 Abbreviation	Скарачэнне
 Text (Enter — new line)	Замена (Enter — новы радок)
 Add	Дадаць
 Delete	Выдаліць
 Text	Замена
 Don't change	Не мяняць
-Pick a layout for an app, and KeyFish switches to it when you switch to that app's window. You can also turn auto-correction off here, for example in code editors and terminals.	Выберыце раскладку для праграмы — KeyFish уключыць яе, калі вы пяройдзеце ў акно гэтай праграмы. Тут жа можна выключыць аўтавыпраўленне, напрыклад у рэдактарах кода і тэрміналах.
+A layout assigned to an app is turned on when its window becomes active. Auto-correction can also be turned off here for individual apps, such as code editors and terminals.	Раскладка, прызначаная праграме, уключаецца пры пераходзе ў яе акно. Тут жа можна выключыць аўтавыпраўленне для асобных праграм, напрыклад рэдактараў кода і тэрміналаў.
 App (process name)	Праграма (імя працэсу)
 Layout	Раскладка
 Correct	Выпраўляць
 Pick or type	Выберыце або ўвядзіце
 App	Праграма
-KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself (with Pause, or by erasing it and typing it again in the other layout) and it goes to "Always correct".	KeyFish вучыцца на вашых дзеяннях: калі адмяніць або сцерці выпраўленне, слова трапіць у «Не выпраўляць»; калі выправіць слова самому (праз Pause або сцёршы і набраўшы нанова ў іншай раскладцы) — у «Заўсёды выпраўляць».
+The lists are filled automatically: an undone or erased correction adds the word to "Never correct", and a word corrected manually (with Pause, or by retyping it in the other layout) goes to "Always correct".	Спісы папаўняюцца аўтаматычна: адмененае або сцёртае выпраўленне дадае слова ў «Не выпраўляць», а слова, выпраўленае ўручную (клавішай Pause або паўторным наборам у іншай раскладцы), — у «Заўсёды выпраўляць».
 Never correct	Не выпраўляць
 Always correct	Заўсёды выпраўляць
 New word	Новае слова
 off	выключана
-add Ctrl or Alt	патрэбны Ctrl або Alt
+Ctrl or Alt required	патрабуецца Ctrl або Alt
 This release has no file for automatic update.	У гэтым выпуску няма файла для аўтаматычнага абнаўлення.
 The downloaded file doesn't match the release checksum — update cancelled.	Спампаваны файл не супадае з кантрольнай сумай выпуску — абнаўленне адменена.
 The downloaded file has the wrong version — update cancelled.	Спампаваны файл мае не тую версію — абнаўленне адменена.
-No permission to write to the app folder. Please download the new version manually.	Няма правоў на запіс у папку праграмы. Спампуйце новую версію ўручную.
+No permission to write to the app folder. Download the new version manually.	Няма правоў на запіс у папку праграмы. Спампуйце новую версію ўручную.
 Update failed: 	Не ўдалося абнавіць:
-Same as Windows	Як у Windows
+System default	Як у сістэме
 Press the keys…	Націсніце спалучэнне…
-Click a field and press the new keys. Esc cancels, Backspace turns a hotkey off.	Пстрыкніце поле і націсніце новае спалучэнне. Esc — адмена, Backspace — выключыць спалучэнне.
+To change a hotkey, click its field and press the new keys. Esc cancels; Backspace turns the hotkey off.	Каб змяніць спалучэнне, націсніце на поле і націсніце новыя клавішы. Esc — адмена, Backspace — выключыць спалучэнне.
 Paused until {0}	Паўза да {0}
 Pause for 1 hour	Паўза на 1 гадзіну
-Resume (paused until {0})	Працягнуць выпраўляць (паўза да {0})
+Resume correction (paused until {0})	Аднавіць выпраўленне (паўза да {0})
 Recent corrections	Апошнія выпраўленні
 Nothing corrected yet	Пакуль нічога не выпраўлена
-Click one to never correct it again:	Націсніце, каб больш так не выпраўляць:
+Select a correction to stop making it:	Выберыце выпраўленне, каб больш яго не выконваць:
 "{0}" is now in "Never correct".	«{0}» дададзена ў «Не выпраўляць».
 Clear the list	Ачысціць спіс
 Show the layout at the cursor	Паказваць раскладку каля курсора
-When the layout changes, EN, RU and so on appear next to the text cursor for a second, or next to the mouse pointer if the app doesn't tell where its cursor is.	Калі раскладка мяняецца, каля тэкставага курсора на секунду з'яўляецца EN, BE і г. д. Калі праграма не паведамляе, дзе курсор, — каля мышы.
-Recent corrections in the fish menu	Апошнія выпраўленні ў меню рыбкі
-Click a correction in the menu and KeyFish won't correct it again. The list is kept only in memory.	Націсніце на выпраўленне ў меню, і KeyFish больш так не будзе выпраўляць. Спіс захоўваецца толькі ў памяці.
+When the layout changes, its code (EN, RU, etc.) appears next to the text cursor for one second, or next to the mouse pointer if the app does not report the cursor position.	Пры змене раскладкі яе код (EN, RU і г. д.) на секунду адлюстроўваецца каля тэкставага курсора, а калі праграма не паведамляе яго становішча, — каля ўказальніка мышы.
+Recent corrections in the icon menu	Апошнія выпраўленні ў меню значка
+Choosing a correction in the menu adds the word to the Never correct list. The list is kept in memory only.	Выбар выпраўлення ў меню дадае слова ў спіс «Не выпраўляць». Спіс захоўваецца толькі ў аператыўнай памяці.
 Off	Выключана
 Double Shift	Двайны Shift
-Fix the last word with one key	Выправіць апошняе слова адной клавішай
-Does the same as the first hotkey. Shift+Caps Lock still turns capital letters on and off.	Робіць тое ж, што першае спалучэнне. Shift+Caps Lock, як і раней, уключае вялікія літары.
+Fix the last word with a single key	Выпраўленне апошняга слова адной клавішай
+Performs the same action as the first hotkey. Shift+Caps Lock still turns capital letters on and off.	Выконвае тое ж дзеянне, што і першае спалучэнне. Shift+Caps Lock па-ранейшаму ўключае і выключае вялікія літары.
 Import…	Імпарт…
 Import	Імпарт
 Nothing to add was found in the file.	У файле не знайшлося нічога, што можна дадаць.
-Added: {0}. Already in the list: {1}. Click Save to keep the changes.	Дададзена: {0}. Ужо былі ў спісе: {1}. Змены захаваюцца пасля націску «Захаваць».
+Added: {0}. Already in the list: {1}.	Дададзена: {0}. Ужо былі ў спісе: {1}.
 Replacements (txt, csv, AutoHotkey, Espanso)	Аўтазамены (txt, csv, AutoHotkey, Espanso)
 All files	Усе файлы
 Word lists (txt, csv)	Спісы слоў (txt, csv)
-Switch layout of the whole line before the cursor	Раскладка ўсяго радка да курсора
+Switch the layout of the line before the cursor	Змена раскладкі радка да курсора
 Export…	Экспарт…
 Export	Экспарт
-All settings in one file	Усе налады адным файлам
-To move to another computer. Before every save KeyFish puts a copy of the previous settings in the backups folder (the last 10), and those can be imported too.	Для пераносу на іншы камп'ютар. Перад кожным захаваннем KeyFish сам кладзе копію ранейшых налад у папку backups (апошнія 10) — іх таксама можна імпартаваць.
+Export and import settings	Экспарт і імпарт налад
+All settings in one file, for moving to another computer. Before settings are changed, a copy of the previous ones is saved in the backups folder (the last 10 copies); these copies can also be imported.	Усе налады ў адным файле для пераносу на іншы камп'ютар. Перад змяненнем налад іх папярэдняя копія захоўваецца ў папцы backups (апошнія 10 копій); копіі таксама можна імпартаваць.
 This isn't a KeyFish settings file.	Гэта не файл налад KeyFish.
 Replace all settings with the file's contents? The current ones are kept in the backups folder.	Замяніць усе налады змесцівам файла? Цяперашнія захаваюцца ў папцы backups.
 Turn off	Выключыць
@@ -117,14 +117,14 @@ Updates	Абнаўленні
 Check	Праверыць
 Update	Абнавіць
 Checking…	Правяраю…
-Version {0} is out (you have {1})	Выйшла версія {0} (у вас {1})
+Version {0} is available (installed: {1})	Даступная версія {0} (усталявана {1})
 Checked at {0}.	Праверана а {0}.
-Version {0}. Click Check to see whether a newer one is out.	Версія {0}. Націсніце «Праверыць», каб даведацца, ці не выйшла новая.
-Version {0} is out — update	Выйшла версія {0} — абнавіць
-Layout letters instead of the fish	Літары раскладкі замест рыбкі
-The tray shows EN, RU and so on in a circle of the same color. While KeyFish isn't correcting, the circle is grey.	У трэі EN, BE і г. д. у кружку таго ж колеру. Пакуль KeyFish не выпраўляе, кружок шэры.
+Version {0}. Click Check to look for a newer version.	Версія {0}. Каб праверыць наяўнасць новай версіі, націсніце «Праверыць».
+Version {0} is available — update	Даступная версія {0} — абнавіць
+Layout code instead of the icon	Код раскладкі замест значка
+The notification area shows the layout code (EN, RU, etc.) in the layout color. Grey means correction is off or paused.	У вобласці апавяшчэнняў адлюстроўваецца код раскладкі (EN, RU і г. д.) колерам раскладкі. Шэры колер азначае, што выпраўленне выключана або прыпынена.
 Layout colors	Колеры раскладак
-Click a circle to choose its color: the tray fish, the letters and the tag at the cursor will use it.	Націсніце на кружок, каб выбраць колер: ім будуць рыбка, літары ў трэі і значок каля курсора.
+The layout color is used for the notification area icon and the indicator at the cursor. Click a color to change it.	Колер раскладкі выкарыстоўваецца для значка ў вобласці апавяшчэнняў і індыкатара каля курсора. Каб змяніць колер, націсніце на яго.
 Default	Па змаўчанні
 Other…	Іншы…
 Color of {0}	Колер {0}
@@ -132,40 +132,40 @@ Theme	Тэма
 Takes effect after saving.	Ужыецца пасля захавання.
 Light	Светлая
 Dark	Цёмная
-{0} runs as administrator, and Windows doesn't let KeyFish see or change text in it. To make KeyFish work there too, run KeyFish as administrator as well.	{0} запушчана ад імя адміністратара, і Windows не дае KeyFish бачыць і мяняць у ёй тэкст. Каб KeyFish працаваў і там, запусціце яго таксама ад імя адміністратара.
+{0} is running as administrator. Windows does not allow KeyFish to read or change text in it. To work in it, run KeyFish as administrator.	{0} запушчана ад імя адміністратара. Windows не дазваляе KeyFish чытаць і змяняць тэкст у гэтай праграме. Для работы ў ёй запусціце KeyFish ад імя адміністратара.
 This app	Гэтая праграма
-Can't work in an app run as admin	Не працуе ў праграме ад адміністратара
-KeyFish closed because of an error last time. Please send the report to the author: it helps fix it. It holds only Windows' description of the error, no typed text, and on GitHub you see it before sending.	Мінулы раз KeyFish закрыўся з-за памылкі. Адпраўце справаздачу аўтару — гэта дапаможа яе выправіць. У ёй толькі апісанне памылкі ад Windows, без набранага тэксту; на GitHub вы ўбачыце яе перад адпраўкай.
+Unavailable in an app running as administrator	Недаступна ў праграме, запушчанай ад імя адміністратара
+The previous KeyFish session ended with an error. Sending a report to the developer is recommended. The report contains only Windows' description of the error and no typed text; it can be reviewed on GitHub before sending.	Папярэдні сеанс KeyFish завяршыўся з памылкай. Рэкамендуецца адправіць справаздачу распрацоўшчыку. Справаздача змяшчае толькі апісанне памылкі ад Windows і не змяшчае набранага тэксту; перад адпраўкай яе можна праглядзець на GitHub.
 Open on GitHub	Адкрыць на GitHub
 Copy	Скапіяваць
-No, thanks	Не трэба
-That word was typed in the wrong layout, so KeyFish fixed it. If it shouldn't have, press {0} right after: the word comes back, and KeyFish remembers it.	Слова набралі не ў той раскладцы — KeyFish яго выправіў. Калі выпраўляць не трэба было, націсніце {0} адразу пасля: слова вернецца, і KeyFish яго запомніць.
+Don't send	Не адпраўляць
+A word typed in the wrong layout was corrected. To undo the correction, press {0} right after it: the original word is restored and added to the Never correct list.	Слова, набранае ў няправільнай раскладцы, выпраўлена. Каб адмяніць выпраўленне, націсніце {0} адразу пасля яго: зыходнае слова будзе адноўлена і дададзена ў спіс «Не выпраўляць».
  or Ctrl+Z	 або Ctrl+Z
 Typography	Тыпаграфіка
-A hyphen between words becomes a dash, three dots an ellipsis, (c) (r) (tm) become © ® ™.	Злучок паміж словамі становіцца працяжнікам, тры кропкі — шматкроп'ем, (c) (r) (tm) — © ® ™.
+A hyphen between words is replaced with a dash, three dots with an ellipsis, (c) (r) (tm) with © ® ™.	Злучок паміж словамі замяняецца працяжнікам, тры кропкі — шматкроп'ем, (c) (r) (tm) — сімваламі © ® ™.
 Extended dictionary	Пашыраны слоўнік
 Download	Спампаваць
 Downloading…	Спампоўваю…
 Remove	Выдаліць
-About 100,000 more words per language ({0}): rare words, names, slang. Downloads from GitHub when turned on (1 MB).	Яшчэ каля 100 тысяч слоў на мову ({0}): рэдкія словы, імёны, жаргон. Спампоўваецца з GitHub пры ўключэнні, каля 1 МБ.
-The downloaded dictionary doesn't match its checksum, so it wasn't installed.	Спампаваны слоўнік не супаў з кантрольнай сумай — ён не ўсталяваны.
-Couldn't download the dictionary: 	Не ўдалося спампаваць слоўнік: 
+About 100,000 additional words per language ({0}): rare words, proper names, colloquial vocabulary. Downloaded from GitHub when turned on (about 1 MB).	Каля 100 тысяч дадатковых слоў на мову ({0}): рэдкія словы, уласныя імёны, гутарковая лексіка. Спампоўваецца з GitHub пры ўключэнні (каля 1 МБ).
+The downloaded dictionary does not match its checksum and was not installed.	Спампаваны слоўнік не супаў з кантрольнай сумай і не ўсталяваны.
+Could not download the dictionary: 	Не ўдалося спампаваць слоўнік: 
 Correction	Выпраўленне
-Icon and cues	Значок і падказкі
+Icon and sounds	Значок і гукі
 System	Сістэма
 Sound on corrections	Гук пры выпраўленні
 Layout: {0}	Раскладка: {0}
-Switch layout of the text in the clipboard (copy, press, paste)	Раскладка тэксту ў буферы абмену (скапіюйце, націсніце, устаўце)
+Switch the layout of the text in the clipboard	Змена раскладкі тэксту ў буферы абмену
 There is no text in the clipboard.	У буферы абмену няма тэксту.
-Couldn't tell which layout to switch the text to.	Не ўдалося зразумець, у якую раскладку перавесці тэкст.
-The text in the clipboard is now in the {0} layout, ready to paste.	Тэкст у буферы абмену перакладзены ў раскладку {0} — яго можна ўставіць.
+Could not determine the target layout for the text.	Не ўдалося вызначыць мэтавую раскладку тэксту.
+The text in the clipboard has been converted to the {0} layout.	Тэкст у буферы абмену пераўтвораны ў раскладку {0}.
 Welcome to KeyFish	Вітаем у KeyFish
-KeyFish fixes the layout as you type	KeyFish выпраўляе раскладку на ляту
-If a fix wasn't wanted	Калі выпраўляць не трэба было
-Everything else is in Settings	Усё астатняе — у наладах
-Typed a word in the wrong layout? After the space KeyFish switches it: ghbdtn → привет.	Набралі слова не ў той раскладцы — пасля прабелу KeyFish сам пераведзе яго.
-Press Pause right after the fix: the word comes back, and KeyFish remembers it and leaves it alone.	Націсніце Pause адразу пасля выпраўлення: слова вернецца, а KeyFish запомніць яго і больш не кране.
-Double-click the fish in the tray for Settings: hotkeys, replacements, exclusions, the extended dictionary. The fish shows the layout and turns grey while KeyFish isn't correcting.	Падвойны пстрык па рыбцы ў трэі адкрывае налады: гарачыя клавішы, аўтазамены, выключэнні, пашыраны слоўнік. Рыбка паказвае раскладку і шарэе, калі KeyFish не выпраўляе.
+Automatic layout correction	Аўтаматычнае выпраўленне раскладкі
+Undoing a correction	Адмена выпраўлення
+Settings	Налады
+A word typed in the wrong layout is corrected after a space: ghbdtn → привет.	Слова, набранае ў няправільнай раскладцы, выпраўляецца пасля ўводу прабелу.
+To undo a correction, press Pause right after it. The original word is restored and added to the Never correct list.	Каб адмяніць выпраўленне, націсніце Pause адразу пасля яго. Зыходнае слова будзе адноўлена і дададзена ў спіс «Не выпраўляць».
+Double-click the KeyFish icon in the notification area to open Settings: hotkeys, replacements, exclusions, the extended dictionary. The icon shows the current layout; grey means correction is off or paused.	Налады адкрываюцца падвойным націскам на значок KeyFish у вобласці апавяшчэнняў: спалучэнні клавіш, аўтазамены, выключэнні, пашыраны слоўнік. Значок паказвае бягучую раскладку; шэры колер азначае, што выпраўленне выключана або прыпынена.
 Back	Назад
 Start	Пачаць
 Next	Далей
@@ -177,39 +177,39 @@ this month	за месяц
 ≈{0} min	≈{0} хв
 saved	зэканомлена
 The word is now in "Never correct".	Слова дададзена ў «Не выпраўляць».
-Why wasn't it corrected?	Чаму не выправілася?
-Nothing left alone yet	Пакуль усё выпраўлялася як трэба
+Why wasn't the word corrected?	Чаму слова не выпраўлена?
+No skipped words	Прапушчаных слоў няма
 the app is excluded	праграма ў выключэннях
 Correct in {0}	Выпраўляць у {0}
 a game or full screen	гульня або поўнаэкранны рэжым
-Don't stay quiet in full screen	Не маўчаць у поўнаэкранных праграмах
+Correct in full-screen apps	Выпраўляць у поўнаэкранных праграмах
 the app runs as administrator	праграма запушчана ад імя адміністратара
 a password field	поле пароля
-the password-field check hadn't answered	праверка палёў пароляў яшчэ не адказала
+the password field check had not finished	праверка поля пароля не завершана
 no dictionary for this layout	для гэтай раскладкі няма слоўніка
 digits or symbols in the word	у слове лічбы або сімвалы
 looks like a link, a path or code	падобна на спасылку, шлях або код
 "{0}" is in Never correct	«{0}» у спісе «Не выпраўляць»
-Take it out of Never correct	Прыбраць з «Не выпраўляць»
-"{0}": not sure it's a mistake	«{0}» — не ўпэўнены, што гэта памылка
+Remove from Never correct	Выдаліць з «Не выпраўляць»
+"{0}": the mistake is not certain	«{0}»: памылка не пацверджана
 Correct this word	Выпраўляць гэтае слова
-Pause corrections for an hour / resume	Паўза выпраўленняў на гадзіну / зняць паўзу
-Correcting again.	Выпраўленне зноў уключана.
-Clear the formatting of selected text: bold, italics, links, 𝐬𝐭𝐲𝐥𝐞𝐝 letters	Прыбраць фарматаванне вылучанага тэксту: тоўсты, курсіў, спасылкі, 𝐬𝐭𝐲𝐥𝐞𝐝 літары
+Pause correction for 1 hour / resume	Прыпыніць выпраўленне на 1 гадзіну / аднавіць
+Correction resumed.	Выпраўленне адноўлена.
+Clear the formatting of selected text: bold, italic, links, styled characters	Выдаленне фарматавання вылучанага тэксту: тлусты, курсіў, спасылкі, стылізаваныя сімвалы
 Sounds	Гукі
-KeyFish plays a sound when it fixes or changes text. Pick a sound for each event or turn it off. You can add your own sounds: .wav files in the sounds folder.	KeyFish падае гук, калі выпраўляе або змяняе тэкст. Для кожнай падзеі можна выбраць свой гук або выключыць яго. Можна дадаць свае гукі — файлы .wav у папцы гукаў.
-Listen: {0}	Праслухаць: {0}
+Sound signals when text is corrected or changed. A sound can be chosen or turned off for each event. Custom sounds are added to the sounds folder as .wav files.	Гукавыя сігналы пры выпраўленні і змяненні тэксту. Для кожнай падзеі можна выбраць гук або выключыць яго. Уласныя гукі дадаюцца ў папку гукаў у фармаце .wav.
+Play: {0}	Праслухаць: {0}
 Sounds folder	Папка гукаў
-Look	Афармленне
-Light or dark, window colors, the fish, the icons and the sound. Takes effect after saving.	Светлае ці цёмнае, колеры вокнаў, рыбка, значкі і гук. Ужыецца пасля захавання.
-How it will look	Як гэта будзе выглядаць
-High contrast is on: KeyFish's windows use the Windows colors, and no look applies.	Уключана высокая кантраснасць: вокны KeyFish у колерах Windows, афармленне не ўжываецца.
-The fish in the look's style	Рыбка ў стылі афармлення
-The logo, the tray icon and the aquarium.	Лагатып, значок у трэі і акварыум.
-The look's sound	Гук афармлення
-The correction sound.	Гук выпраўлення.
-Listen	Праслухаць
-Switch to a holiday look automatically	Аўтаматычна ўключаць святочнае афармленне
+Appearance	Афармленне
+Window colors, the notification area icon and the correction sound. Changes apply immediately.	Каляровая схема вокнаў, значок у вобласці апавяшчэнняў і гук выпраўлення. Змены ўжываюцца адразу.
+Preview	Папярэдні прагляд
+High contrast mode is on: KeyFish windows use system colors, and the theme does not apply.	Уключаны рэжым высокай кантраснасці: вокны KeyFish выкарыстоўваюць сістэмныя колеры, тэма не ўжываецца.
+Themed icon	Значок у стылі тэмы
+The logo and the notification area icon.	Лагатып і значок у вобласці апавяшчэнняў.
+Theme sound	Гук тэмы
+Used as the correction sound.	Выкарыстоўваецца як гук выпраўлення.
+Play	Праслухаць
+Turn on holiday themes automatically	Аўтаматычна ўключаць святочныя тэмы
 Layout fix	Выпраўленне раскладкі
 Typo fix	Выпраўленне памылкі друку
 Replacement and typography	Аўтазамена і тыпаграфіка
@@ -217,29 +217,34 @@ Undoing a fix	Адмена выпраўлення
 Hotkey	Гарачая клавіша
 Pause and resume	Паўза і працяг
 No sound	Без гуку
-Bloop	Бульк
-Ooo	У-у-у
+Splash	Усплёск
+Hum	Гул
 Drop	Кропля
 Click	Пстрычка
 Chime	Званочак
-Bloop down	Бульк уніз
-Fixing as you type is off in Settings, so there is nothing to pause.	Выпраўленне падчас набору выключана ў наладах — ставіць на паўзу няма чаго.
-the word isn't a known word in any layout	слова не чытаецца як вядомае ні ў адной раскладцы
+Low splash	Усплёск нізкі
+Correction while typing is turned off in Settings.	Выпраўленне пры наборы выключана ў наладах.
+the word is not in any layout's dictionary	слова не знойдзена ў слоўніках раскладак
 Choose	Выбраць
-On now	Цяпер
-Classic	Класічнае
+Active	Актыўная
+Windows 11	Windows 11
 Halloween	Хэлоўін
 October 24 to November 2	24 кастрычніка — 2 лістапада
 Oct 24 – Nov 2	24.10 — 2.11
 thx	дзяк
-Your version	Ваша версія
-These hotkeys are taken by another app: {0}.	Гэтыя спалучэнні клавіш занятыя іншай праграмай: {0}.
-These keys can't be hotkeys and are off: {0}.	Гэтыя клавішы не могуць быць гарачымі і выключаны: {0}.
-You can change them in Settings.	Іх можна змяніць у наладах.
-Colors of the custom look:	Колеры свайго афармлення:
-{0}: a color of the custom look	{0}: колер свайго афармлення
+Installed	Усталявана
+The following hotkeys are in use by another app: {0}.	Наступныя спалучэнні клавіш выкарыстоўваюцца іншай праграмай: {0}.
+The following hotkeys are not allowed and have been turned off: {0}.	Наступныя спалучэнні клавіш недапушчальныя і выключаны: {0}.
+They can be changed in Settings.	Іх можна змяніць у наладах.
+Custom theme colors:	Колеры сваёй тэмы:
+{0}: custom theme color	{0}: колер сваёй тэмы
 Accent	Акцэнт
-Fish	Рыбка
+Icon	Значок
 Undo the fix	Адмяніць выпраўленне
-It can't be undone now: something was typed after the fix, or another window is in front.	Адмяніць ужо нельга: пасля выпраўлення набіралі тэкст або адкрыта іншае акно.
-Custom	Сваё
+Undo is unavailable: text was typed after the correction, or another window was activated.	Адмена недаступная: пасля выпраўлення быў уведзены тэкст або актываванае іншае акно.
+Custom theme	Свая тэма
+Apply	Ужыць
+Apply the changes?	Ужыць змены?
+System language	Мова сістэмы
+Color mode	Каляровы рэжым
+Word lists	Спісы слоў

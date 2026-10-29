@@ -29,6 +29,26 @@ class SettingsForm : Form
     public IList<LayoutTable> InstalledLayouts = new List<LayoutTable>();
     public Dictionary<string, Color> LayoutColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);   // "EN" → color
     public int StartPage { get; set; }   // the section to open with (tests\Preview opens any)
+    // Apply: KeyFish takes the values of this window's fields and keeps them; ApplyLook: only the look's, at once when
+    // one is picked. True when the window has to be built again to show them (another language, theme or look)
+    public Func<SettingsForm, bool> Apply, ApplyLook;
+    string applied;        // the settings as last applied (Snapshot), to ask about changes left unapplied on closing
+    bool building;         // the window is being built: its controls' first values aren't changes
+    bool rebuildPending;   // a look was picked and the window is about to be built again
+    bool applyPending;     // a setting was changed and is about to be applied
+    // Arrow keys going through the theme or language list: the window is built again once they stop
+    readonly Timer rebuildTimer = new Timer { Interval = 600 };
+    Action updatesRefresh;  // the Updates card of the window as built now (a check may end after a rebuild)
+    // The fields for a new item, kept over a rebuild: abbreviation and text, app, layout, correct, and the new words
+    TextBox replKey, replVal;
+    DropDown appName, appLayout;
+    ToggleSwitch appFix;
+    readonly List<TextBox> wordInputs = new List<TextBox>();
+    // Importing settings: KeyFish keeps a copy of the current ones first, whatever was changed before in the window
+    public bool Replacing { get; private set; }
+    Size baseSize;         // the window's size in 96-DPI pixels, to build it again
+    NavList nav;
+    Panel content;
 
     ToggleSwitch tAuto, tTypos, tQuiet, tCtrlZ, tColor, tAutostart, tUpdates, tBadge, tRecent, tSound, tLetters, tTypography;
     DropDown cbLanguage, cbTheme, cbQuickKey;
@@ -40,7 +60,6 @@ class SettingsForm : Form
     DataGridView gridReplacements, gridApps, gridIgnored, gridLearned;
 
     const int SideWidth = 250, ContentWidth = 640;
-    readonly Panel content = new Panel();
     readonly List<Panel> pages = new List<Panel>();
 
     public SettingsForm()
@@ -53,6 +72,7 @@ class SettingsForm : Form
         KeyPreview = true;
         Theme.Apply(this);
         ClientSize = new Size(SideWidth + ContentWidth + 40, 660);
+        rebuildTimer.Tick += (s, e) => Rebuild();
     }
 
     protected override void OnLoad(EventArgs e)
@@ -68,8 +88,30 @@ class SettingsForm : Form
         int chromeW = Width - ClientSize.Width;
         int roomW = (int)((Screen.FromPoint(Cursor.Position).WorkingArea.Width - chromeW - 8) / Theme.Scale);
         if (roomW < ClientSize.Width) ClientSize = new Size(Math.Max(SideWidth + 400, roomW), ClientSize.Height);
+        baseSize = ClientSize;
+        building = true;
+        Build();
+        building = false;
+        Theme.ScaleWindow(this);   // built in 96-DPI pixels, now sized for this screen
+        CenterToScreen();
+        ResumeLayout();
+        Shown += (s, ev) => PlayPictures();   // only now is the window on screen to be seen
+        // Files put into the sounds folder while Settings is open show up when the window is back in front
+        Activated += (s, ev) => FillSounds();
+        Collect();
+        applied = Snapshot();
+        base.OnLoad(e);
+    }
+
+    // The sidebar, the pages and the buttons, in 96-DPI pixels of a window of baseSize (scaled by the caller)
+    void Build()
+    {
+        replKey = replVal = null;
+        appName = appLayout = null;
+        appFix = null;
+        wordInputs.Clear();
         // Sidebar: the fish, the name and the sections
-        var side = new Panel { Location = new Point(0, 0), Size = new Size(SideWidth, ClientSize.Height), BackColor = Theme.Back };
+        var side = new Panel { Location = new Point(0, 0), Size = new Size(SideWidth, baseSize.Height), BackColor = Theme.Back };
         var fish = new FishView { Location = new Point(20, 18), Size = new Size(36, 36) };
         fish.EasterEgg += (s, ev) => fish.Fury();
         side.Controls.Add(fish);
@@ -80,33 +122,41 @@ class SettingsForm : Form
         side.Controls.Add(ver);
         side.Controls.Add(name);
 
-        var nav = new NavList { Location = new Point(8, 74), Size = new Size(SideWidth - 16, 6 * 40) };
-        nav.Items.Add(Tuple.Create("\uE713", L.T("Основное", "General")));
+        nav = new NavList { Location = new Point(8, 74), Size = new Size(SideWidth - 16, 8 * 40) };
+        // The sections in the order of use: correction, what KeyFish is about, first; the system settings last
+        nav.Items.Add(Tuple.Create("\uE70F", L.T("Исправление", "Correction")));
+        nav.Items.Add(Tuple.Create("\uE790", L.T("Оформление", "Appearance")));
+        nav.Items.Add(Tuple.Create("\uEA8F", L.T("Значок и звуки", "Icon and sounds")));
         nav.Items.Add(Tuple.Create("\uE765", L.T("Сочетания клавиш", "Hotkeys")));
         nav.Items.Add(Tuple.Create("\uE8AC", L.T("Автозамены", "Replacements")));
         nav.Items.Add(Tuple.Create("\uE71D", L.T("Программы", "Apps")));
-        nav.Items.Add(Tuple.Create("\uE82D", L.T("Слова", "Words")));
+        nav.Items.Add(Tuple.Create("\uE82D", L.T("Списки слов", "Word lists")));
+        nav.Items.Add(Tuple.Create("\uE713", L.T("Система", "System")));
         side.Controls.Add(nav);
 
-        // About, at the bottom of the sidebar, level with Save and Cancel
+        // About, at the bottom of the sidebar, level with Close
         var about = new RoundButton
         {
-            Text = L.T("О программе", "About KeyFish"), Glyph = "\uE946", Location = new Point(16, ClientSize.Height - 50), Size = new Size(SideWidth - 32, 34)
+            Text = L.T("О программе", "About KeyFish"), Glyph = "\uE946", Location = new Point(16, baseSize.Height - 50), Size = new Size(SideWidth - 32, 34)
         };
         about.Click += (s, ev) => { if (OpenAbout != null) OpenAbout(this); };
         side.Controls.Add(about);
         Controls.Add(side);
 
-        content.Location = new Point(SideWidth, 0);
-        content.Size = new Size(ClientSize.Width - SideWidth, ClientSize.Height - 64);
+        content = new Panel { Location = new Point(SideWidth, 0) };
+        content.Size = new Size(baseSize.Width - SideWidth, baseSize.Height - 64);
         content.BackColor = Theme.Back;
         Controls.Add(content);
 
-        pages.Add(GeneralPage());
+        PickSample();
+        pages.Add(CorrectionPage());
+        pages.Add(LooksPage());
+        pages.Add(CuesPage());
         pages.Add(HotkeysPage());
         pages.Add(ReplacementsPage());
         pages.Add(AppsPage());
         pages.Add(WordsPage());
+        pages.Add(SystemPage());
         foreach (var p in pages) { p.Visible = false; content.Controls.Add(p); }
         nav.Selected = Math.Max(0, Math.Min(StartPage, pages.Count - 1));
         pages[nav.Selected].Visible = true;
@@ -115,30 +165,182 @@ class SettingsForm : Form
             for (int i = 0; i < pages.Count; i++) pages[i].Visible = i == nav.Selected;
             PlayPictures();
         };
-        Shown += (s, ev) => PlayPictures();   // only now is the window on screen to be seen
 
-        var save = new RoundButton { Text = L.T("Сохранить", "Save"), AccentStyle = true, Size = new Size(130, 34) };
-        var cancel = new RoundButton { Text = L.T("Отмена", "Cancel"), Size = new Size(130, 34) };
-        save.Location = new Point(ClientSize.Width - 28 - 130 - 10 - 130, ClientSize.Height - 50);
-        cancel.Location = new Point(ClientSize.Width - 28 - 130, ClientSize.Height - 50);
-        save.Click += (s, ev) => { Collect(); DialogResult = DialogResult.OK; Close(); };
-        cancel.Click += (s, ev) => { DialogResult = DialogResult.Cancel; Close(); };
-        Controls.Add(save);
-        Controls.Add(cancel);
+        // Every change applies at once, as in Windows Settings: the window has only Close
+        var close = new RoundButton { Text = L.T("Закрыть", "Close"), AccentStyle = true, Size = new Size(130, 34) };
+        close.Location = new Point(baseSize.Width - 28 - 130, baseSize.Height - 50);
+        close.Click += (s, ev) => Close();
+        Controls.Add(close);
+        Watch(this);
         Theme.SolidLabels(this);
-        Theme.ScaleWindow(this);   // built in 96-DPI pixels, now sized for this screen
-        CenterToScreen();
-        ResumeLayout();
-        base.OnLoad(e);
     }
 
-    // Esc closes without saving, unless a field is being edited in a table
+    // The fields (Collect has just filled them) go to KeyFish; the window is built again if it has to show them
+    void ApplyNow()
+    {
+        bool rebuild = Apply != null && Apply(this);
+        applied = Snapshot();
+        if (rebuild) ScheduleRebuild();
+    }
+
+    // Every control that holds a setting reports its changes; the switches and lists made for entering a new item
+    // report too, which changes nothing in the snapshot and so applies nothing
+    void Watch(Control root)
+    {
+        foreach (Control c in root.Controls)
+        {
+            if (c is ToggleSwitch) ((ToggleSwitch)c).CheckedChanged += (s, e) => Changed();
+            else if (c is DropDown) ((DropDown)c).SelectedIndexChanged += (s, e) => Changed();
+            else if (c is HotkeyBox) ((HotkeyBox)c).ValueChanged += (s, e) => Changed();
+            else if (c is DataGridView)
+            {
+                var grid = (DataGridView)c;
+                grid.RowsAdded += (s, e) => Changed();
+                grid.RowsRemoved += (s, e) => Changed();
+                grid.CellValueChanged += (s, e) => Changed();
+                grid.CellEndEdit += (s, e) => Changed();
+            }
+            Watch(c);
+        }
+    }
+
+    // A setting changed: it is applied once the event that changed it is over (several changes at once, one apply)
+    void Changed()
+    {
+        if (building || applied == null || applyPending || IsDisposed) return;
+        applyPending = true;
+        BeginInvoke(new Action(() =>
+        {
+            applyPending = false;
+            if (IsDisposed) return;
+            Collect();
+            if (Snapshot() != applied) ApplyNow();
+        }));
+    }
+
+    // A look picked (a card, the theme, a color, a switch of the look) applies at once; the window is built again
+    // in its new colors, or only redrawn when just the fish changed
+    void LookChanged()
+    {
+        if (building || ApplyLook == null) return;
+        Collect();
+        if (ApplyLook(this)) ScheduleRebuild();
+        else Invalidate(true);
+    }
+
+    // Once the click that changed it is over; arrow keys going through a list wait until they stop, so each key
+    // doesn't rebuild the window
+    void ScheduleRebuild()
+    {
+        var list = ActiveControl as DropDown;
+        if (list != null && list.ByKeyboard) { rebuildTimer.Stop(); rebuildTimer.Start(); return; }
+        if (rebuildPending) return;
+        rebuildPending = true;
+        BeginInvoke(new Action(() => Rebuild()));
+    }
+
+    // The window built again in place, in its new language and colors, with the values in it, the fields for new
+    // items as they were, on the same section and scroll, with the same control focused. collect: false when the
+    // fields were set without the controls (an import) and are already applied
+    void Rebuild(bool collect = true)
+    {
+        rebuildPending = false;
+        rebuildTimer.Stop();
+        if (IsDisposed) return;
+        if (collect)
+        {
+            // Anything not applied yet (a table cell) is applied first: the rebuilt window takes it as applied
+            Collect();
+            if (applied != null && Snapshot() != applied && Apply != null) Apply(this);
+        }
+        int scroll = -pages[nav.Selected].AutoScrollPosition.Y;
+        StartPage = nav.Selected;
+        var focus = PathOf(ActiveControl);
+        string[] texts = { replKey.Text, replVal.Text, appName.Text, wordInputs[0].Text, wordInputs[1].Text };
+        int layout = appLayout.SelectedIndex;
+        bool fix = appFix.Checked;
+        SuspendLayout();
+        var old = Controls.Cast<Control>().ToList();
+        Controls.Clear();
+        foreach (var c in old) c.Dispose();
+        pages.Clear();
+        Text = L.T("Настройки KeyFish", "KeyFish settings");
+        Theme.Recolor(this);
+        building = true;
+        Build();
+        replKey.Text = texts[0]; replVal.Text = texts[1]; appName.Text = texts[2]; wordInputs[0].Text = texts[3]; wordInputs[1].Text = texts[4];
+        appLayout.SelectedIndex = layout;
+        appFix.Checked = fix;
+        building = false;
+        // Only the new controls are scaled: the window keeps its size and place, no jump to 96-DPI size and back
+        if (Math.Abs(Theme.Scale - 1) > 0.01f)
+            foreach (Control c in Controls) c.Scale(new SizeF(Theme.Scale, Theme.Scale));
+        ResumeLayout();
+        pages[nav.Selected].AutoScrollPosition = new Point(0, scroll);
+        // The window's own active control, not Focus(): it takes effect even while another window is in front
+        var again = At(focus);
+        if (again != null) ActiveControl = again;
+        PlayPictures();
+        // Everything in the window is applied now; in another language the files' header comments read
+        // differently, which is no change to apply
+        Collect();
+        applied = Snapshot();
+    }
+
+    // Where a control is in the window: its page (or -1 outside the pages), then the index at each level below it.
+    // The window is built the same way every time, so the same path finds the same control after a rebuild. The
+    // pages are counted in their own order: Windows reorders them inside their panel as they are shown
+    List<int> PathOf(Control c)
+    {
+        var path = new List<int>();
+        for (; c != null && c != this && !pages.Contains(c as Panel); c = c.Parent)
+            path.Insert(0, c.Parent == null ? -1 : c.Parent.Controls.IndexOf(c));
+        if (c == null) return null;
+        path.Insert(0, c == this ? -1 : pages.IndexOf((Panel)c));
+        return path;
+    }
+
+    Control At(List<int> path)
+    {
+        if (path == null || path.Count == 0 || path[0] >= pages.Count) return null;
+        Control c = path[0] < 0 ? (Control)this : pages[path[0]];
+        foreach (int i in path.Skip(1))
+        {
+            if (i < 0 || i >= c.Controls.Count) return null;
+            c = c.Controls[i];
+        }
+        return c;
+    }
+
+    // All the settings in one string: the same values and files an export has, and autostart. Not the look's: those
+    // apply as soon as they are picked
+    static readonly string[] LookValues = { "Theme", "Holiday", "Skin", "SkinLogo", "SkinSound", "CustomAccent", "CustomFish" };
+    string Snapshot()
+    {
+        var sb = new StringBuilder(Autostart ? "1" : "0");
+        foreach (var v in Values()) if (Array.IndexOf(LookValues, v.Key) < 0) sb.Append('\n').Append(v.Key).Append('=').Append(v.Value);
+        foreach (var f in Files()) sb.Append('\n').Append(f.Key).Append('=').Append(f.Value);
+        return sb.ToString();
+    }
+
+    // A change not applied yet (a table cell still being edited) is applied on closing
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        if (applied != null)
+        {
+            Collect();
+            if (Snapshot() != applied && Apply != null) { Apply(this); applied = Snapshot(); }
+        }
+        base.OnFormClosing(e);
+    }
+
+    // Esc closes the window, unless a field is being edited in a table
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
     {
         if (keyData == Keys.Escape && FocusedHotkey() != null && FocusedHotkey().Cancel()) return true;
-        if (keyData == Keys.Escape && !(ActiveControl is DataGridView && ((DataGridView)ActiveControl).IsCurrentCellInEditMode))
+        // (a check box cell counts as edited as soon as it is current; only a text being typed in keeps Esc)
+        if (keyData == Keys.Escape && !(ActiveControl is DataGridView && ((DataGridView)ActiveControl).EditingControl is TextBox))
         {
-            DialogResult = DialogResult.Cancel;
             Close();
             return true;
         }
@@ -179,7 +381,7 @@ class SettingsForm : Form
             card.Controls.Add(d);
             textHeight += d.Height + 1;
         }
-        card.Height = Math.Max(textHeight + 28, 64);
+        card.Height = Math.Max(Math.Max(textHeight, right.Height) + 28, 64);
         t.Location = new Point(left, (card.Height - textHeight) / 2);
         if (d != null) d.Location = new Point(left, t.Bottom + 1);
         if (picture != null)
@@ -210,8 +412,8 @@ class SettingsForm : Form
         int textW = ContentWidth - pad * 3 - tSound.Width;
         var t = Theme.Wrapped(title, textW);
         t.Location = new Point(pad, 14);
-        var d = Theme.Wrapped(L.T("KeyFish подаёт звук, когда исправляет или меняет текст. Для каждого события можно выбрать свой звук или выключить его. Можно добавить свои звуки — файлы .wav в папке звуков.",
-                                  "KeyFish plays a sound when it fixes or changes text. Pick a sound for each event or turn it off. You can add your own sounds: .wav files in the sounds folder."), textW, Theme.Small, Theme.SubText);
+        var d = Theme.Wrapped(L.T("Звуковые сигналы при исправлении и изменении текста. Для каждого события можно выбрать звук или отключить его. Собственные звуки добавляются в папку звуков в формате .wav.",
+                                  "Sound signals when text is corrected or changed. A sound can be chosen or turned off for each event. Custom sounds are added to the sounds folder as .wav files."), textW, Theme.Small, Theme.SubText);
         d.Location = new Point(pad, t.Bottom + 1);
         tSound.AccessibleName = title;
         tSound.Location = new Point(ContentWidth - pad - tSound.Width, 18);
@@ -229,7 +431,7 @@ class SettingsForm : Form
             box.Location = new Point(ContentWidth - pad - playW - 8 - boxW, cy);
             name.Location = new Point(pad, cy + (32 - name.Height) / 2);
             var play = new RoundButton { Glyph = "\uE768", Text = "", Size = new Size(playW, 32), Location = new Point(ContentWidth - pad - playW, cy),
-                                         AccessibleName = L.F("Послушать: {0}", "Listen: {0}", Sounds.EventName(e)) };
+                                         AccessibleName = L.F("Прослушать: {0}", "Play: {0}", Sounds.EventName(e)) };
             play.Click += (s, ev) =>
             {
                 int k = soundBoxes[e].SelectedIndex;
@@ -242,6 +444,11 @@ class SettingsForm : Form
             cy += 40;
         }
         FillSounds();
+        // With the sounds off, their choices are grey: they do nothing until the sounds are on
+        var parts = card.Controls.Cast<Control>().Where(c => c is DropDown || (c is RoundButton && c != tSound)).ToList();
+        Action follow = () => { foreach (var c in parts) c.Enabled = tSound.Checked; };
+        tSound.CheckedChanged += (s, ev) => follow();
+        follow();
         var folder = new RoundButton { Text = L.T("Папка звуков", "Sounds folder"), Glyph = "\uE838", Size = new Size(170, 32), Location = new Point(pad, cy + 4) };
         folder.Click += (s, ev) =>
         {
@@ -252,8 +459,6 @@ class SettingsForm : Form
         card.Height = folder.Bottom + 16;
         page.Controls.Add(card);
         y += card.Height + 4;
-        // Files put into the folder while Settings is open show up when the window is back in front
-        Activated += (s, ev) => FillSounds();
     }
 
     // The choices for each event: the look's sound, none, the built-in ones, the user's files; keeps what is chosen
@@ -285,16 +490,16 @@ class SettingsForm : Form
         const int pad = 18, bigW = 260, bigH = 156;
         var card = new Card { Location = new Point(16, y), Width = ContentWidth };
         cbTheme = new DropDown { Size = new Size(170, 34) };
-        cbTheme.Items.AddRange(new[] { L.T("Как в Windows", "Same as Windows"), L.T("Светлая", "Light"), L.T("Тёмная", "Dark") });
+        cbTheme.Items.AddRange(new[] { L.T("Системный", "System default"), L.T("Светлый", "Light"), L.T("Тёмный", "Dark") });
         cbTheme.SelectedIndex = Math.Max(0, Math.Min(ThemeMode, 2));
-        cbTheme.AccessibleName = L.T("Тема", "Theme");
+        cbTheme.AccessibleName = L.T("Цветовой режим", "Color mode");
         cbTheme.Location = new Point(ContentWidth - pad - cbTheme.Width, 16);
-        string title = L.T("Оформление", "Look");
+        string title = L.T("Тема", "Theme");
         int textW = ContentWidth - pad * 3 - cbTheme.Width;
         var t = Theme.Wrapped(title, textW);
         t.Location = new Point(pad, 14);
-        var d = Theme.Wrapped(L.T("Светлое или тёмное, цвета окон, рыбка, значки и звук. Применится после сохранения.",
-                                  "Light or dark, window colors, the fish, the icons and the sound. Takes effect after saving."), textW, Theme.Small, Theme.SubText);
+        var d = Theme.Wrapped(L.T("Цветовая схема окон, значок в области уведомлений и звук исправления. Изменения применяются сразу.",
+                                  "Window colors, the notification area icon and the correction sound. Changes apply immediately."), textW, Theme.Small, Theme.SubText);
         d.Location = new Point(pad, t.Bottom + 1);
         card.Controls.Add(t);
         card.Controls.Add(d);
@@ -305,8 +510,8 @@ class SettingsForm : Form
         // In high contrast the windows take the system's colors and no look applies: say so instead of offering one
         if (Theme.Contrast)
         {
-            var note = Theme.Wrapped(L.T("Включена высокая контрастность: окна KeyFish в цветах Windows, оформление не применяется.",
-                                         "High contrast is on: KeyFish's windows use the Windows colors, and no look applies."), ContentWidth - pad * 2, Theme.Small, Theme.Text);
+            var note = Theme.Wrapped(L.T("Включён режим высокой контрастности: окна KeyFish используют системные цвета, тема не применяется.",
+                                         "High contrast mode is on: KeyFish windows use system colors, and the theme does not apply."), ContentWidth - pad * 2, Theme.Small, Theme.Text);
             note.Location = new Point(pad, top);
             card.Controls.Add(note);
             top = note.Bottom + 10;
@@ -317,7 +522,7 @@ class SettingsForm : Form
         top = gallery.Bottom + 12;
 
         // The colors of "Custom": choosing one shows it in the pictures and picks that look
-        string colorsText = L.T("Цвета своего оформления:", "Colors of the custom look:");
+        string colorsText = L.T("Цвета своей темы:", "Custom theme colors:");
         var colorsLabel = Theme.Wrapped(colorsText, TextRenderer.MeasureText(colorsText, Theme.Body).Width + 8);
         colorsLabel.Location = new Point(pad, top + (34 - colorsLabel.Height) / 2);
         card.Controls.Add(colorsLabel);
@@ -326,7 +531,7 @@ class SettingsForm : Form
         Action<string, Color, Color> swatch = (name, value, fallback) =>
         {
             var label = Theme.Wrapped(name, TextRenderer.MeasureText(name, Theme.Small).Width + 8, Theme.Small, Theme.SubText);
-            var sw = new ColorSwatch { Letters = "", Color = value, Location = new Point(sx, top), AccessibleName = L.F("{0}: цвет своего оформления", "{0}: a color of the custom look", name) };
+            var sw = new ColorSwatch { Letters = "", Color = value, Location = new Point(sx, top), AccessibleName = L.F("{0}: цвет своей темы", "{0}: custom theme color", name) };
             label.Location = new Point(sx + sw.Width + 6, top + (34 - label.Height) / 2);
             sw.Click += (s, e) => ColorPicker.Show(sw, sw.Color, c =>
             {
@@ -337,6 +542,7 @@ class SettingsForm : Form
                 gallery.CustomSkin = Skin.Make(CustomAccent, CustomFish);
                 gallery.Selected = Skin.Custom.Number;
                 Invalidate(true);
+                LookChanged();
             });
             swatches.Add(sw);
             card.Controls.Add(sw);
@@ -344,7 +550,7 @@ class SettingsForm : Form
             sx = label.Right + 18;
         };
         swatch(L.T("Акцент", "Accent"), CustomAccent, Skin.DefaultAccent);
-        swatch(L.T("Рыбка", "Fish"), CustomFish, Skin.DefaultFish);
+        swatch(L.T("Значок", "Icon"), CustomFish, Skin.DefaultFish);
         top += 34 + 18;
 
         tSkinLogo = Toggle(SkinLogo);
@@ -353,16 +559,18 @@ class SettingsForm : Form
         var big = new FeaturePreview((g, r, ms) =>
             SkinGallery.Draw(g, new RectangleF(r.X + 2, r.Y + 2, r.Width - 4, r.Height - 4), gallery.SelectedSkin, gallery.Dark, tSkinLogo.Checked,
                              (float)Math.Sin(ms / 1000.0 * 5) * 0.7f, ms % 3000 / 3000f), 6000)
-        { Size = new Size(bigW, bigH), Location = new Point(pad, top), AccessibleName = L.T("Как это будет выглядеть", "How it will look") };
+        { Size = new Size(bigW, bigH), Location = new Point(pad, top), AccessibleName = L.T("Предварительный просмотр", "Preview") };
         card.Controls.Add(big);
-        gallery.SelectedChanged += (s, e) => big.Invalidate();
+        gallery.SelectedChanged += (s, e) => { big.Invalidate(); LookChanged(); };
         if (Theme.Contrast)
         {
             gallery.Enabled = tSkinLogo.Enabled = tSkinSound.Enabled = tHoliday.Enabled = false;
             foreach (var sw in swatches) sw.Enabled = false;
         }
-        cbTheme.SelectedIndexChanged += (s, e) => { gallery.Dark = dark(); big.Invalidate(); };
-        tSkinLogo.CheckedChanged += (s, e) => { gallery.Logo = tSkinLogo.Checked; big.Invalidate(); };
+        cbTheme.SelectedIndexChanged += (s, e) => { gallery.Dark = dark(); big.Invalidate(); LookChanged(); };
+        tSkinLogo.CheckedChanged += (s, e) => { gallery.Logo = tSkinLogo.Checked; big.Invalidate(); LookChanged(); };
+        tSkinSound.CheckedChanged += (s, e) => LookChanged();
+        tHoliday.CheckedChanged += (s, e) => LookChanged();
 
         // Beside the picture: what the look changes, one switch each
         int x = pad + bigW + 20, w = ContentWidth - pad - x, cy = top;
@@ -385,14 +593,14 @@ class SettingsForm : Form
             card.Controls.Add(toggle);
             cy = bottom + 12;
         };
-        line(L.T("Рыбка в стиле оформления", "The fish in the look's style"), L.T("Логотип, значок в трее и аквариум.", "The logo, the tray icon and the aquarium."), tSkinLogo);
-        line(L.T("Звук оформления", "The look's sound"), L.T("Звук исправления.", "The correction sound."), tSkinSound);
-        var listen = new RoundButton { Text = L.T("Послушать", "Listen"), Glyph = "\uE768", Size = new Size(130, 30), Location = new Point(x, cy - 6) };
+        line(L.T("Значок в стиле темы", "Themed icon"), L.T("Логотип и значок в области уведомлений.", "The logo and the notification area icon."), tSkinLogo);
+        line(L.T("Звук темы", "Theme sound"), L.T("Используется как звук исправления.", "Used as the correction sound."), tSkinSound);
+        var listen = new RoundButton { Text = L.T("Прослушать", "Play"), Glyph = "\uE768", Size = new Size(130, 30), Location = new Point(x, cy - 6) };
         listen.Click += (s, e) => Sounds.Play(Sounds.Look, tSkinSound.Checked ? gallery.SelectedSkin : Skin.Classic);
         card.Controls.Add(listen);
         cy = listen.Bottom + 12;
         var seasons = Skin.All.Where(k => k.Season != null).Select(k => k.Name + ": " + k.SeasonText);
-        line(L.T("Автоматически включать праздничное оформление", "Switch to a holiday look automatically"), string.Join("; ", seasons) + ".", tHoliday);
+        line(L.T("Автоматически включать праздничные темы", "Turn on holiday themes automatically"), string.Join("; ", seasons) + ".", tHoliday);
         card.Height = Math.Max(big.Bottom, cy - 12) + 16;
         page.Controls.Add(card);
         y += card.Height + 4;
@@ -428,34 +636,77 @@ class SettingsForm : Form
     }
 
     // A color for each installed layout: a click on its circle opens the palette
+    // The icon in the color of the layout: each installed layout's own icon in its color, with its name, and a click on
+    // one chooses that color (the layout code in the tray and the tag at the cursor use it too), then the switch
     void ColorsRow(Panel page, ref int y)
     {
-        var holder = new Panel { BackColor = Color.Transparent, Height = 34 };
+        string title = L.T("Цвет значка показывает раскладку", "Icon color indicates the layout");
+        var holder = new Panel { BackColor = Color.Transparent };
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        int x = 0;
+        var items = new List<Tuple<ColorSwatch, Label>>();
+        var tags = new List<Tuple<string, bool>>();
+        // A layout's own default may change when another layout's color does: the swatches without a chosen color follow
+        Action refresh = () =>
+        {
+            for (int i = 0; i < items.Count; i++)
+                if (!items[i].Item1.Custom) { items[i].Item1.Color = ColorOf(tags[i].Item1, tags[i].Item2); items[i].Item1.Invalidate(); }
+        };
         foreach (var t in InstalledLayouts)
         {
             string name = (t.Name ?? "").Split('-')[0].ToUpperInvariant();
             if (name.Length == 0 || !seen.Add(name)) continue;
             bool other = t.Script != null && t.Script != "Latin";
-            Color def = other ? LetterIcon.Other : LetterIcon.Latin, chosen;
-            var swatch = new ColorSwatch { Letters = name, Location = new Point(x, 0) };
-            swatch.Custom = LayoutColors.TryGetValue(name, out chosen);
-            swatch.Color = swatch.Custom ? chosen : def;
+            var swatch = new ColorSwatch { Letters = name, Picture = FishIn };
+            swatch.Custom = LayoutColors.ContainsKey(name);
+            swatch.Color = ColorOf(name, other);
             swatch.AccessibleName = L.F("Цвет {0}", "Color of {0}", name);
             swatch.Click += (s, e) => ColorPicker.Show(swatch, swatch.Color, c =>
             {
-                if (c == null) { LayoutColors.Remove(name); swatch.Color = def; swatch.Custom = false; }
+                if (c == null) { LayoutColors.Remove(name); swatch.Custom = false; }
                 else { LayoutColors[name] = c.Value; swatch.Color = c.Value; swatch.Custom = true; }
+                refresh();
                 swatch.Invalidate();
+                Changed();
             });
+            // The name beside its icon, centered on it
+            var label = Theme.Wrapped(name, TextRenderer.MeasureText(name, Theme.Small).Width + 8, Theme.Small, Theme.SubText);
+            label.Height = swatch.Height;
+            label.TextAlign = ContentAlignment.MiddleLeft;
             holder.Controls.Add(swatch);
-            x += 40;
+            holder.Controls.Add(label);
+            items.Add(Tuple.Create(swatch, label));
+            tags.Add(Tuple.Create(name, other));
         }
-        holder.Width = Math.Max(34, x - 6);
-        Row(page, ref y, L.T("Цвета раскладок", "Layout colors"),
-            L.T("Нажмите на кружок, чтобы выбрать цвет: им будут рыбка, буквы в трее и значок у курсора.",
-                "Click a circle to choose its color: the tray fish, the letters and the tag at the cursor will use it."), holder);
+        // Two icons to a line, in columns as wide as the widest name; more layouts take more lines
+        const int perLine = 2, gap = 12, lineGap = 4;
+        int column = items.Count == 0 ? 0 : items.Max(i => i.Item1.Width + 2 + i.Item2.Width) + gap;
+        for (int i = 0; i < items.Count; i++)
+        {
+            var at = new Point(i % perLine * column, i / perLine * (34 + lineGap));
+            items[i].Item1.Location = at;
+            items[i].Item2.Location = new Point(at.X + items[i].Item1.Width + 2, at.Y);
+        }
+        int lines = Math.Max(1, (items.Count + perLine - 1) / perLine);
+        holder.Height = lines * 34 + (lines - 1) * lineGap;
+        tColor = Toggle(LayoutColor);
+        tColor.AccessibleName = title;
+        tColor.Location = new Point(Math.Min(items.Count, perLine) * column + 4, (holder.Height - tColor.Height) / 2);
+        holder.Controls.Add(tColor);
+        holder.Width = tColor.Right;
+        Row(page, ref y, title,
+            L.T("Значок в области уведомлений окрашивается в цвет текущей раскладки; этот же цвет используется для кода раскладки и индикатора у курсора. Чтобы изменить цвет, нажмите на значок раскладки.",
+                "The notification area icon takes the color of the current layout; the same color is used for the layout code and the indicator at the cursor. To change a color, click the layout's icon."), holder);
+    }
+
+    // The tray icon in a color, for the color choice of a layout
+    Image FishIn(Color color)
+    {
+        string key = "fish|" + color.ToArgb();
+        Image image;
+        if (sampleIcons.TryGetValue(key, out image)) return image;
+        using (var fish = Pictures.Fish(false)) image = global::LayoutColors.Recolor((Bitmap)fish, color);
+        sampleIcons[key] = image;
+        return image;
     }
 
     // The extended dictionaries of the installed layouts' languages: the switch downloads or removes them at once,
@@ -495,21 +746,21 @@ class SettingsForm : Form
             });
         };
         Row(page, ref y, L.T("Расширенный словарь", "Extended dictionary"),
-            L.F("Ещё около 100 тысяч слов на язык ({0}): редкие слова, имена, жаргон. Скачивается с GitHub при включении, около 1 МБ.",
-                "About 100,000 more words per language ({0}): rare words, names, slang. Downloads from GitHub when turned on (1 MB).",
+            L.F("Около 100 тысяч дополнительных слов на язык ({0}): редкие слова, имена собственные, разговорная лексика. Загружается с GitHub при включении (около 1 МБ).",
+                "About 100,000 additional words per language ({0}): rare words, proper names, colloquial vocabulary. Downloaded from GitHub when turned on (about 1 MB).",
                 tags), toggle, Typing(rareTyped, rareWord));
     }
 
     // A word typed with a mistake and what KeyFish makes of it (undo: then Ctrl+Z puts the typed word back)
     static FeaturePreview Typing(string typed, string fixedWord, bool undo = false)
     {
-        return new FeaturePreview((g, r, ms) => Pictures.Typing(g, r, ms, typed, fixedWord, undo), Pictures.TypingLength(typed, undo));
+        return new FeaturePreview((g, r, ms) => Pictures.Typing(g, r, ms, typed, fixedWord, undo), Pictures.TypingLength(typed, undo), Pictures.TypingRest(typed, undo));
     }
 
     // The tray icon as the layout is switched there and back
     static FeaturePreview Switching(Func<Image> first, Func<Image> second)
     {
-        return new FeaturePreview((g, r, ms) => Pictures.Switching(g, r, ms, first, second), Pictures.SwitchLength);
+        return new FeaturePreview((g, r, ms) => Pictures.Switching(g, r, ms, first, second), Pictures.SwitchLength, Pictures.SwitchRest);
     }
 
     // ---------- the pictures show the user's own layouts ----------
@@ -561,8 +812,7 @@ class SettingsForm : Form
     // The color the user chose for a layout, or the default one: blue for Latin, orange for the rest
     Color ColorOf(string tag, bool other)
     {
-        Color c;
-        return LayoutColors.TryGetValue(tag, out c) ? c : other ? LetterIcon.Other : LetterIcon.Latin;
+        return global::LayoutColors.For(tag, other, InstalledLayouts, LayoutColors);
     }
 
     // The tray icons in the pictures, made once per layout and color (the colors may change while Settings is open)
@@ -572,6 +822,7 @@ class SettingsForm : Form
     {
         foreach (var image in sampleIcons.Values) image.Dispose();
         sampleIcons.Clear();
+        rebuildTimer.Dispose();
         base.OnFormClosed(e);
     }
     Func<Image> SampleIcon(bool letters, bool other)
@@ -630,62 +881,82 @@ class SettingsForm : Form
 
     // ---------- General ----------
 
-    Panel GeneralPage()
+    // The language, autostart, updates (the status and the daily check side by side), all settings in one file, and
+    // the donation last: it is the least needed
+    Panel SystemPage()
     {
         int y;
-        var page = Page(L.T("Основное", "General"), out y);
-        PickSample();
-        page.Controls.Add(SupportCard(ref y));
-        UpdatesRow(page, ref y);
-        Group(page, ref y, L.T("Интерфейс", "Interface"));
-        cbLanguage = new DropDown { Size = new Size(170, 34) };   // as wide and tall as the buttons above
+        var page = Page(L.T("Система", "System"), out y);
+        cbLanguage = new DropDown { Size = new Size(170, 34) };   // as wide and tall as the buttons below
         cbLanguage.Items.AddRange(L.Choices);
         cbLanguage.SelectedIndex = Math.Max(0, Math.Min(Language, cbLanguage.Items.Count - 1));
         Row(page, ref y, L.T("Язык интерфейса", "Interface language"), null, cbLanguage);
+        Row(page, ref y, L.T("Запускать вместе с Windows", "Start with Windows"), null, tAutostart = Toggle(Autostart));
+        UpdatesRow(page, ref y);
+        Row(page, ref y, L.T("Проверять обновления", "Check for updates"),
+            L.T("Раз в сутки KeyFish запрашивает у GitHub сведения о новой версии. Другие данные не передаются.",
+                "Once a day KeyFish checks GitHub for a new version. No other data is sent."), tUpdates = Toggle(CheckUpdates));
+        ArchiveRow(page, ref y);
+        page.Controls.Add(SupportCard(ref y));
+        return End(page, y);
+    }
+
+    Panel LooksPage()
+    {
+        int y;
+        var page = Page(L.T("Оформление", "Appearance"), out y);
         LooksCard(page, ref y);
-        Group(page, ref y, L.T("Исправление", "Correction"));
+        return End(page, y);
+    }
+
+    Panel CorrectionPage()
+    {
+        int y;
+        var page = Page(L.T("Исправление", "Correction"), out y);
         Row(page, ref y, L.T("Исправлять раскладку при наборе", "Fix the keyboard layout as you type"),
-            L.T("ghbdtn → привет, руддщ → hello. Автозамены тоже работают, только когда это включено.",
-                "ghbdtn → привет, руддщ → hello. Replacements also work only while this is on."), tAuto = Toggle(AutoCorrect),
+            L.T("Пример: ghbdtn → привет, руддщ → hello. Автозамены работают только при включённом параметре.",
+                "Example: ghbdtn → привет, руддщ → hello. Replacements work only while this is on."), tAuto = Toggle(AutoCorrect),
             Typing(sampleTyped, sampleWord));
         DictionaryRow(page, ref y);
         Row(page, ref y, L.T("Исправлять опечатки", "Fix typos"),
-            L.T("Эксперимент: пирвет → привет, через проверку орфографии Windows.", "Experimental: recieve → receive, using Windows spell check."), tTypos = Toggle(Typos),
+            L.T("Экспериментальная функция. Использует проверку орфографии Windows: пирвет → привет.", "Experimental. Uses Windows spell checking: recieve → receive."), tTypos = Toggle(Typos),
             Typing(SampleTypo(), sampleWord));
         Row(page, ref y, L.T("Типографика", "Typography"),
-            L.T("Дефис между словами становится тире, три точки — многоточием, (c) (r) (tm) — © ® ™.",
-                "A hyphen between words becomes a dash, three dots an ellipsis, (c) (r) (tm) become © ® ™."), tTypography = Toggle(Typography),
+            L.T("Дефис между словами заменяется тире, три точки — многоточием, (c) (r) (tm) — символами © ® ™.",
+                "A hyphen between words is replaced with a dash, three dots with an ellipsis, (c) (r) (tm) with © ® ™."), tTypography = Toggle(Typography),
             Typing("(c)", "\u00A9"));
-        Row(page, ref y, L.T("Ctrl+Z отменяет автоисправление", "Ctrl+Z undoes an auto-fix"),
-            L.T("Сразу после исправления, как и Pause. Следующий Ctrl+Z работает в программе как обычно.",
-                "Right after the fix, like Pause. The next Ctrl+Z works in the app as usual."), tCtrlZ = Toggle(UndoCtrlZ),
+        Row(page, ref y, L.T("Отмена автоисправления клавишами Ctrl+Z", "Undo auto-correction with Ctrl+Z"),
+            L.T("Действует сразу после исправления, как Pause. Повторное нажатие Ctrl+Z работает в программе как обычно.",
+                "Works right after a correction, as Pause does. Pressing Ctrl+Z again works in the app as usual."), tCtrlZ = Toggle(UndoCtrlZ),
             Typing(sampleTyped, sampleWord, true));
-        Row(page, ref y, L.T("Молчать в играх и полноэкранных программах", "Stay quiet in games and full-screen apps"), null, tQuiet = Toggle(QuietFullscreen));
-        Group(page, ref y, L.T("Значок и подсказки", "Icon and cues"));
-        Row(page, ref y, L.T("Цвет рыбки показывает раскладку", "Fish color shows the layout"),
-            L.T("Синяя — латиница, оранжевая — другой алфавит.", "Blue — Latin, orange — another alphabet."), tColor = Toggle(LayoutColor),
-            Switching(SampleIcon(false, false), SampleIcon(false, true)));
-        Row(page, ref y, L.T("Буквы раскладки вместо рыбки", "Layout letters instead of the fish"),
-            L.T("В трее EN, RU и т. д. в кружке того же цвета. Пока KeyFish не исправляет, кружок серый.",
-                "The tray shows EN, RU and so on in a circle of the same color. While KeyFish isn't correcting, the circle is grey."),
-            tLetters = Toggle(TrayLetters), Switching(SampleIcon(true, false), SampleIcon(true, true)));
-        ColorsRow(page, ref y);
-        Row(page, ref y, L.T("Показывать раскладку у курсора", "Show the layout at the cursor"),
-            L.T("Когда раскладка меняется, рядом с текстовым курсором на секунду появляется EN, RU и т. д. Если программа не сообщает, где курсор, — рядом с мышью.",
-                "When the layout changes, EN, RU and so on appear next to the text cursor for a second, or next to the mouse pointer if the app doesn't tell where its cursor is."), tBadge = Toggle(LayoutBadge),
-            new FeaturePreview((g, r, ms) => Pictures.Badge(g, r, ms, sampleWord, otherTag, ColorOf(otherTag, true), latinTag, ColorOf(latinTag, false)),
-                               Pictures.BadgeLength));
-        Row(page, ref y, L.T("Последние исправления в меню рыбки", "Recent corrections in the fish menu"),
-            L.T("Нажмите на исправление в меню, и KeyFish больше не будет так исправлять. Список хранится только в памяти.",
-                "Click a correction in the menu and KeyFish won't correct it again. The list is kept only in memory."), tRecent = Toggle(RecentMenu));
-        SoundsCard(page, ref y);
-        Group(page, ref y, L.T("Система", "System"));
-        Row(page, ref y, L.T("Запускать вместе с Windows", "Start with Windows"), null, tAutostart = Toggle(Autostart));
-        Row(page, ref y, L.T("Проверять обновления", "Check for updates"),
-            L.T("Раз в день KeyFish спрашивает у GitHub, вышла ли новая версия. Больше ничего не отправляется.",
-                "Once a day KeyFish asks GitHub whether a new version is out. Nothing else is sent."), tUpdates = Toggle(CheckUpdates));
+        Row(page, ref y, L.T("Не исправлять в играх и полноэкранных программах", "Don't correct in games and full-screen apps"), null, tQuiet = Toggle(QuietFullscreen));
+        return End(page, y);
+    }
 
-        // All settings in one file: to move to another computer or to go back to an earlier state
+    Panel CuesPage()
+    {
+        int y;
+        var page = Page(L.T("Значок и звуки", "Icon and sounds"), out y);
+        ColorsRow(page, ref y);
+        Row(page, ref y, L.T("Код раскладки вместо значка", "Layout code instead of the icon"),
+            L.T("В области уведомлений отображается код раскладки (EN, RU и т. д.) в цвете раскладки. Серый цвет означает, что исправление отключено или приостановлено.",
+                "The notification area shows the layout code (EN, RU, etc.) in the layout color. Grey means correction is off or paused."),
+            tLetters = Toggle(TrayLetters), Switching(SampleIcon(true, false), SampleIcon(true, true)));
+        Row(page, ref y, L.T("Показывать раскладку у курсора", "Show the layout at the cursor"),
+            L.T("При смене раскладки её код (EN, RU и т. д.) на секунду отображается рядом с текстовым курсором, а если программа не сообщает его положение, — рядом с указателем мыши.",
+                "When the layout changes, its code (EN, RU, etc.) appears next to the text cursor for one second, or next to the mouse pointer if the app does not report the cursor position."), tBadge = Toggle(LayoutBadge),
+            new FeaturePreview((g, r, ms) => Pictures.Badge(g, r, ms, sampleWord, otherTag, ColorOf(otherTag, true), latinTag, ColorOf(latinTag, false)),
+                               Pictures.BadgeLength, Pictures.BadgeRest));
+        Row(page, ref y, L.T("Последние исправления в меню значка", "Recent corrections in the icon menu"),
+            L.T("Выбор исправления в меню добавляет слово в список «Не исправлять». Список хранится только в оперативной памяти.",
+                "Choosing a correction in the menu adds the word to the Never correct list. The list is kept in memory only."), tRecent = Toggle(RecentMenu));
+        SoundsCard(page, ref y);
+        return End(page, y);
+    }
+
+    // All settings in one file: to move to another computer or to go back to an earlier state
+    void ArchiveRow(Panel page, ref int y)
+    {
         var export = new RoundButton { Text = L.T("Экспорт…", "Export…"), Location = new Point(0, 0), Size = new Size(110, 32) };
         var import = new RoundButton { Text = L.T("Импорт…", "Import…"), Location = new Point(118, 0), Size = new Size(110, 32) };
         export.Click += (s, e) => ExportSettings();
@@ -693,26 +964,29 @@ class SettingsForm : Form
         var archive = new Panel { Size = new Size(228, 32), BackColor = Color.Transparent };
         archive.Controls.Add(export);
         archive.Controls.Add(import);
-        Row(page, ref y, L.T("Все настройки одним файлом", "All settings in one file"),
-            L.T("Для переноса на другой компьютер. Перед каждым сохранением KeyFish сам кладёт копию прежних настроек в папку backups (последние 10) — их тоже можно импортировать.",
-                "To move to another computer. Before every save KeyFish puts a copy of the previous settings in the backups folder (the last 10), and those can be imported too."), archive);
+        Row(page, ref y, L.T("Экспорт и импорт настроек", "Export and import settings"),
+            L.T("Все настройки в одном файле для переноса на другой компьютер. Перед изменением настроек их предыдущая копия сохраняется в папке backups (последние 10 копий); копии также можно импортировать.",
+                "All settings in one file, for moving to another computer. Before settings are changed, a copy of the previous ones is saved in the backups folder (the last 10 copies); these copies can also be imported."), archive);
+    }
 
+    static Panel End(Panel page, int y)
+    {
         page.Controls.Add(new Panel { Location = new Point(0, y), Size = new Size(1, 16) });   // bottom margin when scrolled
         return page;
     }
 
-    // KeyFish is free: the way to support it sits at the top of the first page, quiet but easy to find
+    // KeyFish is free: the way to support it, at the end of System and in About
     static Card SupportCard(ref int y)
     {
         var support = new RoundButton
         {
             // Like in the About window: a red heart reads well on a plain button, not on the accent color
-            Text = L.T("Поддержать ☕", "Support ☕").Replace("☕", "").Trim(), Glyph = "\uEB52", GlyphColor = Color.FromArgb(232, 72, 85), Size = new Size(170, 34)
+            Text = L.T("Поддержать", "Donate"), Glyph = "\uEB52", GlyphColor = Color.FromArgb(232, 72, 85), Size = new Size(170, 34)
         };
         support.Click += (s, e) => { try { Process.Start("https://ko-fi.com/pravken"); } catch { } };
         var holder = new Panel();
-        Row(holder, ref y, L.T("KeyFish бесплатный", "KeyFish is free"),
-            L.T("Если он экономит вам время, можно угостить автора кофе.", "If it saves you time, you can buy the author a coffee."), support);
+        Row(holder, ref y, L.T("KeyFish распространяется бесплатно", "KeyFish is free of charge"),
+            L.T("Поддержать разработку можно добровольным пожертвованием.", "Development can be supported with a voluntary donation."), support);
         var card = (Card)holder.Controls[0];
         holder.Controls.Remove(card);
         return card;
@@ -724,10 +998,10 @@ class SettingsForm : Form
         if (Updates == null) return;
         var button = new RoundButton { Size = new Size(170, 34) };
         // The status may grow by a line ("Couldn't reach GitHub…"): the row is made for the longest one
-        string longest = L.T("Не удалось связаться с GitHub. Проверьте интернет и попробуйте позже.", "Couldn't reach GitHub. Check your connection and try again later.");
+        string longest = L.T("Не удалось подключиться к GitHub. Проверьте подключение к интернету и повторите попытку позже.", "Could not connect to GitHub. Check the internet connection and try again later.");
         Row(page, ref y, L.T("Обновления", "Updates"), longest, button);
         var status = (Label)button.Parent.Controls[1];
-        Action refresh = () =>
+        Action refresh = updatesRefresh = () =>
         {
             status.Text = Updates.Status;
             status.ForeColor = Updates.NewVersion ? Theme.AccentFill : Theme.SubText;
@@ -739,7 +1013,7 @@ class SettingsForm : Form
         button.Click += (s, e) =>
         {
             if (Updates.NewVersion) { Updates.Install(); return; }
-            Updates.Check(() => { if (!IsDisposed) refresh(); });
+            Updates.Check(() => { if (!IsDisposed && updatesRefresh != null) updatesRefresh(); });
             refresh();
         };
         refresh();
@@ -751,8 +1025,8 @@ class SettingsForm : Form
     {
         int y;
         var page = Page(L.T("Сочетания клавиш", "Hotkeys"), out y);
-        Intro(page, ref y, L.T("Щёлкните поле и нажмите новое сочетание. Esc — отмена, Backspace — выключить сочетание.",
-                              "Click a field and press the new keys. Esc cancels, Backspace turns a hotkey off."));
+        Intro(page, ref y, L.T("Чтобы изменить сочетание, щёлкните поле и нажмите новые клавиши. Esc — отмена, Backspace — отключить сочетание.",
+                              "To change a hotkey, click its field and press the new keys. Esc cancels; Backspace turns the hotkey off."));
         hotkeyBoxes = new HotkeyBox[Hotkeys.Length];
         for (int i = 0; i < Hotkeys.Length; i++)
         {
@@ -770,9 +1044,9 @@ class SettingsForm : Form
         cbQuickKey = new DropDown { Width = 260 };
         cbQuickKey.Items.AddRange(new[] { L.T("Выключено", "Off"), L.T("Двойной Shift", "Double Shift"), "Caps Lock" });
         cbQuickKey.SelectedIndex = Math.Max(0, Math.Min(QuickKey, 2));
-        Row(page, ref y, L.T("Исправить последнее слово одной клавишей", "Fix the last word with one key"),
-            L.T("Делает то же, что первое сочетание. Caps Lock вместе с Shift по-прежнему включает заглавные буквы.",
-                "Does the same as the first hotkey. Shift+Caps Lock still turns capital letters on and off."), cbQuickKey);
+        Row(page, ref y, L.T("Исправление последнего слова одной клавишей", "Fix the last word with a single key"),
+            L.T("Выполняет то же действие, что и первое сочетание. Shift+Caps Lock по-прежнему включает и выключает заглавные буквы.",
+                "Performs the same action as the first hotkey. Shift+Caps Lock still turns capital letters on and off."), cbQuickKey);
         return page;
     }
 
@@ -782,24 +1056,22 @@ class SettingsForm : Form
     {
         int y;
         var page = Page(L.T("Автозамены", "Replacements"), out y);
-        Intro(page, ref y, L.T("Наберите сокращение и пробел — KeyFish заменит его на текст. Сокращение срабатывает и в другой раскладке: «спс» заменится, даже если набрано «cgc».",
-                              "Type an abbreviation and a space, and KeyFish replaces it with the text. It works in the other layout too: \"thx\" expands even when typed as «ерч»."));
+        Intro(page, ref y, L.T("Сокращение, за которым следует пробел, заменяется заданным текстом. Сокращение распознаётся и в другой раскладке: «спс» заменяется, даже если набрано «cgc».",
+                              "An abbreviation followed by a space is replaced with the specified text. Abbreviations are recognized in the other layout too: \"thx\" expands even when typed as «ерч»."));
 
         // The editor: abbreviation → text, then Add (or Save when the abbreviation is already in the table)
         var editor = new Card { Location = new Point(16, y), Size = new Size(ContentWidth, 132) };
         var lKey = Theme.Label(L.T("Сокращение", "Abbreviation"), Theme.Small, Theme.SubText); lKey.Location = new Point(16, 10);
         var lVal = Theme.Label(L.T("Замена (Enter — новая строка)", "Text (Enter — new line)"), Theme.Small, Theme.SubText); lVal.Location = new Point(206, 10);
-        var key = Theme.TextField(L.T("спс", "thx"));
+        var key = replKey = Theme.TextField(L.T("спс", "thx"));
 
         var arrow = Theme.Label("→", Theme.Section, Theme.SubText); arrow.Location = new Point(180, 32);
-        var val = Theme.TextField();
+        var val = replVal = Theme.TextField();
         val.Multiline = true; val.AcceptsReturn = true;
 
         Theme.DarkScrollbars(val);
-        var add = new RoundButton { Text = L.T("Добавить", "Add"), AccentStyle = true, Location = new Point(490, 14), Size = new Size(134, 32) };
-        var del = new RoundButton { Text = L.T("Удалить", "Delete"), Location = new Point(490, 50), Size = new Size(134, 32) };
-        var import = new RoundButton { Text = L.T("Импорт…", "Import…"), Location = new Point(490, 86), Size = new Size(134, 32) };
-        editor.Controls.AddRange(new Control[] { lKey, lVal, Theme.Framed(key, 16, 32, 160, 32), arrow, Theme.Framed(val, 206, 32, 270, 86), add, del, import });
+        var add = new RoundButton { Text = L.T("Добавить", "Add"), AccentStyle = true, Location = new Point(490, 32), Size = new Size(134, 32) };
+        editor.Controls.AddRange(new Control[] { lKey, lVal, Theme.Framed(key, 16, 32, 160, 32), arrow, Theme.Framed(val, 206, 32, 270, 86), add });
         page.Controls.Add(editor);
         y += editor.Height + 10;
 
@@ -807,11 +1079,8 @@ class SettingsForm : Form
         grid.Columns.Add(TextColumn(L.T("Сокращение", "Abbreviation"), 30));
         grid.Columns.Add(TextColumn(L.T("Замена", "Text"), 70));
         grid.ReadOnly = true;
-        var holder = new Card { Location = new Point(16, y), Size = new Size(ContentWidth, content.Height - y - 12) };
-        grid.Location = new Point(6, 6);
-        grid.Size = new Size(holder.Width - 12, holder.Height - 12);
-        holder.Controls.Add(grid);
-        page.Controls.Add(holder);
+        RoundButton del, import;
+        page.Controls.Add(ListCard(grid, y, true, out del, out import));
 
         // The table shows line breaks as ⏎; the real text is kept in the row's Tag
         foreach (var kv in ParseReplacements(Replacements)) grid.Rows[grid.Rows.Add(kv.Key, Show(kv.Value))].Tag = kv.Value;
@@ -905,8 +1174,8 @@ class SettingsForm : Form
     {
         int y;
         var page = Page(L.T("Программы", "Apps"), out y);
-        Intro(page, ref y, L.T("Выберите раскладку для программы — KeyFish включит её, когда вы переключитесь в окно этой программы. Здесь же можно выключить автоисправление, например в редакторах кода и терминалах.",
-                              "Pick a layout for an app, and KeyFish switches to it when you switch to that app's window. You can also turn auto-correction off here, for example in code editors and terminals."));
+        Intro(page, ref y, L.T("Раскладка, назначенная программе, включается при переходе в её окно. Здесь же можно отключить автоисправление для отдельных программ, например редакторов кода и терминалов.",
+                              "A layout assigned to an app is turned on when its window becomes active. Auto-correction can also be turned off here for individual apps, such as code editors and terminals."));
 
         var layoutNames = new List<string> { NoLayout };
         var byName = new Dictionary<string, long>();
@@ -922,7 +1191,7 @@ class SettingsForm : Form
         var lApp = Theme.Label(L.T("Программа (имя процесса)", "App (process name)"), Theme.Small, Theme.SubText); lApp.Location = new Point(16, 10);
         var lLay = Theme.Label(L.T("Раскладка", "Layout"), Theme.Small, Theme.SubText); lLay.Location = new Point(236, 10);
         var lFix = Theme.Label(L.T("Исправлять", "Correct"), Theme.Small, Theme.SubText); lFix.Location = new Point(424, 10);
-        var app = new DropDown(true, L.T("Выберите или введите", "Pick or type"));
+        var app = appName = new DropDown(true, L.T("Выберите или введите", "Pick or type"));
         app.Location = new Point(16, 30); app.Width = 204;
         // Going through every process takes a moment on a busy computer: the list fills in after the window is shown
         System.Threading.ThreadPool.QueueUserWorkItem(_ =>
@@ -931,11 +1200,11 @@ class SettingsForm : Form
             try { BeginInvoke(new Action(() => app.Items.AddRange(apps))); }
             catch (InvalidOperationException) { }   // Settings was closed meanwhile
         });
-        var lay = new DropDown();
+        var lay = appLayout = new DropDown();
         lay.Location = new Point(236, 30); lay.Width = 172;
         lay.Items.AddRange(layoutNames);
         lay.SelectedIndex = 0;
-        var fix = new ToggleSwitch { Checked = true, Location = new Point(428, 35) };
+        var fix = appFix = new ToggleSwitch { Checked = true, Location = new Point(428, 35) };
         var add = new RoundButton { Text = L.T("Добавить", "Add"), AccentStyle = true, Location = new Point(490, 30), Size = new Size(134, 32) };
         editor.Controls.AddRange(new Control[] { lApp, lLay, lFix, app, lay, fix, add });
         page.Controls.Add(editor);
@@ -952,14 +1221,8 @@ class SettingsForm : Form
         layCol.Items.AddRange(layoutNames.ToArray());
         grid.Columns.Add(layCol);
         grid.Columns.Add(new DataGridViewCheckBoxColumn { HeaderText = L.T("Исправлять", "Correct"), FillWeight = 20, FlatStyle = FlatStyle.Flat });
-        var holder = new Card { Location = new Point(16, y), Size = new Size(ContentWidth, content.Height - y - 56) };
-        grid.Location = new Point(6, 6);
-        grid.Size = new Size(holder.Width - 12, holder.Height - 12);
-        holder.Controls.Add(grid);
-        page.Controls.Add(holder);
-        y += holder.Height + 8;
-        var del = new RoundButton { Text = L.T("Удалить", "Delete"), Location = new Point(16, y), Size = new Size(134, 32) };
-        page.Controls.Add(del);
+        RoundButton del, import;
+        page.Controls.Add(ListCard(grid, y, false, out del, out import));
 
         // Rows from both files: exclusions.txt (correction off) and app-layouts.txt (process = layout)
         var excluded = new HashSet<string>(Lines(Exclusions).Select(StripExe), StringComparer.OrdinalIgnoreCase);
@@ -1068,9 +1331,9 @@ class SettingsForm : Form
     Panel WordsPage()
     {
         int y;
-        var page = Page(L.T("Слова", "Words"), out y);
-        Intro(page, ref y, L.T("KeyFish учится на ваших действиях: если отменить или стереть исправление, слово попадёт в «Не исправлять»; если исправить слово самому (через Pause или стерев и набрав заново в другой раскладке) — в «Всегда исправлять».",
-                              "KeyFish learns from you: undo or erase a correction and the word goes to \"Never correct\"; fix a word yourself (with Pause, or by erasing it and typing it again in the other layout) and it goes to \"Always correct\"."));
+        var page = Page(L.T("Списки слов", "Word lists"), out y);
+        Intro(page, ref y, L.T("Списки пополняются автоматически: отменённое или стёртое исправление добавляет слово в «Не исправлять», а слово, исправленное вручную (клавишей Pause или повторным набором в другой раскладке), — во «Всегда исправлять».",
+                              "The lists are filled automatically: an undone or erased correction adds the word to \"Never correct\", and a word corrected manually (with Pause, or by retyping it in the other layout) goes to \"Always correct\"."));
         int half = (ContentWidth - 12) / 2;
         gridIgnored = WordList(page, new Point(16, y), half, L.T("Не исправлять", "Never correct"), Ignored);
         gridLearned = WordList(page, new Point(16 + half + 12, y), half, L.T("Всегда исправлять", "Always correct"), Learned);
@@ -1083,6 +1346,7 @@ class SettingsForm : Form
         var t = Theme.Label(title, Theme.Section);
         t.Location = new Point(14, 12);
         var input = Theme.TextField(L.T("Новое слово", "New word"));
+        wordInputs.Add(input);
 
         var add = new RoundButton { Text = L.T("Добавить", "Add"), AccentStyle = true, Location = new Point(width - 14 - 100, 42), Size = new Size(100, 30) };
         var grid = Theme.Grid();
@@ -1090,9 +1354,9 @@ class SettingsForm : Form
         grid.Columns.Add(TextColumn("", 100));
         grid.ReadOnly = true;
         grid.Location = new Point(6, 84);
-        grid.Size = new Size(width - 12, card.Height - 84 - 50);
-        var del = new RoundButton { Text = L.T("Удалить", "Delete"), Location = new Point(14, card.Height - 44), Size = new Size(100, 30) };
-        var import = new RoundButton { Text = L.T("Импорт…", "Import…"), Location = new Point(122, card.Height - 44), Size = new Size(100, 30) };
+        grid.Size = new Size(width - 12, card.Height - 84 - ListBar);
+        var del = ListButton(L.T("Удалить", "Delete"), 0, card.Height);
+        var import = ListButton(L.T("Импорт…", "Import…"), 1, card.Height);
         card.Controls.AddRange(new Control[] { t, Theme.Framed(input, 14, 42, width - 14 - 14 - 100 - 8, 30), add, grid, del, import });   // as tall as Add
         page.Controls.Add(card);
 
@@ -1135,6 +1399,27 @@ class SettingsForm : Form
         return grid;
     }
 
+    // Under every list, the same buttons in the same place: Delete, then Import
+    const int ListBar = 50;
+    static RoundButton ListButton(string text, int index, int cardHeight)
+    {
+        return new RoundButton { Text = text, Location = new Point(14 + index * 108, cardHeight - 44), Size = new Size(100, 30) };
+    }
+
+    // A list in its own card down to the bottom of the page, with Delete (and Import) under it
+    Card ListCard(DataGridView grid, int y, bool withImport, out RoundButton del, out RoundButton import)
+    {
+        var card = new Card { Location = new Point(16, y), Size = new Size(ContentWidth, content.Height - y - 12) };
+        grid.Location = new Point(6, 6);
+        grid.Size = new Size(card.Width - 12, card.Height - 6 - ListBar);
+        card.Controls.Add(grid);
+        del = ListButton(L.T("Удалить", "Delete"), 0, card.Height);
+        card.Controls.Add(del);
+        import = withImport ? ListButton(L.T("Импорт…", "Import…"), 1, card.Height) : null;
+        if (import != null) card.Controls.Add(import);
+        return card;
+    }
+
     string PickFile(string filter)
     {
         using (var dialog = new OpenFileDialog { Filter = filter, Title = L.T("Импорт", "Import") })
@@ -1145,8 +1430,7 @@ class SettingsForm : Form
     {
         string text = added + had == 0
             ? L.T("В файле не нашлось ничего, что можно добавить.", "Nothing to add was found in the file.")
-            : L.F("Добавлено: {0}. Уже были в списке: {1}. Изменения сохранятся по кнопке «Сохранить».",
-                  "Added: {0}. Already in the list: {1}. Click Save to keep the changes.", added, had);
+            : L.F("Добавлено: {0}. Уже были в списке: {1}.", "Added: {0}. Already in the list: {1}.", added, had);
         ThemedMessage.Show(this, text, L.T("Импорт", "Import"), MessageBoxButtons.OK, added + had == 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
     }
 
@@ -1193,7 +1477,8 @@ class SettingsForm : Form
         }
     }
 
-    // Replaces everything with the file's contents and saves, as the Save button does (the current state goes to backups first)
+    // Replaces everything with the file's contents and applies it, as the Apply button does (the current state goes to
+    // backups first); the window is then built again to show it
     void ImportSettings()
     {
         string path;
@@ -1240,8 +1525,11 @@ class SettingsForm : Form
         if (values.TryGetValue("CustomFish", out n) && n != 0) CustomFish = Color.FromArgb(255, Color.FromArgb(n));
         for (int i = 0; i < Hotkeys.Length; i++)
             if (values.TryGetValue("Hotkey" + (i + 1), out n) && (n == 0 || HotkeyBox.Allowed((Keys)n))) Hotkeys[i] = (Keys)n;
-        DialogResult = DialogResult.OK;
-        Close();
+        Replacing = true;
+        try { if (Apply != null) Apply(this); }
+        finally { Replacing = false; }
+        applied = Snapshot();
+        BeginInvoke(new Action(() => Rebuild(false)));   // after the click on Import is over: the button goes with the rest
     }
 
     // ---------- Saving ----------
@@ -1298,7 +1586,7 @@ class SettingsForm : Form
     }
 
     public static string Off { get { return L.T("выключено", "off"); } }
-    public static string NeedModifier { get { return L.T("нужен Ctrl или Alt", "add Ctrl or Alt"); } }
+    public static string NeedModifier { get { return L.T("требуется Ctrl или Alt", "Ctrl or Alt required"); } }
 
     public static string Format(Keys k)
     {
@@ -1331,6 +1619,7 @@ class HotkeyBox : TextBox
 {
     Keys value;
     bool recording;
+    public event EventHandler ValueChanged;
 
     [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool HideCaret(IntPtr hwnd);
 
@@ -1351,7 +1640,7 @@ class HotkeyBox : TextBox
     public Keys Value
     {
         get { return value; }
-        set { this.value = value; Show(SettingsForm.Format(value)); }
+        set { this.value = value; Show(SettingsForm.Format(value)); if (ValueChanged != null) ValueChanged(this, EventArgs.Empty); }
     }
 
     // Text without a caret or a blue selection: the field is a button that listens, not a text box
@@ -1432,6 +1721,7 @@ class HotkeyBox : TextBox
     {
         value = k;
         Record(false);
+        if (ValueChanged != null) ValueChanged(this, EventArgs.Empty);
         var form = FindForm();
         if (form != null) form.ActiveControl = null;
     }

@@ -1,32 +1,32 @@
 # KeyFish interface in Serbian (Cyrillic). Format: English text<TAB>translation; \n is a line break
 About KeyFish	О програму
 Fixes text typed in the wrong keyboard layout	Исправља текст откуцан у погрешном распореду тастатуре
-Support ☕	Подржи ☕
+Donate	Подржи
 What's new	Шта је ново
 What's new in KeyFish	Шта је ново у KeyFish-у
 Version 	Верзија
 Close	Затвори
-Mistakes caught: {0}	Уловљених грешака: {0}
+Mistakes corrected: {0}	Исправљене грешке: {0}
  (since {0})	 (од {0})
-Switch layout of selected text; right after an auto-fix — undo it (as does Ctrl+Z)	Распоред означеног текста; одмах после аутоисправке — поништи је (као и Ctrl+Z)
-Switch layout of selected text — alternative keys	Распоред означеног текста — резервна пречица
+Switch the layout of selected text; right after an auto-correction, undo it (as Ctrl+Z does)	Промена распореда означеног текста; одмах после аутоматске исправке — њено поништавање (као Ctrl+Z)
+Switch the layout of selected text (alternative hotkey)	Промена распореда означеног текста (додатна пречица)
 Change case of selected text (aa → Aa → AA)	Велика/мала слова означеног текста (аа → Аа → АА)
-Transliterate (привет ⇄ privet)	Пресловљавање (здраво ⇄ zdravo)
+Transliterate selected text (привет ⇄ privet)	Транслитерација означеног текста (здраво ⇄ zdravo)
 Auto-correct while typing	Аутоисправка током куцања
 Settings…	Подешавања…
 Check for updates	Провери ажурирања
 About…	О програму…
 Exit	Излаз
-Update installed 🐟	Ажурирање инсталирано 🐟
-Version {0} is out (you have {1}).\n\nOpen the download page?	Изашла је верзија {0} (ви имате {1}).\n\nОтворити страницу за преузимање?
+Update installed	Ажурирање је инсталирано
+Version {0} is available (installed: {1}).\n\nOpen the download page?	Доступна је верзија {0} (инсталирана: {1}).\n\nОтворити страницу за преузимање?
 KeyFish update	Ажурирање KeyFish-а
 Version {0} is out (you have {1}).\n\nUpdate now? KeyFish will download it from GitHub, verify the checksum and restart.\n\n"No" opens the download page to update manually.	Изашла је верзија {0} (ви имате {1}).\n\nАжурирати сада? KeyFish ће је преузети са GitHub-а, проверити контролни збир и поново се покренути.\n\n„Не“ отвара страницу за ручно ажурирање.
 Downloading the update…	Преузимам ажурирање…
 Open the download page?	Отворити страницу за преузимање?
-KeyFish {0} is out	Изашао је KeyFish {0}
+KeyFish {0} is available	Доступан је KeyFish {0}
 Click to update.	Кликните да ажурирате.
-Couldn't reach GitHub. Check your connection and try again later.	Није успело повезивање са GitHub-ом. Проверите везу и покушајте касније.
-You have the latest version: {0}.	Имате најновију верзију: {0}.
+Could not connect to GitHub. Check the internet connection and try again later.	Повезивање са GitHub-ом није успело. Проверите интернет везу и покушајте поново касније.
+The latest version is installed: {0}.	Инсталирана је најновија верзија: {0}.
 KeyFish settings	Подешавања KeyFish-а
 General	Опште
 Hotkeys	Пречице
@@ -36,21 +36,21 @@ Words	Речи
 Save	Сачувај
 Cancel	Откажи
 Fix the keyboard layout as you type	Исправљај распоред током куцања
-ghbdtn → привет, руддщ → hello. Replacements also work only while this is on.	ghbdtn → привет, руддщ → hello. И замене раде само док је ово укључено.
+Example: ghbdtn → привет, руддщ → hello. Replacements work only while this is on.	Пример: ghbdtn → привет, руддщ → hello. Замене раде само када је ова опција укључена.
 Fix typos	Исправљај словне грешке
-Experimental: recieve → receive, using Windows spell check.	Експериментално: преко провере правописа у Windows-у.
-Stay quiet in games and full-screen apps	Ћути у играма и програмима преко целог екрана
-Ctrl+Z undoes an auto-fix	Ctrl+Z поништава аутоисправку
-Right after the fix, like Pause. The next Ctrl+Z works in the app as usual.	Одмах после исправке, као и Pause. Следећи Ctrl+Z ради у програму као и обично.
-Fish color shows the layout	Боја рибице показује распоред
-Blue — Latin, orange — another alphabet.	Плава — латиница, наранџаста — друго писмо.
+Experimental. Uses Windows spell checking: recieve → receive.	Експериментална функција. Користи проверу правописа у Windows-у.
+Don't correct in games and full-screen apps	Не исправљај у играма и апликацијама преко целог екрана
+Undo auto-correction with Ctrl+Z	Поништавање аутоматске исправке пречицом Ctrl+Z
+Works right after a correction, as Pause does. Pressing Ctrl+Z again works in the app as usual.	Делује одмах после исправке, као Pause. Поновни притисак на Ctrl+Z ради у апликацији као и обично.
+Icon color indicates the layout	Боја иконе показује распоред
+The notification area icon takes the color of the current layout; the same color is used for the layout code and the indicator at the cursor. To change a color, click the layout's icon.	Икона у пољу за обавештења добија боју тренутног распореда; иста боја се користи за код распореда и индикатор поред курсора. Да бисте променили боју, кликните на икону распореда.
 Start with Windows	Покрећи са Windows-ом
-Once a day KeyFish asks GitHub whether a new version is out. Nothing else is sent.	Једном дневно KeyFish пита GitHub да ли је изашла нова верзија. Ништа друго се не шаље.
+Once a day KeyFish checks GitHub for a new version. No other data is sent.	Једном дневно KeyFish проверава на GitHub-у да ли постоји нова верзија. Други подаци се не шаљу.
 Interface language	Језик интерфејса
-KeyFish is free	KeyFish је бесплатан
-If it saves you time, you can buy the author a coffee.	Ако вам штеди време, можете аутора частити кафом.
+KeyFish is free of charge	KeyFish је бесплатан
+Development can be supported with a voluntary donation.	Развој се може подржати добровољним прилогом.
 Reset	Врати
-Type an abbreviation and a space, and KeyFish replaces it with the text. It works in the other layout too: "thx" expands even when typed as «ерч».	Откуцајте скраћеницу и размак — KeyFish ће је заменити текстом. Ради и у другом распореду: „хвл“ ће се заменити чак и ако је откуцано „hvl“.
+An abbreviation followed by a space is replaced with the specified text. Abbreviations are recognized in the other layout too: "thx" expands even when typed as «ерч».	Скраћеница праћена размаком замењује се задатим текстом. Скраћенице се препознају и у другом распореду: „хвл“ се замењује чак и ако је откуцано „hvl“.
 Abbreviation	Скраћеница
 thx	хвл
 Text (Enter — new line)	Текст (Enter — нови ред)
@@ -58,54 +58,54 @@ Add	Додај
 Delete	Обриши
 Text	Текст
 Don't change	Не мењај
-Pick a layout for an app, and KeyFish switches to it when you switch to that app's window. You can also turn auto-correction off here, for example in code editors and terminals.	Изаберите распоред за програм — KeyFish ће га укључити кад пређете у прозор тог програма. Овде можете и искључити аутоисправку, на пример у уређивачима кода и терминалима.
+A layout assigned to an app is turned on when its window becomes active. Auto-correction can also be turned off here for individual apps, such as code editors and terminals.	Распоред додељен апликацији укључује се када њен прозор постане активан. Овде се може искључити и аутоматска исправка за поједине апликације, на пример уређиваче кода и терминале.
 App (process name)	Програм (име процеса)
 Layout	Распоред
 Correct	Исправљај
 Pick or type	Изаберите или унесите
 App	Програм
-KeyFish learns from you: undo or erase a correction and the word goes to "Never correct"; fix a word yourself (with Pause, or by erasing it and typing it again in the other layout) and it goes to "Always correct".	KeyFish учи од вас: ако поништите или обришете исправку, реч иде у „Не исправљај“; ако сами исправите реч (тастером Pause или тако што је обришете и поново откуцате у другом распореду) — у „Увек исправљај“.
+The lists are filled automatically: an undone or erased correction adds the word to "Never correct", and a word corrected manually (with Pause, or by retyping it in the other layout) goes to "Always correct".	Листе се попуњавају аутоматски: поништена или обрисана исправка додаје реч на „Не исправљај“, а реч исправљена ручно (тастером Pause или поновним куцањем у другом распореду) — на „Увек исправљај“.
 Never correct	Не исправљај
 Always correct	Увек исправљај
 New word	Нова реч
 off	искључено
-add Ctrl or Alt	додајте Ctrl или Alt
+Ctrl or Alt required	потребан је Ctrl или Alt
 This release has no file for automatic update.	Ово издање нема датотеку за аутоматско ажурирање.
 The downloaded file doesn't match the release checksum — update cancelled.	Преузета датотека се не поклапа са контролним збиром издања — ажурирање је отказано.
 The downloaded file has the wrong version — update cancelled.	Преузета датотека има погрешну верзију — ажурирање је отказано.
-No permission to write to the app folder. Please download the new version manually.	Нема дозволе за упис у фасциклу програма. Преузмите нову верзију ручно.
+No permission to write to the app folder. Download the new version manually.	Нема дозволе за упис у фасциклу апликације. Преузмите нову верзију ручно.
 Update failed: 	Ажурирање није успело:
-Same as Windows	Као у Windows-у
+System default	Подразумевано у систему
 Press the keys…	Притисните тастере…
-Click a field and press the new keys. Esc cancels, Backspace turns a hotkey off.	Кликните поље и притисните нове тастере. Esc отказује, Backspace искључује пречицу.
+To change a hotkey, click its field and press the new keys. Esc cancels; Backspace turns the hotkey off.	Да бисте променили пречицу, кликните на поље и притисните нове тастере. Esc отказује, Backspace искључује пречицу.
 Paused until {0}	Пауза до {0}
 Pause for 1 hour	Пауза на 1 сат
-Resume (paused until {0})	Настави исправљање (пауза до {0})
+Resume correction (paused until {0})	Настави исправљање (пауза до {0})
 Recent corrections	Последње исправке
 Nothing corrected yet	Још ништа није исправљено
-Click one to never correct it again:	Кликните да се ово више не исправља:
+Select a correction to stop making it:	Изаберите исправку да се више не би примењивала:
 "{0}" is now in "Never correct".	„{0}“ је додато у „Не исправљај“.
 Clear the list	Обриши листу
 Show the layout at the cursor	Приказуј распоред поред курсора
-When the layout changes, EN, RU and so on appear next to the text cursor for a second, or next to the mouse pointer if the app doesn't tell where its cursor is.	Када се распоред промени, поред текстуалног курсора на секунду се појави EN, SR итд., а ако програм не јавља где је курсор — поред миша.
-Recent corrections in the fish menu	Последње исправке у менију рибице
-Click a correction in the menu and KeyFish won't correct it again. The list is kept only in memory.	Кликните на исправку у менију и KeyFish је више неће правити. Листа се чува само у меморији.
+When the layout changes, its code (EN, RU, etc.) appears next to the text cursor for one second, or next to the mouse pointer if the app does not report the cursor position.	При промени распореда његов код (EN, RU итд.) приказује се на секунду поред текстуалног курсора, или поред показивача миша ако апликација не саопштава положај курсора.
+Recent corrections in the icon menu	Недавне исправке у менију иконе
+Choosing a correction in the menu adds the word to the Never correct list. The list is kept in memory only.	Избор исправке у менију додаје реч на листу „Не исправљај“. Листа се чува само у меморији.
 Off	Искључено
 Double Shift	Двоструки Shift
-Fix the last word with one key	Исправи последњу реч једним тастером
-Does the same as the first hotkey. Shift+Caps Lock still turns capital letters on and off.	Ради исто што и прва пречица. Shift+Caps Lock и даље укључује велика слова.
+Fix the last word with a single key	Исправка последње речи једним тастером
+Performs the same action as the first hotkey. Shift+Caps Lock still turns capital letters on and off.	Извршава исту радњу као прва пречица. Shift+Caps Lock и даље укључује и искључује велика слова.
 Import…	Увоз…
 Import	Увоз
 Nothing to add was found in the file.	У датотеци није нађено ништа што може да се дода.
-Added: {0}. Already in the list: {1}. Click Save to keep the changes.	Додато: {0}. Већ на листи: {1}. Кликните „Сачувај“ да задржите измене.
+Added: {0}. Already in the list: {1}.	Додато: {0}. Већ на листи: {1}.
 Replacements (txt, csv, AutoHotkey, Espanso)	Замене (txt, csv, AutoHotkey, Espanso)
 All files	Све датотеке
 Word lists (txt, csv)	Листе речи (txt, csv)
-Switch layout of the whole line before the cursor	Распоред целог реда пре курсора
+Switch the layout of the line before the cursor	Промена распореда реда пре курсора
 Export…	Извоз…
 Export	Извоз
-All settings in one file	Сва подешавања у једној датотеци
-To move to another computer. Before every save KeyFish puts a copy of the previous settings in the backups folder (the last 10), and those can be imported too.	За пренос на други рачунар. Пре сваког чувања KeyFish сам ставља копију претходних подешавања у фасциклу backups (последњих 10) — и њих можете увести.
+Export and import settings	Извоз и увоз подешавања
+All settings in one file, for moving to another computer. Before settings are changed, a copy of the previous ones is saved in the backups folder (the last 10 copies); these copies can also be imported.	Сва подешавања у једној датотеци, за пренос на други рачунар. Пре промене подешавања њихова претходна копија чува се у фасцикли backups (последњих 10 копија); и копије се могу увести.
 This isn't a KeyFish settings file.	Ово није датотека подешавања за KeyFish.
 Replace all settings with the file's contents? The current ones are kept in the backups folder.	Заменити сва подешавања садржајем датотеке? Тренутна остају у фасцикли backups.
 Turn off	Искључи
@@ -118,14 +118,14 @@ Updates	Ажурирања
 Check	Провери
 Update	Ажурирај
 Checking…	Проверавам…
-Version {0} is out (you have {1})	Изашла је верзија {0} (имате {1})
+Version {0} is available (installed: {1})	Доступна је верзија {0} (инсталирана: {1})
 Checked at {0}.	Проверено у {0}.
-Version {0}. Click Check to see whether a newer one is out.	Верзија {0}. Кликните „Провери“ да видите да ли постоји новија.
-Version {0} is out — update	Изашла је верзија {0} — ажурирај
-Layout letters instead of the fish	Слова распореда уместо рибице
-The tray shows EN, RU and so on in a circle of the same color. While KeyFish isn't correcting, the circle is grey.	У системској палети EN, SR итд. у кругу исте боје. Док KeyFish не исправља, круг је сив.
+Version {0}. Click Check to look for a newer version.	Верзија {0}. Кликните на „Провери“ да бисте потражили новију верзију.
+Version {0} is available — update	Доступна је верзија {0} — ажурирај
+Layout code instead of the icon	Код распореда уместо иконе
+The notification area shows the layout code (EN, RU, etc.) in the layout color. Grey means correction is off or paused.	Поље за обавештења приказује код распореда (EN, RU итд.) у боји распореда. Сива боја значи да је исправљање искључено или паузирано.
 Layout colors	Боје распореда
-Click a circle to choose its color: the tray fish, the letters and the tag at the cursor will use it.	Кликните на круг да изаберете боју: користиће је рибица, слова у палети и ознака поред курсора.
+The layout color is used for the notification area icon and the indicator at the cursor. Click a color to change it.	Боја распореда користи се за икону у пољу за обавештења и индикатор поред курсора. Кликните на боју да бисте је променили.
 Default	Подразумевано
 Other…	Друга…
 Color of {0}	Боја за {0}
@@ -133,40 +133,40 @@ Theme	Тема
 Takes effect after saving.	Примениће се након чувања.
 Light	Светла
 Dark	Тамна
-{0} runs as administrator, and Windows doesn't let KeyFish see or change text in it. To make KeyFish work there too, run KeyFish as administrator as well.	{0} ради као администратор, и Windows не дозвољава KeyFish-у да у њој види или мења текст. Да би KeyFish радио и тамо, покрените и њега као администратор.
+{0} is running as administrator. Windows does not allow KeyFish to read or change text in it. To work in it, run KeyFish as administrator.	{0} је покренута као администратор. Windows не дозвољава програму KeyFish да чита и мења текст у њој. Да би радио у њој, покрените KeyFish као администратор.
 This app	Овај програм
-Can't work in an app run as admin	Не ради у програму администратора
-KeyFish closed because of an error last time. Please send the report to the author: it helps fix it. It holds only Windows' description of the error, no typed text, and on GitHub you see it before sending.	Прошли пут се KeyFish затворио због грешке. Пошаљите извештај аутору — то ће помоћи да се исправи. У њему је само опис грешке од Windows-а, без откуцаног текста; на GitHub-у ћете га видети пре слања.
+Unavailable in an app running as administrator	Није доступно у апликацији покренутој као администратор
+The previous KeyFish session ended with an error. Sending a report to the developer is recommended. The report contains only Windows' description of the error and no typed text; it can be reviewed on GitHub before sending.	Претходна сесија програма KeyFish завршена је грешком. Препоручује се да пошаљете извештај програмеру. Извештај садржи само опис грешке из Windows-а и не садржи откуцани текст; пре слања може се прегледати на GitHub-у.
 Open on GitHub	Отвори на GitHub-у
 Copy	Копирај
-No, thanks	Не, хвала
-That word was typed in the wrong layout, so KeyFish fixed it. If it shouldn't have, press {0} right after: the word comes back, and KeyFish remembers it.	Реч је откуцана у погрешном распореду — KeyFish ју је исправио. Ако није требало, притисните {0} одмах после: реч ће се вратити, и KeyFish ће је запамтити.
+Don't send	Не шаљи
+A word typed in the wrong layout was corrected. To undo the correction, press {0} right after it: the original word is restored and added to the Never correct list.	Реч откуцана у погрешном распореду је исправљена. Да бисте поништили исправку, притисните {0} одмах после ње: првобитна реч се враћа и додаје на листу „Не исправљај“.
  or Ctrl+Z	 или Ctrl+Z
 Typography	Типографија
-A hyphen between words becomes a dash, three dots an ellipsis, (c) (r) (tm) become © ® ™.	Цртица између речи постаје црта, три тачке — три тачке као један знак, (c) (r) (tm) — © ® ™.
+A hyphen between words is replaced with a dash, three dots with an ellipsis, (c) (r) (tm) with © ® ™.	Цртица између речи замењује се цртом, три тачке тротачком, (c) (r) (tm) симболима © ® ™.
 Extended dictionary	Проширени речник
 Download	Преузми
 Downloading…	Преузимам…
 Remove	Уклони
-About 100,000 more words per language ({0}): rare words, names, slang. Downloads from GitHub when turned on (1 MB).	Још око 100 хиљада речи по језику ({0}): ретке речи, имена, жаргон. Преузима се са GitHub-а при укључивању, око 1 MB.
-The downloaded dictionary doesn't match its checksum, so it wasn't installed.	Преузети речник се не поклапа са контролним збиром — није инсталиран.
-Couldn't download the dictionary: 	Преузимање речника није успело: 
+About 100,000 additional words per language ({0}): rare words, proper names, colloquial vocabulary. Downloaded from GitHub when turned on (about 1 MB).	Око 100 хиљада додатних речи по језику ({0}): ретке речи, властита имена, разговорни изрази. Преузима се са GitHub-а при укључивању (око 1 MB).
+The downloaded dictionary does not match its checksum and was not installed.	Преузети речник се не поклапа са контролним збиром и није инсталиран.
+Could not download the dictionary: 	Преузимање речника није успело: 
 Correction	Исправљање
-Icon and cues	Иконица и наговештаји
+Icon and sounds	Икона и звуци
 System	Систем
 Sound on corrections	Звук при исправци
 Layout: {0}	Распоред: {0}
-Switch layout of the text in the clipboard (copy, press, paste)	Распоред текста у оставу (копирајте, притисните, налепите)
+Switch the layout of the text in the clipboard	Промена распореда текста у привременој меморији
 There is no text in the clipboard.	У остави нема текста.
-Couldn't tell which layout to switch the text to.	Није могуће утврдити у који распоред пребацити текст.
-The text in the clipboard is now in the {0} layout, ready to paste.	Текст у остави је сада у распореду {0} — може да се налепи.
+Could not determine the target layout for the text.	Није могуће одредити циљни распоред текста.
+The text in the clipboard has been converted to the {0} layout.	Текст у привременој меморији претворен је у распоред {0}.
 Welcome to KeyFish	Добро дошли у KeyFish
-KeyFish fixes the layout as you type	KeyFish исправља распоред у ходу
-If a fix wasn't wanted	Ако исправка није била потребна
-Everything else is in Settings	Све остало — у подешавањима
-Typed a word in the wrong layout? After the space KeyFish switches it: ghbdtn → привет.	Откуцали сте реч у погрешном распореду? После размака KeyFish ће је сам пребацити.
-Press Pause right after the fix: the word comes back, and KeyFish remembers it and leaves it alone.	Притисните Pause одмах после исправке: реч се враћа, а KeyFish је памти и више је не дира.
-Double-click the fish in the tray for Settings: hotkeys, replacements, exclusions, the extended dictionary. The fish shows the layout and turns grey while KeyFish isn't correcting.	Двоклик на рибицу у палети отвара подешавања: пречице, замене, изузеци, проширени речник. Рибица показује распоред и посиви кад KeyFish не исправља.
+Automatic layout correction	Аутоматска исправка распореда
+Undoing a correction	Поништавање исправке
+Settings	Подешавања
+A word typed in the wrong layout is corrected after a space: ghbdtn → привет.	Реч откуцана у погрешном распореду исправља се после размака.
+To undo a correction, press Pause right after it. The original word is restored and added to the Never correct list.	Да бисте поништили исправку, притисните Pause одмах после ње. Првобитна реч се враћа и додаје на листу „Не исправљај“.
+Double-click the KeyFish icon in the notification area to open Settings: hotkeys, replacements, exclusions, the extended dictionary. The icon shows the current layout; grey means correction is off or paused.	Подешавања се отварају двоструким кликом на икону KeyFish у пољу за обавештења: пречице, замене, изузеци, проширени речник. Икона приказује тренутни распоред; сива боја значи да је исправљање искључено или паузирано.
 Back	Назад
 Start	Почни
 Next	Даље
@@ -178,39 +178,39 @@ this month	овог месеца
 ≈{0} min	≈{0} мин
 saved	уштеђено
 The word is now in "Never correct".	Реч је додата у „Не исправљај“.
-Why wasn't it corrected?	Зашто није исправљено?
-Nothing left alone yet	Засад је све исправљено
+Why wasn't the word corrected?	Зашто реч није исправљена?
+No skipped words	Нема прескочених речи
 the app is excluded	програм је у изузецима
 Correct in {0}	Исправљај у {0}
 a game or full screen	игра или цео екран
-Don't stay quiet in full screen	Не ћути на целом екрану
+Correct in full-screen apps	Исправљај у апликацијама преко целог екрана
 the app runs as administrator	програм ради као администратор
 a password field	поље лозинке
-the password-field check hadn't answered	провера поља лозинки још није одговорила
+the password field check had not finished	провера поља за лозинку није завршена
 no dictionary for this layout	нема речника за овај распоред
 digits or symbols in the word	у речи су цифре или симболи
 looks like a link, a path or code	личи на линк, путању или код
 "{0}" is in Never correct	„{0}“ је у „Не исправљај“
-Take it out of Never correct	Уклони из „Не исправљај“
-"{0}": not sure it's a mistake	„{0}“: нисам сигуран да је грешка
+Remove from Never correct	Уклони са „Не исправљај“
+"{0}": the mistake is not certain	„{0}“: грешка није потврђена
 Correct this word	Исправљај ову реч
-Pause corrections for an hour / resume	Пауза исправки на сат / настави
-Correcting again.	Исправљање је поново укључено.
-Clear the formatting of selected text: bold, italics, links, 𝐬𝐭𝐲𝐥𝐞𝐝 letters	Уклони форматирање изабраног текста: подебљано, курзив, линкови, 𝐬𝐭𝐲𝐥𝐞𝐝 слова
+Pause correction for 1 hour / resume	Паузирај исправљање на 1 сат / настави
+Correction resumed.	Исправљање је настављено.
+Clear the formatting of selected text: bold, italic, links, styled characters	Уклањање форматирања означеног текста: подебљано, курзив, везе, стилизовани знакови
 Sounds	Звуци
-KeyFish plays a sound when it fixes or changes text. Pick a sound for each event or turn it off. You can add your own sounds: .wav files in the sounds folder.	KeyFish пушта звук када исправи или промени текст. За сваки догађај можете изабрати звук или га искључити. Своје звуке додајте као .wav датотеке у фасциклу звукова.
-Listen: {0}	Преслушај: {0}
+Sound signals when text is corrected or changed. A sound can be chosen or turned off for each event. Custom sounds are added to the sounds folder as .wav files.	Звучни сигнали при исправљању и мењању текста. За сваки догађај може се изабрати звук или искључити. Сопствени звуци се додају у фасциклу звукова у формату .wav.
+Play: {0}	Пусти: {0}
 Sounds folder	Фасцикла звукова
-Look	Изглед
-Light or dark, window colors, the fish, the icons and the sound. Takes effect after saving.	Светло или тамно, боје прозора, рибица, иконе и звук. Примениће се након чувања.
-How it will look	Како ће изгледати
-High contrast is on: KeyFish's windows use the Windows colors, and no look applies.	Укључен је висок контраст: прозори KeyFish-а су у бојама Windows-а, изглед се не примењује.
-The fish in the look's style	Рибица у стилу изгледа
-The logo, the tray icon and the aquarium.	Лого, икона у системској палети и акваријум.
-The look's sound	Звук изгледа
-The correction sound.	Звук исправке.
-Listen	Преслушај
-Switch to a holiday look automatically	Аутоматски укључи празнични изглед
+Appearance	Изглед
+Window colors, the notification area icon and the correction sound. Changes apply immediately.	Боје прозора, икона у пољу за обавештења и звук исправке. Измене се примењују одмах.
+Preview	Преглед
+High contrast mode is on: KeyFish windows use system colors, and the theme does not apply.	Укључен је режим високог контраста: прозори програма KeyFish користе системске боје, тема се не примењује.
+Themed icon	Икона у стилу теме
+The logo and the notification area icon.	Логотип и икона у пољу за обавештења.
+Theme sound	Звук теме
+Used as the correction sound.	Користи се као звук исправке.
+Play	Пусти
+Turn on holiday themes automatically	Аутоматски укључуј празничне теме
 Layout fix	Исправка распореда
 Typo fix	Исправка словне грешке
 Replacement and typography	Аутозамена и типографија
@@ -218,28 +218,33 @@ Undoing a fix	Поништавање исправке
 Hotkey	Пречица
 Pause and resume	Пауза и наставак
 No sound	Без звука
-Bloop	Буљ
-Ooo	У-у-у
+Splash	Пљусак
+Hum	Брујање
 Drop	Кап
 Click	Клик
 Chime	Звонце
-Bloop down	Буљ наниже
-Fixing as you type is off in Settings, so there is nothing to pause.	Исправљање током куцања је искључено у подешавањима, па нема шта да се паузира.
-the word isn't a known word in any layout	реч није позната ни у једном распореду
+Low splash	Дубоки пљусак
+Correction while typing is turned off in Settings.	Исправљање током куцања искључено је у подешавањима.
+the word is not in any layout's dictionary	реч се не налази ни у једном речнику распореда
 Choose	Изабери
-On now	Сада
-Classic	Класичан
+Active	Активна
+Windows 11	Windows 11
 Halloween	Ноћ вештица
 October 24 to November 2	24. октобар — 2. новембар
 Oct 24 – Nov 2	24.10. — 2.11.
-Your version	Ваша верзија
-These hotkeys are taken by another app: {0}.	Ове пречице заузима други програм: {0}.
-These keys can't be hotkeys and are off: {0}.	Ови тастери не могу бити пречице и искључени су: {0}.
-You can change them in Settings.	Можете их променити у подешавањима.
-Colors of the custom look:	Боје сопственог изгледа:
-{0}: a color of the custom look	{0}: боја сопственог изгледа
+Installed	Инсталирана
+The following hotkeys are in use by another app: {0}.	Следеће пречице користи друга апликација: {0}.
+The following hotkeys are not allowed and have been turned off: {0}.	Следеће пречице нису дозвољене и искључене су: {0}.
+They can be changed in Settings.	Могу се променити у подешавањима.
+Custom theme colors:	Боје сопствене теме:
+{0}: custom theme color	{0}: боја сопствене теме
 Accent	Акценат
-Fish	Рибица
+Icon	Икона
 Undo the fix	Поништи исправку
-It can't be undone now: something was typed after the fix, or another window is in front.	Више не може да се поништи: после исправке је куцано или је напред други прозор.
-Custom	Сопствени
+Undo is unavailable: text was typed after the correction, or another window was activated.	Поништавање није доступно: после исправке је откуцан текст или је активиран други прозор.
+Custom theme	Сопствена тема
+Apply	Примени
+Apply the changes?	Применити измене?
+System language	Језик система
+Color mode	Режим боја
+Word lists	Листе речи

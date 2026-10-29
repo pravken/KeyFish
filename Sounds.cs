@@ -26,7 +26,7 @@ static class Sounds
             case Replacement: return L.T("Автозамена и типографика", "Replacement and typography");
             case Undo: return L.T("Отмена исправления", "Undoing a fix");
             case Hotkey: return L.T("Горячая клавиша", "Hotkey");
-            default: return L.T("Пауза и продолжение", "Pause and resume");
+            default: return L.T("Пауза и возобновление", "Pause and resume");
         }
     }
 
@@ -34,14 +34,14 @@ static class Sounds
     {
         switch (sound)
         {
-            case Look: return L.T("Как в оформлении", "The look's sound");
+            case Look: return L.T("Звук темы", "Theme sound");
             case None: return L.T("Без звука", "No sound");
-            case "bloop": return L.T("Бульк", "Bloop");
-            case "ghost": return L.T("У-у-у", "Ooo");
+            case "bloop": return L.T("Всплеск", "Splash");
+            case "ghost": return L.T("Гул", "Hum");
             case "drop": return L.T("Капля", "Drop");
             case "click": return L.T("Щелчок", "Click");
             case "chime": return L.T("Колокольчик", "Chime");
-            case "down": return L.T("Бульк вниз", "Bloop down");
+            case "down": return L.T("Всплеск низкий", "Low splash");
         }
         return sound.StartsWith(FilePrefix) ? Path.GetFileNameWithoutExtension(sound.Substring(FilePrefix.Length)) : sound;
     }

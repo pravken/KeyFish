@@ -53,6 +53,8 @@ static class Theme
     public static Color CardBorder { get { return Contrast ? SystemColors.WindowText : Pal.CardBorder; } }
     public static Color Text { get { return Contrast ? SystemColors.WindowText : Dark ? Color.White : Color.FromArgb(27, 27, 27); } }
     public static Color SubText { get { return Contrast ? SystemColors.WindowText : Dark ? Color.FromArgb(200, 200, 200) : Color.FromArgb(96, 96, 96); } }
+    // The text of a control that can't be used now: clearly dimmer than any other text, in both themes
+    public static Color DisabledText { get { return Contrast ? SystemColors.GrayText : Dark ? Color.FromArgb(120, 120, 120) : Color.FromArgb(160, 160, 160); } }
     public static Color Input { get { return Contrast ? SystemColors.Window : Pal.Input; } }
     public static Color InputBorder { get { return Contrast ? SystemColors.WindowText : Pal.InputBorder; } }
     public static Color Hover { get { return Contrast ? SystemColors.Window : Pal.Hover; } }
@@ -203,6 +205,18 @@ static class Theme
     [StructLayout(LayoutKind.Sequential)] struct HighContrastInfo { public int Size; public int Flags; public IntPtr Scheme; }
     [DllImport("user32.dll")] static extern bool SystemParametersInfo(int action, int param, ref HighContrastInfo info, int winIni);
 
+    // Windows' "Animation effects" (Accessibility → Visual effects): off, the pictures in Settings stay still
+    [DllImport("user32.dll", EntryPoint = "SystemParametersInfo")] static extern bool SystemParametersInfoInt(int action, int param, ref int value, int winIni);
+    public static bool Animations
+    {
+        get
+        {
+            int on = 1;
+            try { SystemParametersInfoInt(0x1042, 0, ref on, 0); } catch { }   // SPI_GETCLIENTAREAANIMATION
+            return on != 0;
+        }
+    }
+
     // Asked of Windows directly, without SystemInformation and the SystemEvents it starts
     public static bool ReadContrast()
     {
@@ -219,16 +233,26 @@ static class Theme
         f.BackColor = Back;
         f.ForeColor = Text;
         f.Font = Body;
-        f.HandleCreated += (s, e) =>
+        f.HandleCreated += (s, e) => TitleBar(f);
+    }
+
+    // A window already open, in the theme and look just chosen (its controls are built again by the window itself)
+    public static void Recolor(Form f)
+    {
+        f.BackColor = Back;
+        f.ForeColor = Text;
+        if (f.IsHandleCreated) TitleBar(f);
+    }
+
+    static void TitleBar(Form f)
+    {
+        int dark = Dark ? 1 : 0, mica = 2;
+        try
         {
-            int dark = Dark ? 1 : 0, mica = 2;
-            try
-            {
-                DwmSetWindowAttribute(f.Handle, 20, ref dark, 4);   // DWMWA_USE_IMMERSIVE_DARK_MODE
-                DwmSetWindowAttribute(f.Handle, 38, ref mica, 4);   // DWMWA_SYSTEMBACKDROP_TYPE: Mica
-            }
-            catch { }
-        };
+            DwmSetWindowAttribute(f.Handle, 20, ref dark, 4);   // DWMWA_USE_IMMERSIVE_DARK_MODE
+            DwmSetWindowAttribute(f.Handle, 38, ref mica, 4);   // DWMWA_SYSTEMBACKDROP_TYPE: Mica
+        }
+        catch { }
     }
 
     // Scrollbars of lists and panels follow the dark theme
@@ -646,22 +670,24 @@ class RoundButton : Control
     {
         var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
-        Color fill = AccentStyle ? Theme.AccentFill : Theme.Input;
+        // A main button that can't be pressed now is grey like any other, as in Windows 11
+        bool accent = AccentStyle && Enabled;
+        Color fill = accent ? Theme.AccentFill : Theme.Input;
         if (!Enabled) fill = Theme.Blend(fill, Theme.Back, 0.5);
         else if (down) fill = Theme.Blend(fill, Theme.Back, 0.25);
-        else if (hover) fill = AccentStyle ? Theme.Blend(fill, Theme.Back, 0.12) : Theme.Hover;
+        else if (hover) fill = accent ? Theme.Blend(fill, Theme.Back, 0.12) : Theme.Hover;
         using (var path = Theme.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), 4))
         {
             using (var b = new SolidBrush(fill)) g.FillPath(b, path);
-            if (!AccentStyle) using (var p = new Pen(Theme.InputBorder)) g.DrawPath(p, path);
+            if (!accent) using (var p = new Pen(Theme.InputBorder)) g.DrawPath(p, path);
             if (Focused && ShowFocusCues) using (var p = new Pen(Theme.Text, 1.5f)) g.DrawPath(p, path);
         }
-        Color fore = AccentStyle ? Theme.OnAccent : Theme.Text;
-        if (!Enabled) fore = Theme.SubText;
+        Color fore = accent ? Theme.OnAccent : Theme.Text;
+        if (!Enabled) fore = Theme.DisabledText;
         // Dark text on the accent color: semibold and drawn once is cleaner than the regular weight drawn twice,
         // which smears the edges of dark letters on a bright fill
         Font font = AccentStyle ? Theme.Strong : Font;
-        bool heavier = !AccentStyle;
+        bool heavier = !accent;
         if (string.IsNullOrEmpty(Glyph))
         {
             Theme.SmoothText(g, Text, font, ClientRectangle, fore, true, heavier);
@@ -795,7 +821,7 @@ class ThemedMenuRenderer : ToolStripProfessionalRenderer
     {
         // Smoothed like the rest of KeyFish's text, not with ClearType's thinner colored letters
         string text = (e.Text ?? "").Replace("&&", "\u0001").Replace("&", "").Replace("\u0001", "&");
-        Theme.SmoothText(e.Graphics, text, e.TextFont, e.TextRectangle, e.Item.Enabled ? Theme.Text : Theme.SubText, false);
+        Theme.SmoothText(e.Graphics, text, e.TextFont, e.TextRectangle, e.Item.Enabled ? Theme.Text : Theme.DisabledText, false);
     }
 
     protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
@@ -932,11 +958,14 @@ class DropDown : Control
     protected override void OnMouseDown(MouseEventArgs e) { if (e.Button == MouseButtons.Left) ShowMenu(); base.OnMouseDown(e); }
     protected override bool IsInputKey(Keys k) { return k == Keys.Up || k == Keys.Down || base.IsInputKey(k); }
 
+    // The last choice was made with the arrow keys, going through the list, not picked in the menu
+    public bool ByKeyboard { get; private set; }
+
     protected override void OnKeyDown(KeyEventArgs e)
     {
         if (e.KeyCode == Keys.Down && e.Alt || e.KeyCode == Keys.Space || e.KeyCode == Keys.F4) ShowMenu();
-        else if (e.KeyCode == Keys.Down && selected < Items.Count - 1) SelectedIndex = selected + 1;
-        else if (e.KeyCode == Keys.Up && selected > 0) SelectedIndex = selected - 1;
+        else if (e.KeyCode == Keys.Down && selected < Items.Count - 1) { ByKeyboard = true; SelectedIndex = selected + 1; }
+        else if (e.KeyCode == Keys.Up && selected > 0) { ByKeyboard = true; SelectedIndex = selected - 1; }
         base.OnKeyDown(e);
     }
 
@@ -949,7 +978,7 @@ class DropDown : Control
         {
             int index = i;
             var item = new ToolStripMenuItem(Items[i]) { Checked = edit == null && i == selected };
-            item.Click += (s, e) => { SelectedIndex = index; if (edit != null) { edit.Text = Items[index]; edit.SelectAll(); edit.Focus(); } };
+            item.Click += (s, e) => { ByKeyboard = false; SelectedIndex = index; if (edit != null) { edit.Text = Items[index]; edit.SelectAll(); edit.Focus(); } };
             menu.Items.Add(item);
         }
         menu.MinimumSize = new Size(Width, 0);
@@ -965,6 +994,7 @@ class DropDown : Control
         g.SmoothingMode = SmoothingMode.AntiAlias;
         bool focused = Focused || (edit != null && edit.Focused);
         Color fill = hover && edit == null ? Theme.Hover : Theme.Input;
+        if (!Enabled) fill = Theme.Blend(fill, Theme.Back, 0.5);   // grey, like a disabled button
         using (var path = Theme.Rounded(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), 4))
         {
             using (var b = new SolidBrush(fill)) g.FillPath(b, path);
@@ -974,9 +1004,11 @@ class DropDown : Control
         if (focused || open)
             using (var p = new Pen(Theme.AccentFill, 2f)) g.DrawLine(p, 4, Height - 1.5f, Width - 4, Height - 1.5f);
         if (edit == null)
-            Theme.SmoothText(g, Text, Font, new Rectangle(8, 0, Width - 8 - Height, Height), Theme.Text, false);
+            Theme.SmoothText(g, Text, Font, new Rectangle(8, 0, Width - 8 - Height, Height), Enabled ? Theme.Text : Theme.DisabledText, false);
         Theme.SmoothText(g, "\uE70D", chevron, new Rectangle(Width - Height, 1, Height - 4, Height), Theme.SubText, true, false);
     }
+
+    protected override void OnEnabledChanged(EventArgs e) { Invalidate(); base.OnEnabledChanged(e); }
 
     protected override void Dispose(bool disposing)
     {
@@ -1330,14 +1362,15 @@ static class LetterIcon
 class FeaturePreview : Control
 {
     readonly Action<Graphics, RectangleF, int> paint;   // the picture at a moment of the story, ms from its start
-    readonly int length;
+    readonly int length, rest;                           // rest: the moment it stays on once told, its result
     readonly Timer timer = new Timer { Interval = 33 };
     int started, ms;
 
-    public FeaturePreview(Action<Graphics, RectangleF, int> paint, int length)
+    public FeaturePreview(Action<Graphics, RectangleF, int> paint, int length, int rest = -1)
     {
         this.paint = paint;
         this.length = length;
+        this.rest = rest < 0 ? length - 1 : rest;
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint |
                  ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
         BackColor = Color.Transparent;
@@ -1346,9 +1379,11 @@ class FeaturePreview : Control
         timer.Tick += (s, e) => Step();
     }
 
-    // Plays the story from the start, after a delay (the pictures of a page start one after another), then loops
+    // Plays the story once from the start, after a delay (the pictures of a page start one after another), and stays
+    // on its result; with Windows' animations off it shows the result at once. Pointing at it plays it again
     public void Play(int delay = 0)
     {
+        if (!Theme.Animations) { timer.Stop(); ms = rest; Invalidate(); return; }
         started = Environment.TickCount + delay;
         ms = 0;
         timer.Start();
@@ -1357,11 +1392,13 @@ class FeaturePreview : Control
 
     void Step()
     {
-        if (!Visible) { timer.Stop(); return; }   // the page or the window was hidden; showing the page starts it again
+        if (!Visible) { timer.Stop(); ms = rest; return; }   // the page or the window was hidden; showing the page plays it again
         ms = Environment.TickCount - started;   // negative while the delay lasts
-        if (ms >= length) { started += length * (ms / length); ms %= length; }
+        if (ms >= length) { ms = rest; timer.Stop(); }
         Invalidate();
     }
+
+    protected override void OnMouseEnter(EventArgs e) { if (!timer.Enabled) Play(); base.OnMouseEnter(e); }
 
     protected override void OnPaint(PaintEventArgs e)
     {
@@ -1406,6 +1443,9 @@ static class Pictures
     // How long the typing story lasts: typing, the fix, (Ctrl+Z putting the word back), a look, selecting, deleting
     public static int TypingLength(string typed, bool undo) { return FixAt(typed) + (undo ? 1500 : 0) + 3000; }
 
+    // Where the story stays once told: the fixed word (or, with undo, the word put back), before it is selected
+    public static int TypingRest(string typed, bool undo) { return TypingLength(typed, undo) - 1800; }
+
     // The word is typed letter by letter, KeyFish fixes it (it flashes in the accent color), with undo Ctrl+Z puts
     // the typed word back; then the word is selected and deleted, and the field is empty again, as at the start
     public static void Typing(Graphics g, RectangleF r, int ms, string typed, string fixedWord, bool undo, string undoKey = "Ctrl+Z")
@@ -1439,7 +1479,7 @@ static class Pictures
 
     // ---------- the tray icon following the layout ----------
 
-    public const int SwitchLength = 4800;
+    public const int SwitchLength = 4800, SwitchRest = 2500;   // rest: the icon of the other layout
 
     // The layout is switched there and back: the key combination shows, the icon changes, and later back again
     public static void Switching(Graphics g, RectangleF r, int ms, Func<Image> first, Func<Image> second)
@@ -1498,7 +1538,7 @@ static class Pictures
             Theme.SmoothText(g, text, f, tag, Color.FromArgb(a, LetterIcon.InkOn(fill)), true, false);
     }
 
-    public const int BadgeLength = 4800;
+    public const int BadgeLength = 4800, BadgeRest = 3800;   // rest: the tag of the layout switched to
 
     // ---------- parts ----------
 
@@ -1560,6 +1600,42 @@ static class LayoutColors
         Color.FromArgb(125, 170, 30), Color.FromArgb(227, 169, 11), Color.FromArgb(141, 110, 99), Color.FromArgb(95, 107, 122)
     };
 
+    // The palette colors the third and further layouts get by themselves, in this order
+    static readonly int[] OwnOrder = { 7, 4, 6, 3, 9, 2, 5, 8, 10, 11, 0, 1 };
+
+    // "EN" for en-US: the name a layout's color is kept under
+    public static string Tag(LayoutTable t) { return (t.Name ?? "").Split('-')[0].ToUpperInvariant(); }
+
+    // The color of a layout: the one chosen for it; otherwise the look's blue for the first Latin layout and orange for
+    // the first of another alphabet, and for every further layout a palette color no other layout has
+    public static Color For(string tag, bool other, IEnumerable<LayoutTable> installed, Dictionary<string, Color> chosen)
+    {
+        Color c;
+        if (chosen.TryGetValue(tag, out c)) return c;
+        var used = new HashSet<int> { LetterIcon.Latin.ToArgb(), LetterIcon.Other.ToArgb() };
+        foreach (var v in chosen.Values) used.Add(v.ToArgb());
+        bool latinTaken = false, otherTaken = false;
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var t in installed)
+        {
+            string name = Tag(t);
+            if (name.Length == 0 || !seen.Add(name) || chosen.ContainsKey(name)) continue;
+            bool o = t.Script != null && t.Script != "Latin";
+            Color d;
+            if (o && !otherTaken) { d = LetterIcon.Other; otherTaken = true; }
+            else if (!o && !latinTaken) { d = LetterIcon.Latin; latinTaken = true; }
+            else
+            {
+                d = o ? LetterIcon.Other : LetterIcon.Latin;   // only if all the palette is taken
+                foreach (int i in OwnOrder)
+                    if (!used.Contains(Palette[i].ToArgb())) { d = Palette[i]; break; }
+                used.Add(d.ToArgb());
+            }
+            if (string.Equals(name, tag, StringComparison.OrdinalIgnoreCase)) return d;
+        }
+        return other ? LetterIcon.Other : LetterIcon.Latin;
+    }
+
     public static Dictionary<string, Color> Parse(string text)
     {
         var map = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);
@@ -1606,6 +1682,7 @@ class ColorSwatch : Control
     public string Letters;
     public Color Color;
     public bool Custom;                  // chosen by the user, not the default for the alphabet
+    public Func<Color, Image> Picture;   // drawn in the color instead of the circle (the tray icon of a layout)
     bool hover;
 
     public ColorSwatch()
@@ -1630,7 +1707,13 @@ class ColorSwatch : Control
         var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
         float ring = Theme.S(3);
-        LetterIcon.Draw(g, new RectangleF(ring, ring, Width - ring * 2, Height - ring * 2), Letters, Color, LetterIcon.InkOn(Color));
+        if (Picture != null)
+        {
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            float pad = Theme.S(5);
+            g.DrawImage(Picture(Color), new RectangleF(pad, pad, Width - pad * 2, Height - pad * 2));
+        }
+        else LetterIcon.Draw(g, new RectangleF(ring, ring, Width - ring * 2, Height - ring * 2), Letters, Color, LetterIcon.InkOn(Color));
         if (hover || (Focused && ShowFocusCues))
             using (var p = new Pen(Theme.Text, Math.Max(1.5f, Theme.Scale * 1.5f))) g.DrawEllipse(p, 1, 1, Width - 2.5f, Height - 2.5f);
     }
@@ -1830,7 +1913,7 @@ class SkinGallery : Control
             Theme.SmoothText(g, skin.Name, i == selected ? Theme.Strong : Theme.Body, name, Theme.Text, false, false);
             // A holiday's look: its days, or that it is on now
             if (skin.Season != null)
-                Theme.SmoothText(g, skin.Season(DateTime.Today) ? L.T("Сейчас", "On now") : skin.SeasonShort, Theme.Small,
+                Theme.SmoothText(g, skin.Season(DateTime.Today) ? L.T("Активна", "Active") : skin.SeasonShort, Theme.Small,
                                  new RectangleF(name.X, name.Bottom, name.Width, 18 * k), Theme.SubText, false, false);
             // The chosen one is outlined in the accent color, the one under the mouse more faintly
             Color edge = i == selected ? Theme.AccentFill : i == hover ? Theme.InputBorder : Color.Empty;

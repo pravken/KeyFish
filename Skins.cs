@@ -30,7 +30,7 @@ class Skin
 
     public static readonly Skin Classic = new Skin
     {
-        Number = 0, NameRu = "Классическая", NameEn = "Classic",
+        Number = 0, NameRu = "Windows 11", NameEn = "Windows 11",
         Light = ClassicLight,
         Dark = ClassicDark,
         DiscCenter = Color.FromArgb(78, 146, 240), DiscEdge = Color.FromArgb(28, 88, 196),
@@ -63,7 +63,7 @@ class Skin
     // A custom skin with these colors: for Settings to show one before it is saved
     public static Skin Make(Color accent, Color fish)
     {
-        var s = new Skin { Number = 2, NameRu = "Своё", NameEn = "Custom", TintTray = true, Other = Color.FromArgb(232, 112, 30) };
+        var s = new Skin { Number = 2, NameRu = "Своя тема", NameEn = "Custom theme", TintTray = true, Other = Color.FromArgb(232, 112, 30) };
         Paint(s, accent, fish);
         return s;
     }
