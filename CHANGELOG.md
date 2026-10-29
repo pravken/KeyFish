@@ -1,3 +1,14 @@
+2.1.1 2026-10-29
+New:
+• A Windows notification with an "Undo the fix" button on the first corrections
+• A custom look: an accent color and a fish color
+Improved:
+• Disabled switches look inactive
+• A warning about stored hotkeys that can no longer be used
+Fixed:
+• A click in another window no longer prevents undoing the last fix
+• Double Shift sometimes found no word to fix
+
 2.1.0 2026-10-29
 New:
 • Looks: a gallery with a preview before applying, a Halloween look

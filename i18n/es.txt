@@ -12,7 +12,6 @@ Switch layout of selected text; right after an auto-fix — undo it (as does Ctr
 Switch layout of selected text — alternative keys	Cambiar la distribución del texto seleccionado — atajo alternativo
 Change case of selected text (aa → Aa → AA)	Mayúsculas del texto seleccionado (aa → Aa → AA)
 Transliterate (привет ⇄ privet)	Transliteración (привет ⇄ privet)
-These hotkeys are taken by another app: {0}. You can change them in Settings.	Estos atajos los usa otra aplicación: {0}. Puedes cambiarlos en la configuración.
 Auto-correct while typing	Corregir al escribir
 Settings…	Configuración…
 Check for updates	Buscar actualizaciones
@@ -234,3 +233,13 @@ Halloween	Halloween
 October 24 to November 2	24 de octubre — 2 de noviembre
 Oct 24 – Nov 2	24/10 – 2/11
 Your version	Tu versión
+These hotkeys are taken by another app: {0}.	Estos atajos los usa otra aplicación: {0}.
+These keys can't be hotkeys and are off: {0}.	Estas teclas no pueden ser atajos y están desactivadas: {0}.
+You can change them in Settings.	Puedes cambiarlos en los ajustes.
+Colors of the custom look:	Colores del aspecto propio:
+{0}: a color of the custom look	{0}: un color del aspecto propio
+Accent	Acento
+Fish	Pez
+Undo the fix	Deshacer la corrección
+It can't be undone now: something was typed after the fix, or another window is in front.	Ya no se puede deshacer: se escribió algo después de la corrección o hay otra ventana delante.
+Custom	Propio

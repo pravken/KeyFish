@@ -384,13 +384,13 @@ class ChangelogView : Control
             if (b.Kind == Version)
             {
                 // The number, then the date in grey and the badge of the running version
-                Text(g, b.Text, font, new Rectangle(left, top, textWidth, b.Height), Theme.Text);
+                Write(g, b.Text, font, new Rectangle(left, top, textWidth, b.Height), Theme.Text);
                 float x = left + g.MeasureString(b.Text, font).Width + Theme.S(8);
                 float mid = top + b.Height / 2f;
                 if (b.Date != null)
                 {
                     var size = g.MeasureString(b.Date, Theme.Small);
-                    Text(g, b.Date, Theme.Small, new Rectangle((int)x, (int)(mid - size.Height / 2), (int)size.Width + 4, (int)size.Height + 2), Theme.SubText);
+                    Write(g, b.Date, Theme.Small, new Rectangle((int)x, (int)(mid - size.Height / 2), (int)size.Width + 4, (int)size.Height + 2), Theme.SubText);
                     x += size.Width + Theme.S(8);
                 }
                 if (b.Current)
@@ -400,7 +400,7 @@ class ChangelogView : Control
                     var pill = new RectangleF(x, mid - size.Height / 2 - Theme.S(2), size.Width + Theme.S(12), size.Height + Theme.S(4));
                     using (var path = Theme.Rounded(pill, pill.Height / 2))
                     using (var brush = new SolidBrush(Theme.AccentFill)) g.FillPath(brush, path);
-                    Text(g, label, Theme.Small, Rectangle.Round(new RectangleF(pill.X + Theme.S(6), pill.Y + Theme.S(2), size.Width + 4, size.Height)), Theme.OnAccent);
+                    Write(g, label, Theme.Small, Rectangle.Round(new RectangleF(pill.X + Theme.S(6), pill.Y + Theme.S(2), size.Width + 4, size.Height)), Theme.OnAccent);
                 }
                 continue;
             }
@@ -409,7 +409,7 @@ class ChangelogView : Control
                 // A colored dot before the group's name
                 float d = Theme.S(8);
                 using (var brush = new SolidBrush(GroupColor(b.Group))) g.FillEllipse(brush, left, top + (b.Height - d) / 2f, d, d);
-                Text(g, b.Text, font, new Rectangle(left + Theme.S(14), top, textWidth - Theme.S(14), b.Height), Theme.Text);
+                Write(g, b.Text, font, new Rectangle(left + Theme.S(14), top, textWidth - Theme.S(14), b.Height), Theme.Text);
                 continue;
             }
             // A change: the bullet in the group's color, the text indented after it
@@ -418,11 +418,11 @@ class ChangelogView : Control
                 float d = Theme.S(4), lineH = font.GetHeight(g);
                 g.FillEllipse(brush, Pad + Theme.S(2), top + lineH / 2f - d / 2f + Theme.S(1), d, d);
             }
-            Text(g, b.Text, font, new Rectangle(left, top, textWidth, b.Height), Theme.Text);
+            Write(g, b.Text, font, new Rectangle(left, top, textWidth, b.Height), Theme.Text);
         }
     }
 
-    void Text(Graphics g, string text, Font font, Rectangle r, Color color)
+    void Write(Graphics g, string text, Font font, Rectangle r, Color color)
     {
         if (Theme.HasEmoji(text))
         {

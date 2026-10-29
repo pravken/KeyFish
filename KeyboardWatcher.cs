@@ -352,7 +352,16 @@ class KeyboardWatcher
         {
             Notify();
             lastShiftTap = 0;
-            lock (sync) { ResetAll(); last = null; erasedKeys = null; }
+            // A click may move the caret, so what is being typed starts over. A click in another window (the fix's
+            // notification, the taskbar) leaves the caret where it was: the last fix can still be taken back there
+            var at = new W.PT { X = Marshal.ReadInt32(lParam, 0), Y = Marshal.ReadInt32(lParam, 4) };
+            IntPtr clicked = W.GetAncestor(W.WindowFromPoint(at), 2);   // GA_ROOT
+            lock (sync)
+            {
+                ResetAll();
+                erasedKeys = null;
+                if (last != null && clicked == last.Hwnd) last = null;
+            }
         }
         return W.CallNextHookEx(IntPtr.Zero, code, wParam, lParam);
     }
@@ -1380,6 +1389,8 @@ static class W
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string cls, string title);
     [DllImport("user32.dll")] public static extern bool IsZoomed(IntPtr hwnd);
     [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr hwnd, uint flags);
+    [StructLayout(LayoutKind.Sequential)] public struct PT { public int X, Y; }
+    [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(PT point);
 
     [DllImport("advapi32.dll", SetLastError = true)] static extern bool OpenProcessToken(IntPtr process, uint access, out IntPtr token);
     [DllImport("advapi32.dll", SetLastError = true)] static extern bool GetTokenInformation(IntPtr token, int cls, IntPtr info, int length, out int returned);

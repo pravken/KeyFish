@@ -287,6 +287,12 @@ partial class App : ApplicationContext
 
     public App(bool updated)
     {
+        // Work handed to this thread (double Shift from the keyboard hook, window changes, update checks) is posted
+        // through the context caught here. Application.Run installs the window one only later, and before it
+        // there may be none or a bare one (whatever ran first may have set it), which runs posts on the thread pool,
+        // where the clipboard can't be read: so double Shift once found no word. The window one is installed now
+        if (!(SynchronizationContext.Current is WindowsFormsSynchronizationContext))
+            SynchronizationContext.SetSynchronizationContext(new WindowsFormsSynchronizationContext());
         MigrateFromLayoutFix();
         RepairAutostart();
         L.Setting = GetSetting("Language", 0);
@@ -295,6 +301,7 @@ partial class App : ApplicationContext
         Theme.Holidays = GetSetting("Holiday", 1) != 0;
         Theme.SkinLogo = GetSetting("SkinLogo", 1) != 0;
         Theme.SkinSound = GetSetting("SkinSound", 1) != 0;
+        Skin.SetCustom(Color.FromArgb(GetSetting("CustomAccent", 0)), Color.FromArgb(GetSetting("CustomFish", 0)));
         Theme.Refresh();
         statsBase = GetSetting("StatsTotal", 0);
         if (GetSetting("StatsSince", 0) == 0) SetSetting("StatsSince", int.Parse(DateTime.Today.ToString("yyyyMMdd")));
@@ -338,7 +345,7 @@ partial class App : ApplicationContext
         Sounds.Dir = Path.Combine(dir, "sounds");
         Sounds.Load(Sounds.Parse(GetText("Sounds")));
         // Double Shift or Caps Lock comes from the keyboard hook's thread: hand it to this one
-        var ui = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
+        var ui = SynchronizationContext.Current;
         watcher.QuickFix += () => ui.Post(_ =>
         {
             if (settingsForm == null && W.GetForegroundWindow() != IntPtr.Zero) OnHotkey(HkLayout);
@@ -476,7 +483,7 @@ partial class App : ApplicationContext
         {
             OpenAbout = owner => ShowAbout(owner), Updates = updates,
             BackupDir = backupDir, TrayLetters = trayLetters, LayoutColors = new Dictionary<string, Color>(layoutColors, StringComparer.OrdinalIgnoreCase), AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, SoundMap = new Dictionary<string, string>(Sounds.Map), SoundsDir = Sounds.Dir, RecentMenu = watcher.KeepRecent, Typography = watcher.Typography, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
-            CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting, ThemeMode = Theme.Mode, SkinNumber = Theme.Chosen, Holiday = Theme.Holidays, SkinLogo = Theme.SkinLogo, SkinSound = Theme.SkinSound,
+            CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting, ThemeMode = Theme.Mode, SkinNumber = Theme.Chosen, Holiday = Theme.Holidays, SkinLogo = Theme.SkinLogo, SkinSound = Theme.SkinSound, CustomAccent = Skin.Custom.Accent, CustomFish = Skin.Custom.Latin,
             Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ignoredBefore, Learned = learnedBefore,
             AppLayouts = ReadText(appLayoutsPath), InstalledLayouts = new List<LayoutTable>(watcher.Layouts.All)
         };
@@ -531,6 +538,15 @@ partial class App : ApplicationContext
                     Theme.Holidays = f.Holiday;
                     Theme.Chosen = f.SkinNumber;
                     if (Theme.Refresh()) themeChanged = true;
+                }
+                Color accent = f.CustomAccent, fish = f.CustomFish;
+                if (accent.ToArgb() != Skin.Custom.Accent.ToArgb() || fish.ToArgb() != Skin.Custom.Latin.ToArgb())
+                {
+                    SetSetting("CustomAccent", accent.ToArgb());
+                    SetSetting("CustomFish", fish.ToArgb());
+                    Skin.SetCustom(accent, fish);
+                    Theme.Refresh();
+                    themeChanged = true;
                 }
                 if (f.SkinLogo != Theme.SkinLogo || f.SkinSound != Theme.SkinSound)
                 {

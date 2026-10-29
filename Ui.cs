@@ -201,8 +201,7 @@ static class Theme
     [StructLayout(LayoutKind.Sequential)] struct HighContrastInfo { public int Size; public int Flags; public IntPtr Scheme; }
     [DllImport("user32.dll")] static extern bool SystemParametersInfo(int action, int param, ref HighContrastInfo info, int winIni);
 
-    // Asked of Windows directly: SystemInformation.HighContrast subscribes to SystemEvents on the thread that first
-    // reads it, and with that the double-Shift hotkey stopped getting the selected word
+    // Asked of Windows directly, without SystemInformation and the SystemEvents it starts
     public static bool ReadContrast()
     {
         var hc = new HighContrastInfo { Size = Marshal.SizeOf(typeof(HighContrastInfo)) };
@@ -503,9 +502,16 @@ class ToggleSwitch : Control
         g.SmoothingMode = SmoothingMode.AntiAlias;
         float h = Height - 2, w = Width - 2;
         var r = new RectangleF(1, 1, w - 1, h - 1);
+        // Switched off for now (Enabled = false): grey whether on or off, so it doesn't look clickable
+        Color dim = Theme.Contrast ? SystemColors.GrayText : Theme.Blend(Theme.SubText, Theme.Card, 0.55);
         using (var path = Theme.Rounded(r, h / 2 - 0.5f))
         {
-            if (on)
+            if (!Enabled)
+            {
+                if (on) using (var b = new SolidBrush(dim)) g.FillPath(b, path);
+                else using (var p = new Pen(dim, 1f)) g.DrawPath(p, path);
+            }
+            else if (on)
                 using (var b = new SolidBrush(hover ? Theme.Blend(Theme.AccentFill, Theme.Back, 0.12) : Theme.AccentFill)) g.FillPath(b, path);
             else
             {
@@ -513,9 +519,9 @@ class ToggleSwitch : Control
                 using (var p = new Pen(Theme.SubText, 1f)) g.DrawPath(p, path);
             }
         }
-        float knob = h * (hover ? 0.62f : 0.54f);
+        float knob = h * (hover && Enabled ? 0.62f : 0.54f);
         float x = on ? r.Right - h / 2 - knob / 2 : r.X + h / 2 - knob / 2;
-        using (var b = new SolidBrush(on ? Theme.OnAccent : Theme.SubText))
+        using (var b = new SolidBrush(!Enabled ? (on ? Theme.Card : dim) : on ? Theme.OnAccent : Theme.SubText))
             g.FillEllipse(b, x, r.Y + (r.Height - knob) / 2, knob, knob);
         if (Focused && ShowFocusCues)
             using (var p = new Pen(Theme.Text, 1f) { DashStyle = DashStyle.Dot })
@@ -1712,7 +1718,11 @@ class SkinGallery : Control
         set { selected = Math.Max(0, Array.IndexOf(Skin.All, Skin.Find(value))); Invalidate(); }
     }
 
-    public Skin SelectedSkin { get { return Skin.All[selected]; } }
+    public Skin SelectedSkin { get { return Shown(selected); } }
+
+    // The custom look with the colors chosen in Settings, not yet saved
+    public Skin CustomSkin = Skin.Custom;
+    Skin Shown(int i) { return Skin.All[i] == Skin.Custom ? CustomSkin : Skin.All[i]; }
 
     public bool Logo { get { return logo; } set { logo = value; Invalidate(); } }
     public bool Dark { get { return dark; } set { dark = value; Invalidate(); } }
@@ -1811,7 +1821,7 @@ class SkinGallery : Control
         for (int i = 0; i < Skin.All.Length; i++)
         {
             var r = CardRect(i);
-            var skin = Skin.All[i];
+            var skin = Shown(i);
             var thumb = new RectangleF(r.X + 2 * k, r.Y + 2 * k, r.Width - 4 * k, Thumb * k);
             Draw(g, thumb, skin, dark, logo, 0, -1);
             var name = new RectangleF(r.X + 3 * k, thumb.Bottom + 5 * k, r.Width - 6 * k, 20 * k);

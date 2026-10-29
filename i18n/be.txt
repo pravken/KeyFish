@@ -12,7 +12,6 @@ Switch layout of selected text; right after an auto-fix — undo it (as does Ctr
 Switch layout of selected text — alternative keys	Раскладка вылучанага тэксту — запасное спалучэнне
 Change case of selected text (aa → Aa → AA)	Рэгістр вылучанага тэксту (аа → Аа → АА)
 Transliterate (привет ⇄ privet)	Транслітарацыя (прывітанне ⇄ pryvitannie)
-These hotkeys are taken by another app: {0}. You can change them in Settings.	Гэтыя спалучэнні занятыя іншай праграмай: {0}. Іх можна змяніць у наладах.
 Auto-correct while typing	Аўтавыпраўленне пры наборы
 Settings…	Налады…
 Check for updates	Праверыць абнаўленні
@@ -234,3 +233,13 @@ October 24 to November 2	24 кастрычніка — 2 лістапада
 Oct 24 – Nov 2	24.10 — 2.11
 thx	дзяк
 Your version	Ваша версія
+These hotkeys are taken by another app: {0}.	Гэтыя спалучэнні клавіш занятыя іншай праграмай: {0}.
+These keys can't be hotkeys and are off: {0}.	Гэтыя клавішы не могуць быць гарачымі і выключаны: {0}.
+You can change them in Settings.	Іх можна змяніць у наладах.
+Colors of the custom look:	Колеры свайго афармлення:
+{0}: a color of the custom look	{0}: колер свайго афармлення
+Accent	Акцэнт
+Fish	Рыбка
+Undo the fix	Адмяніць выпраўленне
+It can't be undone now: something was typed after the fix, or another window is in front.	Адмяніць ужо нельга: пасля выпраўлення набіралі тэкст або адкрыта іншае акно.
+Custom	Сваё

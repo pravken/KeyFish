@@ -21,6 +21,7 @@ class SettingsForm : Form
     public int SkinNumber;               // the look chosen (Skin.Number)
     public bool Holiday = true;          // a holiday's own look while the holiday lasts
     public bool SkinLogo = true, SkinSound = true;   // the look changes the fish and the sound too
+    public Color CustomAccent = Skin.DefaultAccent, CustomFish = Skin.DefaultFish;   // the colors of the custom look
     public Dictionary<string, string> SoundMap = new Dictionary<string, string>();   // event → sound (Sounds)
     public string SoundsDir;             // where the user's .wav files are
     public Keys[] Hotkeys;
@@ -300,9 +301,52 @@ class SettingsForm : Form
         card.Controls.Add(cbTheme);
         // The pictures in the light or dark theme as chosen here: as in Windows, light, dark
         Func<bool> dark = () => cbTheme.SelectedIndex == 0 ? Theme.WindowsDark() : cbTheme.SelectedIndex == 2;
-        gallery = new SkinGallery(ContentWidth - pad * 2) { Location = new Point(pad, Math.Max(d.Bottom, cbTheme.Bottom) + 12), Selected = SkinNumber, Logo = SkinLogo, Dark = dark(), AccessibleName = title };
+        int top = Math.Max(d.Bottom, cbTheme.Bottom) + 12;
+        // In high contrast the windows take the system's colors and no look applies: say so instead of offering one
+        if (Theme.Contrast)
+        {
+            var note = Theme.Wrapped(L.T("Включена высокая контрастность: окна KeyFish в цветах Windows, оформление не применяется.",
+                                         "High contrast is on: KeyFish's windows use the Windows colors, and no look applies."), ContentWidth - pad * 2, Theme.Small, Theme.Text);
+            note.Location = new Point(pad, top);
+            card.Controls.Add(note);
+            top = note.Bottom + 10;
+        }
+        gallery = new SkinGallery(ContentWidth - pad * 2) { Location = new Point(pad, top), Selected = SkinNumber, Logo = SkinLogo, Dark = dark(), AccessibleName = title };
+        gallery.CustomSkin = Skin.Make(CustomAccent, CustomFish);
         card.Controls.Add(gallery);
-        int top = gallery.Bottom + 18;
+        top = gallery.Bottom + 12;
+
+        // The colors of "Custom": choosing one shows it in the pictures and picks that look
+        string colorsText = L.T("Цвета своего оформления:", "Colors of the custom look:");
+        var colorsLabel = Theme.Wrapped(colorsText, TextRenderer.MeasureText(colorsText, Theme.Body).Width + 8);
+        colorsLabel.Location = new Point(pad, top + (34 - colorsLabel.Height) / 2);
+        card.Controls.Add(colorsLabel);
+        int sx = pad + colorsLabel.Width + 12;
+        var swatches = new List<ColorSwatch>();
+        Action<string, Color, Color> swatch = (name, value, fallback) =>
+        {
+            var label = Theme.Wrapped(name, TextRenderer.MeasureText(name, Theme.Small).Width + 8, Theme.Small, Theme.SubText);
+            var sw = new ColorSwatch { Letters = "", Color = value, Location = new Point(sx, top), AccessibleName = L.F("{0}: цвет своего оформления", "{0}: a color of the custom look", name) };
+            label.Location = new Point(sx + sw.Width + 6, top + (34 - label.Height) / 2);
+            sw.Click += (s, e) => ColorPicker.Show(sw, sw.Color, c =>
+            {
+                sw.Color = c ?? fallback;
+                sw.Invalidate();
+                CustomAccent = swatches[0].Color;
+                CustomFish = swatches[1].Color;
+                gallery.CustomSkin = Skin.Make(CustomAccent, CustomFish);
+                gallery.Selected = Skin.Custom.Number;
+                Invalidate(true);
+            });
+            swatches.Add(sw);
+            card.Controls.Add(sw);
+            card.Controls.Add(label);
+            sx = label.Right + 18;
+        };
+        swatch(L.T("Акцент", "Accent"), CustomAccent, Skin.DefaultAccent);
+        swatch(L.T("Рыбка", "Fish"), CustomFish, Skin.DefaultFish);
+        top += 34 + 18;
+
         tSkinLogo = Toggle(SkinLogo);
         tSkinSound = Toggle(SkinSound);
         tHoliday = Toggle(Holiday);
@@ -312,17 +356,10 @@ class SettingsForm : Form
         { Size = new Size(bigW, bigH), Location = new Point(pad, top), AccessibleName = L.T("Как это будет выглядеть", "How it will look") };
         card.Controls.Add(big);
         gallery.SelectedChanged += (s, e) => big.Invalidate();
-        // In high contrast the windows take the system's colors and no look applies: say so instead of offering one
         if (Theme.Contrast)
         {
-            var note = Theme.Wrapped(L.T("Включена высокая контрастность: окна KeyFish в цветах Windows, оформление не применяется.",
-                                         "High contrast is on: KeyFish's windows use the Windows colors, and no look applies."), ContentWidth - pad * 2, Theme.Small, Theme.Text);
-            note.Location = new Point(pad, gallery.Top);
-            card.Controls.Add(note);
-            gallery.Top = note.Bottom + 10;
-            big.Top = gallery.Bottom + 18;
-            top = big.Top;
             gallery.Enabled = tSkinLogo.Enabled = tSkinSound.Enabled = tHoliday.Enabled = false;
+            foreach (var sw in swatches) sw.Enabled = false;
         }
         cbTheme.SelectedIndexChanged += (s, e) => { gallery.Dark = dark(); big.Invalidate(); };
         tSkinLogo.CheckedChanged += (s, e) => { gallery.Logo = tSkinLogo.Checked; big.Invalidate(); };
@@ -1111,7 +1148,8 @@ class SettingsForm : Form
             { "LayoutBadge", LayoutBadge ? 1 : 0 }, { "RecentMenu", RecentMenu ? 1 : 0 }, { "QuickKey", QuickKey }, { "Sound", Sound ? 1 : 0 }, { "Typography", Typography ? 1 : 0 },
             { "TrayLetters", TrayLetters ? 1 : 0 },
             { "Language", Language }, { "Theme", ThemeMode }, { "Holiday", Holiday ? 1 : 0 },
-            { "Skin", SkinNumber }, { "SkinLogo", SkinLogo ? 1 : 0 }, { "SkinSound", SkinSound ? 1 : 0 }
+            { "Skin", SkinNumber }, { "SkinLogo", SkinLogo ? 1 : 0 }, { "SkinSound", SkinSound ? 1 : 0 },
+            { "CustomAccent", CustomAccent.ToArgb() }, { "CustomFish", CustomFish.ToArgb() }
         };
         for (int i = 0; i < Hotkeys.Length; i++) v["Hotkey" + (i + 1)] = (int)Hotkeys[i];
         return v;
@@ -1185,6 +1223,8 @@ class SettingsForm : Form
         if (values.TryGetValue("Skin", out n)) SkinNumber = Skin.Find(n).Number;
         if (values.TryGetValue("SkinLogo", out n)) SkinLogo = n != 0;
         if (values.TryGetValue("SkinSound", out n)) SkinSound = n != 0;
+        if (values.TryGetValue("CustomAccent", out n) && n != 0) CustomAccent = Color.FromArgb(255, Color.FromArgb(n));
+        if (values.TryGetValue("CustomFish", out n) && n != 0) CustomFish = Color.FromArgb(255, Color.FromArgb(n));
         for (int i = 0; i < Hotkeys.Length; i++)
             if (values.TryGetValue("Hotkey" + (i + 1), out n) && (n == 0 || HotkeyBox.Allowed((Keys)n))) Hotkeys[i] = (Keys)n;
         DialogResult = DialogResult.OK;
@@ -1577,7 +1617,7 @@ static class SettingsArchive
     public static readonly string[] Values =
     {
         "AutoCorrect", "Typos", "QuietFullscreen", "UndoCtrlZ", "LayoutColor", "CheckUpdates", "LayoutBadge", "RecentMenu", "QuickKey", "Sound", "TrayLetters", "Typography",
-        "Language", "Theme", "Holiday", "Skin", "SkinLogo", "SkinSound", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5", "Hotkey6", "Hotkey7", "Hotkey8"
+        "Language", "Theme", "Holiday", "Skin", "SkinLogo", "SkinSound", "CustomAccent", "CustomFish", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5", "Hotkey6", "Hotkey7", "Hotkey8"
     };
     static readonly string[] FileNames = { "replacements.txt", "exclusions.txt", "ignored-words.txt", "learned-words.txt", "app-layouts.txt", "layout-colors.txt", "sounds.txt" };
 

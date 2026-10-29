@@ -38,8 +38,8 @@ jobs:
         shell: pwsh
         run: |
           $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-          $src = 'Version.cs Program.cs Tray.cs Hotkeys.cs Updates.cs Native.cs CrashLog.cs L.cs CaseConverter.cs Layouts.cs Ui.cs Skins.cs Sounds.cs FishLogo.cs Detector.cs KeyboardWatcher.cs SpellService.cs Transliterator.cs SettingsForm.cs Updater.cs PasswordGuard.cs AboutForm.cs'.Split(' ')
-          & $csc /nologo /codepage:65001 /main:UnitTests /out:tests\bin\UnitTests.exe /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Core.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll "/lib:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\WPF" /r:Accessibility.dll /r:UIAutomationClient.dll /r:UIAutomationTypes.dll /r:WindowsBase.dll tests\UnitTests.cs @src
+          $src = 'Version.cs Program.cs Tray.cs Hotkeys.cs Updates.cs Native.cs CrashLog.cs L.cs CaseConverter.cs Layouts.cs Ui.cs Skins.cs Sounds.cs Toasts.cs FishLogo.cs Detector.cs KeyboardWatcher.cs SpellService.cs Transliterator.cs SettingsForm.cs Updater.cs PasswordGuard.cs AboutForm.cs'.Split(' ')
+          & $csc /nologo /codepage:65001 /main:UnitTests /out:tests\bin\UnitTests.exe /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Core.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll "/lib:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\WPF" /r:Accessibility.dll /r:UIAutomationClient.dll /r:UIAutomationTypes.dll /r:WindowsBase.dll "/r:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\System.Runtime.dll" "/r:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\System.Runtime.WindowsRuntime.dll" "/r:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\System.Runtime.InteropServices.WindowsRuntime.dll" "/r:$env:WINDIR\System32\WinMetadata\Windows.Data.winmd" "/r:$env:WINDIR\System32\WinMetadata\Windows.UI.winmd" "/r:$env:WINDIR\System32\WinMetadata\Windows.Foundation.winmd" tests\UnitTests.cs @src
           if ($LASTEXITCODE -ne 0) { throw 'UnitTests doesn''t build' }
           tests\bin\UnitTests.exe data
           if ($LASTEXITCODE -ne 0) { throw "$LASTEXITCODE unit tests failed" }

@@ -57,18 +57,22 @@ static class Typer
             InputLanguage.CurrentInputLanguage = InputLanguage.FromCulture(new CultureInfo("en-US"));
             tb.Focus();
             var t = new Timer { Interval = 60 };
-            int warm = 10;
+            int warm = 10, away = 0;
             t.Tick += (o2, e2) =>
             {
                 if (warm-- > 0) return;
                 if (GetForegroundWindow() != f.Handle)
                 {
-                    // Never type into someone else's window. Windows may refuse the focus to a window that wasn't
-                    // just clicked; a tap of Alt is the usual way to be let through
+                    // Never type into someone else's window. A click elsewhere (a notification's button) may take the
+                    // focus for a moment, and KeyFish gives it back: wait two seconds for that before asking for it
+                    if (++away < 33) return;
+                    // Windows may refuse the focus to a window that wasn't just clicked; a tap of Alt is the usual way
+                    // to be let through
                     SetForegroundWindow(f.Handle);
                     if (GetForegroundWindow() != f.Handle) { Key(0x12); SetForegroundWindow(f.Handle); }
                     if (GetForegroundWindow() != f.Handle) { t.Stop(); File.WriteAllText(outPath, "NOFOCUS"); f.Close(); return; }
                 }
+                away = 0;
                 if (steps.Count > 0) { steps.Dequeue()(); return; }
                 if (warm-- > -15) return;
                 t.Stop();

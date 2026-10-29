@@ -12,7 +12,6 @@ Switch layout of selected text; right after an auto-fix — undo it (as does Ctr
 Switch layout of selected text — alternative keys	Zmień układ zaznaczonego tekstu — skrót zapasowy
 Change case of selected text (aa → Aa → AA)	Wielkość liter zaznaczonego tekstu (aa → Aa → AA)
 Transliterate (привет ⇄ privet)	Transliteracja (привет ⇄ privet)
-These hotkeys are taken by another app: {0}. You can change them in Settings.	Te skróty zajmuje inny program: {0}. Można je zmienić w ustawieniach.
 Auto-correct while typing	Poprawiaj podczas pisania
 Settings…	Ustawienia…
 Check for updates	Sprawdź aktualizacje
@@ -234,3 +233,13 @@ Halloween	Halloween
 October 24 to November 2	24 października — 2 listopada
 Oct 24 – Nov 2	24.10 — 2.11
 Your version	Twoja wersja
+These hotkeys are taken by another app: {0}.	Te skróty są zajęte przez inny program: {0}.
+These keys can't be hotkeys and are off: {0}.	Te klawisze nie mogą być skrótami i są wyłączone: {0}.
+You can change them in Settings.	Można je zmienić w ustawieniach.
+Colors of the custom look:	Kolory własnego wyglądu:
+{0}: a color of the custom look	{0}: kolor własnego wyglądu
+Accent	Akcent
+Fish	Rybka
+Undo the fix	Cofnij poprawkę
+It can't be undone now: something was typed after the fix, or another window is in front.	Nie da się już cofnąć: po poprawce coś wpisano albo z przodu jest inne okno.
+Custom	Własny

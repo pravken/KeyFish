@@ -12,7 +12,6 @@ Switch layout of selected text; right after an auto-fix — undo it (as does Ctr
 Switch layout of selected text — alternative keys	Розкладка виділеного тексту — запасне поєднання
 Change case of selected text (aa → Aa → AA)	Регістр виділеного тексту (аа → Аа → АА)
 Transliterate (привет ⇄ privet)	Транслітерація (привіт ⇄ pryvit)
-These hotkeys are taken by another app: {0}. You can change them in Settings.	Ці поєднання клавіш зайняті іншою програмою: {0}. Їх можна змінити в налаштуваннях.
 Auto-correct while typing	Автовиправлення під час набору
 Settings…	Налаштування…
 Check for updates	Перевірити оновлення
@@ -234,3 +233,13 @@ Halloween	Гелловін
 October 24 to November 2	24 жовтня — 2 листопада
 Oct 24 – Nov 2	24.10 — 2.11
 Your version	Ваша версія
+These hotkeys are taken by another app: {0}.	Ці поєднання клавіш зайняті іншою програмою: {0}.
+These keys can't be hotkeys and are off: {0}.	Ці клавіші не можуть бути гарячими й вимкнені: {0}.
+You can change them in Settings.	Їх можна змінити в налаштуваннях.
+Colors of the custom look:	Кольори свого оформлення:
+{0}: a color of the custom look	{0}: колір свого оформлення
+Accent	Акцент
+Fish	Рибка
+Undo the fix	Скасувати виправлення
+It can't be undone now: something was typed after the fix, or another window is in front.	Скасувати вже не можна: після виправлення набирали текст або відкрито інше вікно.
+Custom	Своє

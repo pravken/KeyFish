@@ -51,10 +51,12 @@ partial class App
     {
         hotkeys.UnregisterAll();
         var failed = new List<string>();
+        notAllowed.Clear();
         for (int i = 0; i < HotkeyDefaults.Length; i++)
         {
             Keys k = GetHotkey(i);
-            if (k == Keys.None || !HotkeyBox.Allowed(k)) continue;   // Enter or a letter stored by an older version or by hand
+            if (k == Keys.None) continue;
+            if (!HotkeyBox.Allowed(k)) { notAllowed.Add(SettingsForm.Format(k)); continue; }   // Enter or a letter stored by an older version or by hand
             uint mods = ((k & Keys.Control) != 0 ? Native.MOD_CONTROL : 0) | ((k & Keys.Shift) != 0 ? Native.MOD_SHIFT : 0) |
                         ((k & Keys.Alt) != 0 ? Native.MOD_ALT : 0);
             if (!hotkeys.Register(i + 1, mods, k & Keys.KeyCode)) failed.Add(SettingsForm.Format(k));
@@ -62,11 +64,18 @@ partial class App
         return failed;
     }
 
+    // Hotkeys stored that can't be used as one (Enter, a plain letter): left off, and said once, with the others
+    readonly List<string> notAllowed = new List<string>();
+
     void WarnHotkeys(List<string> failed)
     {
+        var text = new List<string>();
         if (failed.Count > 0)
-            tray.ShowBalloonTip(4000, "KeyFish", L.F("Эти сочетания заняты другой программой: {0}. Их можно поменять в настройках.",
-                "These hotkeys are taken by another app: {0}. You can change them in Settings.", string.Join(", ", failed)), ToolTipIcon.Warning);
+            text.Add(L.F("Эти сочетания заняты другой программой: {0}.", "These hotkeys are taken by another app: {0}.", string.Join(", ", failed)));
+        if (notAllowed.Count > 0)
+            text.Add(L.F("Эти сочетания не подходят для горячих клавиш и выключены: {0}.", "These keys can't be hotkeys and are off: {0}.", string.Join(", ", notAllowed)));
+        if (text.Count > 0)
+            tray.ShowBalloonTip(4000, "KeyFish", string.Join(" ", text) + " " + L.T("Их можно поменять в настройках.", "You can change them in Settings."), ToolTipIcon.Warning);
     }
 
     void OnHotkey(int id)

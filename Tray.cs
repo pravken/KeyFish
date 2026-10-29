@@ -108,10 +108,27 @@ partial class App
         if (shown >= 2) return;
         SetSetting("CorrectionTips", shown + 1);
         string undo = SettingsForm.Format(GetHotkey(0)) + (watcher.UndoWithCtrlZ ? L.T(" или Ctrl+Z", " or Ctrl+Z") : "");
-        tray.ShowBalloonTip(6000, "KeyFish",
-            L.F("Слово было набрано не в той раскладке — KeyFish его исправил. Если исправлять было не нужно, нажмите {0} сразу после: слово вернётся, и KeyFish его запомнит.",
-                "That word was typed in the wrong layout, so KeyFish fixed it. If it shouldn't have, press {0} right after: the word comes back, and KeyFish remembers it.", undo),
-            ToolTipIcon.Info);
+        string text = L.F("Слово было набрано не в той раскладке — KeyFish его исправил. Если исправлять было не нужно, нажмите {0} сразу после: слово вернётся, и KeyFish его запомнит.",
+                          "That word was typed in the wrong layout, so KeyFish fixed it. If it shouldn't have, press {0} right after: the word comes back, and KeyFish remembers it.", undo);
+        // A Windows notification with a button that takes the fix back; the tray balloon where there are none
+        IntPtr window = W.GetForegroundWindow();
+        var ui = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
+        if (!Toasts.Show("KeyFish", text, L.T("Отменить исправление", "Undo the fix"), () => UndoFromNotification(window), ui))
+            tray.ShowBalloonTip(6000, "KeyFish", text, ToolTipIcon.Info);
+    }
+
+    [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr hwnd);
+
+    // The notification's button: the click brought the notification forward, so the window the fix was typed in
+    // gets the focus back first (the word is retyped there), then the last fix is taken back, as with Pause
+    void UndoFromNotification(IntPtr window)
+    {
+        if (window == IntPtr.Zero) return;
+        SetForegroundWindow(window);
+        for (int i = 0; i < 40 && W.GetForegroundWindow() != window; i++) Pump(25);
+        if (!watcher.Undo())
+            tray.ShowBalloonTip(3000, "KeyFish", L.T("Отменить уже нельзя: после исправления набирался текст или открыто другое окно.",
+                                                     "It can't be undone now: something was typed after the fix, or another window is in front."), ToolTipIcon.Info);
     }
 
     void SetTrayText(int corrections)

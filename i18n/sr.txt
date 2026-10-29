@@ -12,7 +12,6 @@ Switch layout of selected text; right after an auto-fix — undo it (as does Ctr
 Switch layout of selected text — alternative keys	Распоред означеног текста — резервна пречица
 Change case of selected text (aa → Aa → AA)	Велика/мала слова означеног текста (аа → Аа → АА)
 Transliterate (привет ⇄ privet)	Пресловљавање (здраво ⇄ zdravo)
-These hotkeys are taken by another app: {0}. You can change them in Settings.	Ове пречице заузима други програм: {0}. Можете их променити у подешавањима.
 Auto-correct while typing	Аутоисправка током куцања
 Settings…	Подешавања…
 Check for updates	Провери ажурирања
@@ -234,3 +233,13 @@ Halloween	Ноћ вештица
 October 24 to November 2	24. октобар — 2. новембар
 Oct 24 – Nov 2	24.10. — 2.11.
 Your version	Ваша верзија
+These hotkeys are taken by another app: {0}.	Ове пречице заузима други програм: {0}.
+These keys can't be hotkeys and are off: {0}.	Ови тастери не могу бити пречице и искључени су: {0}.
+You can change them in Settings.	Можете их променити у подешавањима.
+Colors of the custom look:	Боје сопственог изгледа:
+{0}: a color of the custom look	{0}: боја сопственог изгледа
+Accent	Акценат
+Fish	Рибица
+Undo the fix	Поништи исправку
+It can't be undone now: something was typed after the fix, or another window is in front.	Више не може да се поништи: после исправке је куцано или је напред други прозор.
+Custom	Сопствени

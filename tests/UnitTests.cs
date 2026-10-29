@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -268,5 +269,11 @@ static class UnitTests
         Is("the days: Oct 24", Skin.Halloween.Season(new DateTime(2026, 10, 24)), true);
         Is("the days: Nov 3", Skin.Halloween.Season(new DateTime(2026, 11, 3)), false);
         True("numbers are unique", Skin.All.Select(k => k.Number).Distinct().Count() == Skin.All.Length);
+        var custom = Skin.Make(Color.FromArgb(200, 30, 60), Color.FromArgb(20, 160, 90));
+        Is("custom accent", custom.Accent.ToArgb(), Color.FromArgb(200, 30, 60).ToArgb());
+        Is("custom fish in the tray", custom.Latin.ToArgb(), Color.FromArgb(20, 160, 90).ToArgb());
+        True("custom dark leans to the accent", custom.Dark.Back.R > Skin.Classic.Dark.Back.R && custom.Dark.Back.B <= Skin.Classic.Dark.Back.B + 2);
+        Is("no colors chosen: the defaults", Skin.Make(Color.Empty, Color.Empty).Accent.ToArgb(), Skin.DefaultAccent.ToArgb());
+        Is("the custom look by number", Skin.Find(2), Skin.Custom);
     }
 }

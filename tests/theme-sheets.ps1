@@ -14,7 +14,7 @@ $src = ((Get-Content build.bat | Select-String 'csc.exe').Line -split ' ' | Wher
 New-Item -ItemType Directory -Force tests\bin\sheets | Out-Null
 & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /codepage:65001 /target:winexe /main:Preview /out:tests\bin\Preview.exe `
     /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Core.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll `
-    "/lib:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\WPF" /r:Accessibility.dll /r:UIAutomationClient.dll /r:UIAutomationTypes.dll /r:WindowsBase.dll `
+    "/lib:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\WPF" /r:Accessibility.dll /r:UIAutomationClient.dll /r:UIAutomationTypes.dll /r:WindowsBase.dll "/r:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\System.Runtime.dll" "/r:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\System.Runtime.WindowsRuntime.dll" "/r:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\System.Runtime.InteropServices.WindowsRuntime.dll" "/r:$env:WINDIR\System32\WinMetadata\Windows.Data.winmd" "/r:$env:WINDIR\System32\WinMetadata\Windows.UI.winmd" "/r:$env:WINDIR\System32\WinMetadata\Windows.Foundation.winmd" `
     @res /resource:CHANGELOG.md,changelog-en.txt /resource:CHANGELOG.ru.md,changelog-ru.txt /resource:fish.ico,fish.ico /resource:fish-ru.ico,fish-ru.ico `
     /resource:fish-blink.ico,fish-blink.ico /resource:fish-ru-blink.ico,fish-ru-blink.ico @src | Select-String -NotMatch 'warning'
 if ($LASTEXITCODE) { throw 'Preview.exe does not build' }
