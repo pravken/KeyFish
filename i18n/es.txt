@@ -174,3 +174,4 @@ Back	Atrás
 Start	Empezar
 Next	Siguiente
 Today {0} · week {1} · month {2} · about {3} min saved	Hoy {0} · semana {1} · mes {2} · unos {3} min ahorrados
+Interface	Interfaz

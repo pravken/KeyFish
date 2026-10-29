@@ -174,3 +174,4 @@ Back	Zurück
 Start	Los geht's
 Next	Weiter
 Today {0} · week {1} · month {2} · about {3} min saved	Heute {0} · Woche {1} · Monat {2} · etwa {3} Min. gespart
+Interface	Oberfläche

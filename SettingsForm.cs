@@ -403,6 +403,7 @@ class SettingsForm : Form
         PickSample();
         page.Controls.Add(SupportCard(ref y));
         UpdatesRow(page, ref y);
+        Group(page, ref y, L.T("Интерфейс", "Interface"));
         cbLanguage = new DropDown { Size = new Size(170, 34) };   // as wide and tall as the buttons above
         cbLanguage.Items.AddRange(L.Choices);
         cbLanguage.SelectedIndex = Math.Max(0, Math.Min(Language, cbLanguage.Items.Count - 1));
