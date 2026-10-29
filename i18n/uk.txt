@@ -233,3 +233,4 @@ Classic	Класичне
 Halloween	Гелловін
 October 24 to November 2	24 жовтня — 2 листопада
 Oct 24 – Nov 2	24.10 — 2.11
+Your version	Ваша версія

@@ -233,3 +233,4 @@ Halloween	Хэлоўін
 October 24 to November 2	24 кастрычніка — 2 лістапада
 Oct 24 – Nov 2	24.10 — 2.11
 thx	дзяк
+Your version	Ваша версія

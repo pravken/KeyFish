@@ -51,10 +51,12 @@ jobs:
           $version = "${{ github.ref_name }}".TrimStart('v')
           function Section($file) {
             $lines = Get-Content $file -Encoding utf8
-            $start = [Array]::IndexOf($lines, $version)
+            # "2.1.0 2026-10-29" starts the version; "New:" lines are its groups, "• " lines its changes
+            $start = -1
+            for ($i = 0; $i -lt $lines.Count; $i++) { if ($lines[$i] -match ('^' + [regex]::Escape($version) + '( |$)')) { $start = $i; break } }
             if ($start -lt 0) { throw "$file has no section for $version" }
             $out = @()
-            for ($i = $start + 1; $i -lt $lines.Count -and $lines[$i].Trim() -ne ''; $i++) { $out += $lines[$i] -replace '^• ', '- ' }
+            for ($i = $start + 1; $i -lt $lines.Count -and $lines[$i].Trim() -ne ''; $i++) { $out += $lines[$i] -replace '^• ', '- ' -replace '^([^-].*):$', '**$1**' }
             return $out -join "`n"
           }
           $notes = "Download **KeyFish.exe** below and run it — no installation needed. KeyFish updates itself from version 1.7.0 on.`n`n" +

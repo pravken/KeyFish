@@ -1,121 +1,175 @@
-2.0.5
+2.1.0 2026-10-29
+New:
+• Looks: a gallery with a preview before applying, a Halloween look
+• Sounds: a sound for each event, your own .wav files too
+• Shift+F2 clears the formatting of selected text
+• "Why wasn't it corrected?" in the fish menu
+• Pressing Pause again goes through all installed layouts
+• A hotkey to pause corrections
+• A hotkey for the text in the clipboard
+• Statistics in About: today, week, month, time saved
+• A short introduction on the first start
+Improved:
+• High contrast mode
+• Transliteration for Ukrainian, Belarusian, Serbian and Greek
+• Fish menu: the current layout and quick switches
+• Settings in groups
+• What's new: each version on its own, changes in groups
+• Less memory for the dictionaries
+• What KeyFish remembers about typing is cleared when the computer is locked
+Fixed:
+• Pressing Pause twice on a correct word no longer teaches KeyFish to change it
+• Small fixes from an audit
+
+2.0.5 2026-10-29
+New:
 • Extended dictionary, downloaded on request
 • Optional typography: dash, ellipsis, © ® ™
-• More accurate detection: contractions, abbreviations, punctuation
 • Notice in apps run as administrator
 • Offer to report a crash on the next start
 • Tip on the first corrections
+Improved:
+• More accurate detection: contractions, abbreviations, punctuation
 • MIT license
 
-2.0.4
+2.0.4 2026-10-26
+New:
 • Crash log (crash.log)
+Fixed:
 • Errors no longer interrupt work with a .NET error box
 
-2.0.3
-• Theme choice: system, light or dark
-• Word lists ignore punctuation
+2.0.3 2026-10-25
+New:
+• Theme choice: system, light, dark
+Improved:
 • Dark scrollbars in the dark theme
+Fixed:
+• Word lists ignore punctuation
 
-2.0.2
+2.0.2 2026-10-22
+New:
 • Update check in Settings and About
-• Optional layout letters in the tray instead of the fish
+• Layout letters in the tray instead of the fish (optional)
 • Custom layout colors
 • Illustrations for settings
+Improved:
 • Minor interface improvements
 
-2.0.1
-• Fixed the password-field check
-• Hotkeys are off in password fields and excluded apps
-• Proper scaling on 125–200 % screens
-• Line breaks in replacements are typed as Shift+Enter
-• Undoing a fix made with Enter doesn't send the text again
-• Typo checks no longer delay typing
+2.0.1 2026-10-22
+Improved:
+• Correct scaling on 125–200% displays
+• Line breaks in replacements via Shift+Enter
 • Microsoft Store apps in exclusions and per-app layouts
-• Fixed a stuck Ctrl key, long words and pasting an old clipboard
 • Narrator support
-• Windows DLLs are loaded only from the system folder
+• System DLLs load only from the Windows folder
+Fixed:
+• Password field detection
+• Hotkeys disabled in password fields and excluded apps
+• Undoing a fix after Enter no longer resends text
+• Typo checking no longer delays typing
+• Stuck Ctrl, long words, and pasting stale clipboard contents
 
-2.0.0
-• 19 languages: English, German, Polish, French, Spanish, Italian, Portuguese, Czech, Turkish, Serbian Latin ⇄ Russian, Ukrainian, Belarusian, Bulgarian, Macedonian, Serbian Cyrillic, Greek, Hebrew, Georgian. KeyFish uses the layouts installed in Windows and fixes words typed in a layout of another alphabet
-• Works with any layout arrangement (QWERTZ, AZERTY, letters typed with AltGr or with accent keys like Greek ΄ or French ^): keys are tracked by their position on the keyboard
-• With several layouts installed, KeyFish picks the language from the word and the words before it, so a Ukrainian word goes to the Ukrainian layout
-• Serbian is written in both alphabets, so a correct Serbian Latin word is never "fixed" into Cyrillic; Serbian Cyrillic, Macedonian and Greek layouts are phonetic, so words typed in them are fixed only when they are in the dictionary
-• Layout per app: pick a layout for Telegram, VS Code and so on, and KeyFish switches to it when you go to that app
-• New Settings in the Windows 11 style, with a dark theme that follows Windows; replacements, apps and words are now tables you add to and delete from, instead of plain text
-• The interface is also in Ukrainian, Belarusian, German, Polish, Serbian, French and Spanish
-• Sharp on high-DPI screens; the tray menu follows the Windows theme
-• The fish is now drawn in detail, and the About window hides a little surprise 🐟
-• Pause on selected text converts it to your other installed layout, not just English ⇄ Russian
-• A Support button at the top of Settings and in the About window
-• Smoother text in all windows, in Windows 11's own font
-• Fix the last word with one key: double Shift or Caps Lock (off by default; Shift+Caps Lock still turns capitals on)
-• The layout can show next to the text cursor for a moment when it changes (off by default)
-• The fish menu: pause corrections for an hour, and recent corrections — click one and KeyFish won't correct it that way again. While KeyFish isn't correcting, the fish is grey
-• Import replacements and word lists from other programs: plain text, CSV/TSV, AutoHotkey hotstrings, Espanso
-• All settings in one file: Export and Import in Settings. Before every save KeyFish keeps a copy of the previous settings in the backups folder (the last 10)
-• Learns from a manual fix too: erase a word, switch the layout and type the same keys again, and next time KeyFish fixes that word by itself
-• A word where the layout was switched in the middle (ghиветик) is fixed whole
-• Links, paths and code are left alone: "://", "www.", slashes and other symbols inside a word; file.txt and camelCase change only into a dictionary word
+2.0.0 2026-10-21
+New:
+• 19 languages: English, German, Polish, French, Spanish, Italian, Portuguese, Czech, Turkish, Serbian Latin ⇄ Russian, Ukrainian, Belarusian, Bulgarian, Macedonian, Serbian Cyrillic, Greek, Hebrew, Georgian
+• Any key arrangement: QWERTZ, AZERTY, AltGr, accent keys
+• Layout per app: Telegram in Russian, VS Code in English
+• New Settings in the Windows 11 style, with a dark theme
+• Interface in Ukrainian, Belarusian, German, Polish, Serbian, French and Spanish
+• Fix the last word with double Shift or Caps Lock (optional)
+• The layout next to the text cursor when it changes (optional)
+• Fish menu: pause for an hour and recent corrections
+• Import replacements and word lists: text, CSV/TSV, AutoHotkey, Espanso
+• Export and import all settings as one file; a copy before every save
 • Alt+Pause switches the layout of the whole line before the cursor
-• An optional soft sound on each correction
-• More reliable: if Windows quietly turns off KeyFish's keyboard watching (it does that to a program that answered too slowly once), KeyFish notices and turns it back on; files are read and written in the background so typing is never held up
-• Terminals, SSH clients, virtual machines, remote desktops and more password managers are excluded by default (added to your list once)
-• Text KeyFish puts on the clipboard stays out of clipboard history (Win+V) and cloud sync
-• Fixed: a backslash in a replacement (C:\new) turned into a line break after saving; abbreviations with digits (addr1) didn't expand; words KeyFish learned while Settings was open were lost on Save; letters typed very fast right after a correction could lose Shift; in VS Code and Visual Studio, Pause with nothing selected added a converted copy of the whole line
-• Fixed: with many heavy windows open (browsers, Electron apps, editors), KeyFish could correct nothing for up to a minute or two after it started — the password-field check was still getting ready. It now answers right away
-• To find out why a word wasn't corrected, create an empty debug-log.txt next to KeyFish.exe: KeyFish writes the app and the reason for every word, never the word itself (see the README)
-• KeyFish starts even from a read-only folder such as Program Files: its files then go to %APPDATA%\KeyFish
-• Each release comes with a signed build attestation (see the README)
+• A soft sound on corrections (optional)
+• debug-log.txt: the reason for every word, never the word itself
+• A signed build attestation for each release
+Improved:
+• The language is picked from the word and the words before it
+• Serbian Latin is never "fixed" into Cyrillic; phonetic layouts only by dictionary
+• Pause converts to any installed layout, not just English ⇄ Russian
+• Learns from a manual fix too: erase, switch the layout, type again
+• A word with the layout switched in the middle is fixed whole
+• Links, paths and code are left alone
+• Sharp on scaled screens, the menu in the Windows theme, a new fish
+• Smooth text in Windows 11's font
+• A Support button in Settings and About
+• KeyFish turns keyboard watching back on if Windows turns it off
+• Terminals, SSH, virtual machines, remote desktops and password managers excluded by default
+• KeyFish's text stays out of clipboard history (Win+V) and cloud sync
+• Starts from a read-only folder: files then go to %APPDATA%\KeyFish
+Fixed:
+• A backslash in a replacement turned into a line break
+• Abbreviations with digits didn't expand
+• Words learned while Settings was open were lost on Save
+• Shift was lost when typing very fast right after a fix
+• Pause with nothing selected duplicated the line in VS Code and Visual Studio
+• With many heavy windows open, KeyFish corrected nothing for up to two minutes after starting
 
-1.8.3
-• New About window: version, statistics and a link to the project; the list of changes now opens from a separate What's new button
+1.8.3 2026-10-21
+New:
+• About window: version, statistics, a link to the project; What's new opens from its own button
 
-1.8.2
-• Fixed a crash on some login pages and windows: the password-field check (Windows UI Automation) now runs in a small separate process, so a failure there can no longer close KeyFish — the check simply restarts
-• tools/crash-dumps-on.reg helps report a crash (see the README)
+1.8.2 2026-10-21
+New:
+• tools/crash-dumps-on.reg to report a crash
+Fixed:
+• A crash on some login pages: the password-field check runs in a separate process
 
-1.8.1
-• Fixed: autostart silently did nothing if it pointed to a KeyFish.exe that was moved or deleted. KeyFish now repairs the entry on start, and Settings shows autostart as off when it can't work
+1.8.1 2026-10-20
+Fixed:
+• Autostart did nothing if KeyFish.exe was moved or deleted; the entry is now repaired on start
 
-1.8.0
-• Ctrl+Z right after an auto-fix undoes it, just like Pause; the next Ctrl+Z works as usual in the app and undoes text (also when you hold Ctrl and press Z twice). Can be turned off in Settings
+1.8.0 2026-10-18
+New:
+• Ctrl+Z right after an auto-fix undoes it, like Pause (can be turned off)
 
-1.7.0
-• Update in one click: KeyFish downloads the new version from GitHub, verifies its checksum and restarts
-• Learns from you: a word you fix yourself with Pause gets corrected automatically next time
-• Quiet mode: no corrections in games and full-screen apps
-• Password fields are left alone in every app, browsers included — nothing is corrected or remembered there
+1.7.0 2026-10-17
+New:
+• Update in one click, with a checksum check
+• Learns from you: a word you fix with Pause is corrected by itself next time
+• Quiet mode in games and full-screen apps
 • Statistics: how many mistakes the fish has caught
-• Releases are now built automatically by GitHub Actions
+Improved:
+• Password fields are left alone in every app, browsers included
+• Releases are built by GitHub Actions
 
-1.6.0
-• New name — KeyFish 🐟 (formerly LayoutFix); settings and autostart carry over automatically
-• The tray fish shows the layout: blue — EN, orange — RU; it blinks after an auto-fix
-• Text replacements: "thx" + space → "thank you", work even when typed in the other layout
-• Transliteration of selected text: Shift+Pause (привет ⇄ privet)
-• Settings window: toggles, your own hotkeys, replacements and exclusion lists
+1.6.0 2026-10-17
+New:
+• New name — KeyFish 🐟 (formerly LayoutFix); settings and autostart carry over
+• The tray fish shows the layout and blinks after a fix
+• Text replacements: "thx" + space → "thank you"
+• Transliteration of selected text: Shift+Pause
+• Settings window: toggles, hotkeys, replacements, exclusions
 • Update check on GitHub
-• English interface (chosen in Settings; defaults to the Windows language)
+• English interface
 
-1.5.0
-• Typo fixing via Windows spell check (off by default)
+1.5.0 2026-10-16
+New:
+• Typo fixing via Windows spell check (optional)
 
 1.4.0
+New:
 • Short words before a corrected word are fixed too: "f vj;yj" → "а можно"
-• Erase a correction with Backspace and KeyFish remembers the word and leaves it alone
-• The list of remembered words can be opened from the menu
+• A correction erased with Backspace is remembered and not repeated
+• The list of remembered words in the menu
 
 1.3.0
+New:
 • Layout auto-correction while typing
-• Case fixing: "hELLO" (accidental CapsLock) → "Hello", "HEllo" → "Hello"
-• Pause right after an auto-fix undoes it
+• Case fixing: "hELLO" → "Hello", "HEllo" → "Hello"
+• Pause right after a fix undoes it
 • Excluded apps
 
 1.2.0
-• Fixed: after Ctrl+A part of the text stayed in the old layout
+Fixed:
+• After Ctrl+A part of the text stayed in the old layout
 
 1.1.0
-• Shift+F3 cycles the case of selected text, like in Word
+New:
+• Shift+F3 cycles the case of selected text
 
 1.0.0
-• Pause or Ctrl+Shift+Space switches selected text between EN and RU layouts
+New:
+• Pause or Ctrl+Shift+Space switches selected text between EN and RU

@@ -233,3 +233,4 @@ Classic	Klasyczny
 Halloween	Halloween
 October 24 to November 2	24 października — 2 listopada
 Oct 24 – Nov 2	24.10 — 2.11
+Your version	Twoja wersja
