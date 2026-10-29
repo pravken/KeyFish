@@ -5,7 +5,7 @@ name: Check
 
 on:
   push:
-    branches: ['**']
+    branches: [main]   # multilang is kept equal to main
   pull_request:
 
 permissions:
