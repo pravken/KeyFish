@@ -18,6 +18,8 @@ static class Theme
     public static Skin Skin = Skin.Classic;
     public static int Chosen;
     public static bool Holidays = true;
+    // The day another look was chosen on a holiday's days: the holiday's own one then stays away until they end
+    public static DateTime Declined;
     // The skin also changes the fish (the logo, the tray fish, the aquarium) and the correction sound; either can be
     // switched off in Settings, and those keep the classic ones
     public static bool SkinLogo = true, SkinSound = true;
@@ -31,7 +33,7 @@ static class Theme
     public static bool Refresh()
     {
         bool contrast = ReadContrast();
-        var skin = Skin.For(Chosen, Holidays, DateTime.Today, contrast);
+        var skin = Skin.For(Chosen, Holidays, DateTime.Today, contrast, Declined);
         bool changed = contrast != Contrast || skin != Skin;
         Contrast = contrast;
         Skin = skin;

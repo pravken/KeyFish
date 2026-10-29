@@ -458,21 +458,22 @@ class SettingsForm : Form
                 "Click a circle to choose its color: the tray fish, the letters and the tag at the cursor will use it."), holder);
     }
 
-    // The extended dictionaries of the installed layouts' languages: downloaded or removed at once, not on Save
+    // The extended dictionaries of the installed layouts' languages: the switch downloads or removes them at once,
+    // not on Save; it stays grey while that goes on
     void DictionaryRow(Panel page, ref int y)
     {
         var layouts = InstalledLayouts.Where(t => t.Lang != null && Dictionaries.Available.Contains(t.Lang)).ToList();
         var langs = layouts.Select(t => t.Lang).Distinct().ToList();
         string tags = string.Join(", ", layouts.Select(TagOf).Where(s => s.Length > 0).Distinct());
-        var button = new RoundButton { Size = new Size(170, 34), Enabled = langs.Count > 0 };
         Func<bool> installed = () => langs.Count > 0 && langs.All(Dictionaries.Installed);
-        Action show = () => button.Text = installed() ? L.T("Удалить", "Remove") : L.T("Скачать", "Download");
-        show();
-        button.Click += (s, e) =>
+        var toggle = Toggle(installed());
+        toggle.Enabled = langs.Count > 0;
+        bool syncing = false;
+        toggle.CheckedChanged += (s, e) =>
         {
-            bool remove = installed();
-            button.Enabled = false;
-            if (!remove) button.Text = L.T("Скачиваю…", "Downloading…");
+            bool remove = !toggle.Checked;
+            if (syncing || remove != installed()) return;
+            toggle.Enabled = false;
             System.Threading.ThreadPool.QueueUserWorkItem(_ =>
             {
                 string error = null;
@@ -483,8 +484,10 @@ class SettingsForm : Form
                 {
                     BeginInvoke(new Action(() =>
                     {
-                        button.Enabled = true;
-                        show();
+                        syncing = true;
+                        toggle.Checked = installed();
+                        syncing = false;
+                        toggle.Enabled = true;
                         if (error != null) ThemedMessage.Show(this, error, L.T("Расширенный словарь", "Extended dictionary"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }));
                 }
@@ -492,9 +495,9 @@ class SettingsForm : Form
             });
         };
         Row(page, ref y, L.T("Расширенный словарь", "Extended dictionary"),
-            L.F("Ещё около 100 тысяч слов для каждого языка ваших раскладок ({0}): редкие слова, имена, жаргон — KeyFish точнее понимает, что вы набрали. Скачивается с GitHub по кнопке, около 1 МБ; в памяти около 3 МБ на язык.",
-                "About 100,000 more words for each language of your layouts ({0}): rare words, names, slang, so KeyFish understands better what you typed. Downloaded from GitHub when you click, about 1 MB; about 3 MB of memory per language.",
-                tags), button);
+            L.F("Ещё около 100 тысяч слов на язык ({0}): редкие слова, имена, жаргон. Скачивается с GitHub при включении, около 1 МБ.",
+                "About 100,000 more words per language ({0}): rare words, names, slang. Downloads from GitHub when turned on (1 MB).",
+                tags), toggle, Typing(rareTyped, rareWord));
     }
 
     // A word typed with a mistake and what KeyFish makes of it (undo: then Ctrl+Z puts the typed word back)
@@ -515,6 +518,9 @@ class SettingsForm : Form
     string latinTag = "EN", otherTag = "RU";
     // A word of the other layout's language, and what the same keys type in the Latin layout
     string sampleWord = "привет", sampleTyped = "ghbdtn";
+    // A word only the extended dictionary knows, for its picture (the sample word where there is none)
+    string rareWord = "дедлайн", rareTyped = "ltlkfqy";
+    static readonly Dictionary<string, string> RareWords = new Dictionary<string, string> { { "ru", "дедлайн" } };
 
     static readonly Dictionary<string, string> SampleWords = new Dictionary<string, string>
     {
@@ -538,8 +544,15 @@ class SettingsForm : Form
         if (keys == null) return;
         string typed = latin.Type(keys);
         if (typed.IndexOf('\uFFFD') >= 0 || typed == word) return;
-        sampleWord = word;
-        sampleTyped = typed;
+        sampleWord = rareWord = word;
+        sampleTyped = rareTyped = typed;
+        string rare;
+        if (!RareWords.TryGetValue(other.Lang.Split('-')[0], out rare)) return;
+        var rareKeys = other.Keys(rare);
+        string rareType = rareKeys == null ? null : latin.Type(rareKeys);
+        if (rareType == null || rareType.IndexOf('\uFFFD') >= 0 || rareType == rare) return;
+        rareWord = rare;
+        rareTyped = rareType;
     }
 
     // A typo in the sample word: two letters swapped (привет → пирвет)

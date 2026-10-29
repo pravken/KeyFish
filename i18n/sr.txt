@@ -148,7 +148,7 @@ Extended dictionary	Проширени речник
 Download	Преузми
 Downloading…	Преузимам…
 Remove	Уклони
-About 100,000 more words for each language of your layouts ({0}): rare words, names, slang, so KeyFish understands better what you typed. Downloaded from GitHub when you click, about 1 MB; about 3 MB of memory per language.	Још око 100 хиљада речи за сваки језик ваших распореда ({0}): ретке речи, имена, жаргон — KeyFish боље разуме шта сте откуцали. Преузима се са GitHub-а на клик, око 1 MB; у меморији око 3 MB по језику.
+About 100,000 more words per language ({0}): rare words, names, slang. Downloads from GitHub when turned on (1 MB).	Још око 100 хиљада речи по језику ({0}): ретке речи, имена, жаргон. Преузима се са GitHub-а при укључивању, око 1 MB.
 The downloaded dictionary doesn't match its checksum, so it wasn't installed.	Преузети речник се не поклапа са контролним збиром — није инсталиран.
 Couldn't download the dictionary: 	Преузимање речника није успело: 
 Correction	Исправљање

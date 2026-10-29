@@ -101,12 +101,35 @@ class Skin
     }
 
     // The one to use: none in high contrast (the windows take the system's colors), a holiday's own theme on its days
-    // unless that is switched off, otherwise the chosen one
-    public static Skin For(int chosen, bool holidays, DateTime day, bool contrast)
+    // unless that is switched off or another look was chosen on one of those days (declined), otherwise the chosen one
+    public static Skin For(int chosen, bool holidays, DateTime day, bool contrast, DateTime declined = default(DateTime))
     {
         if (contrast) return Classic;
-        if (holidays) foreach (var s in All) if (s.Season != null && s.Season(day)) return s;
+        var holiday = Holiday(day);
+        if (holidays && holiday != null && !SameDays(holiday, declined, day)) return holiday;
         return Find(chosen);
+    }
+
+    // A look chosen in Settings on this day: if it isn't the holiday's own one, the holiday is declined for its days
+    public static DateTime Declines(int chosen, DateTime day)
+    {
+        var holiday = Holiday(day);
+        return holiday != null && holiday.Number != chosen ? day.Date : DateTime.MinValue;
+    }
+
+    // The holiday whose days these are, or null
+    public static Skin Holiday(DateTime day)
+    {
+        foreach (var s in All) if (s.Season != null && s.Season(day)) return s;
+        return null;
+    }
+
+    // Both days fall within one run of the holiday's days: this year's, not last year's
+    static bool SameDays(Skin holiday, DateTime from, DateTime to)
+    {
+        if (from > to || (to - from).TotalDays > 60) return false;
+        for (var d = from.Date; d <= to; d = d.AddDays(1)) if (!holiday.Season(d)) return false;
+        return true;
     }
 }
 

@@ -1,3 +1,9 @@
+2.1.2 2026-10-29
+Improved:
+• Extended dictionary: a switch and a picture, like the other settings
+Fixed:
+• A look chosen during a holiday didn't apply
+
 2.1.1 2026-10-29
 New:
 • A Windows notification with an "Undo the fix" button on the first corrections

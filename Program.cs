@@ -299,6 +299,7 @@ partial class App : ApplicationContext
         Theme.Mode = Math.Max(0, Math.Min(GetSetting("Theme", 0), 2));
         Theme.Chosen = GetSetting("Skin", 0);
         Theme.Holidays = GetSetting("Holiday", 1) != 0;
+        DateTime.TryParseExact(GetSetting("HolidayDeclined", 0).ToString(), "yyyyMMdd", null, System.Globalization.DateTimeStyles.None, out Theme.Declined);
         Theme.SkinLogo = GetSetting("SkinLogo", 1) != 0;
         Theme.SkinSound = GetSetting("SkinSound", 1) != 0;
         Skin.SetCustom(Color.FromArgb(GetSetting("CustomAccent", 0)), Color.FromArgb(GetSetting("CustomFish", 0)));
@@ -479,11 +480,13 @@ partial class App : ApplicationContext
 
         var keys = new Keys[HotkeyDefaults.Length];
         for (int i = 0; i < keys.Length; i++) keys[i] = GetHotkey(i);
+        // The gallery marks the look in use, a holiday's own one on its days too: choosing another one is then seen
+        int shownSkin = Theme.Contrast ? Theme.Chosen : Theme.Skin.Number;
         settingsForm = new SettingsForm
         {
             OpenAbout = owner => ShowAbout(owner), Updates = updates,
             BackupDir = backupDir, TrayLetters = trayLetters, LayoutColors = new Dictionary<string, Color>(layoutColors, StringComparer.OrdinalIgnoreCase), AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, SoundMap = new Dictionary<string, string>(Sounds.Map), SoundsDir = Sounds.Dir, RecentMenu = watcher.KeepRecent, Typography = watcher.Typography, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
-            CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting, ThemeMode = Theme.Mode, SkinNumber = Theme.Chosen, Holiday = Theme.Holidays, SkinLogo = Theme.SkinLogo, SkinSound = Theme.SkinSound, CustomAccent = Skin.Custom.Accent, CustomFish = Skin.Custom.Latin,
+            CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting, ThemeMode = Theme.Mode, SkinNumber = shownSkin, Holiday = Theme.Holidays, SkinLogo = Theme.SkinLogo, SkinSound = Theme.SkinSound, CustomAccent = Skin.Custom.Accent, CustomFish = Skin.Custom.Latin,
             Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ignoredBefore, Learned = learnedBefore,
             AppLayouts = ReadText(appLayoutsPath), InstalledLayouts = new List<LayoutTable>(watcher.Layouts.All)
         };
@@ -531,12 +534,18 @@ partial class App : ApplicationContext
                     SetSetting("Theme", f.ThemeMode);
                     themeChanged = Theme.Refresh();
                 }
-                if (f.Holiday != Theme.Holidays || f.SkinNumber != Theme.Chosen)
+                if (f.Holiday != Theme.Holidays || f.SkinNumber != shownSkin)
                 {
                     SetSetting("Holiday", f.Holiday ? 1 : 0);
-                    SetSetting("Skin", f.SkinNumber);
                     Theme.Holidays = f.Holiday;
-                    Theme.Chosen = f.SkinNumber;
+                    if (f.SkinNumber != shownSkin)
+                    {
+                        // Another look chosen on a holiday's days wins over the holiday's own one until they end
+                        SetSetting("Skin", f.SkinNumber);
+                        Theme.Chosen = f.SkinNumber;
+                        Theme.Declined = Skin.Declines(f.SkinNumber, DateTime.Today);
+                        SetSetting("HolidayDeclined", Theme.Declined == DateTime.MinValue ? 0 : int.Parse(Theme.Declined.ToString("yyyyMMdd")));
+                    }
                     if (Theme.Refresh()) themeChanged = true;
                 }
                 Color accent = f.CustomAccent, fish = f.CustomFish;

@@ -265,6 +265,17 @@ static class UnitTests
         Is("and leaves after", Skin.For(0, true, summer, false), Skin.Classic);
         Is("chosen, it stays all year", Skin.For(1, true, summer, false), Skin.Halloween);
         Is("none in high contrast", Skin.For(1, true, halloween, true), Skin.Classic);
+        Is("another one chosen on its days wins", Skin.For(2, true, halloween, false, new DateTime(2026, 10, 29)), Skin.Custom);
+        Is("Classic chosen on its days too", Skin.For(0, true, halloween, false, new DateTime(2026, 10, 25)), Skin.Classic);
+        Is("but it comes again next year", Skin.For(0, true, halloween.AddYears(1), false, new DateTime(2026, 10, 29)), Skin.Halloween);
+        Is("declined before its days count for nothing", Skin.For(0, true, halloween, false, new DateTime(2026, 10, 1)), Skin.Halloween);
+        // Settings show the look in use (Halloween, with Custom saved); Classic is picked there and saved
+        var shown = Skin.For(2, true, halloween, false);
+        Is("Settings show the holiday's look", shown, Skin.Halloween);
+        Is("Classic picked: it applies", Skin.For(0, true, halloween, false, Skin.Declines(0, halloween)), Skin.Classic);
+        Is("Custom picked: it applies", Skin.For(2, true, halloween, false, Skin.Declines(2, halloween)), Skin.Custom);
+        Is("Halloween picked: nothing declined", Skin.Declines(1, halloween), DateTime.MinValue);
+        Is("picked outside holidays: nothing declined", Skin.Declines(0, summer), DateTime.MinValue);
         Is("an unknown number is Classic", Skin.Find(99), Skin.Classic);
         Is("the days: Oct 24", Skin.Halloween.Season(new DateTime(2026, 10, 24)), true);
         Is("the days: Nov 3", Skin.Halloween.Season(new DateTime(2026, 11, 3)), false);

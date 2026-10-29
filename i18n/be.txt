@@ -147,7 +147,7 @@ Extended dictionary	Пашыраны слоўнік
 Download	Спампаваць
 Downloading…	Спампоўваю…
 Remove	Выдаліць
-About 100,000 more words for each language of your layouts ({0}): rare words, names, slang, so KeyFish understands better what you typed. Downloaded from GitHub when you click, about 1 MB; about 3 MB of memory per language.	Яшчэ каля 100 тысяч слоў для кожнай мовы вашых раскладак ({0}): рэдкія словы, імёны, жаргон — KeyFish дакладней разумее, што вы набралі. Спампоўваецца з GitHub па кнопцы, каля 1 МБ; у памяці каля 3 МБ на мову.
+About 100,000 more words per language ({0}): rare words, names, slang. Downloads from GitHub when turned on (1 MB).	Яшчэ каля 100 тысяч слоў на мову ({0}): рэдкія словы, імёны, жаргон. Спампоўваецца з GitHub пры ўключэнні, каля 1 МБ.
 The downloaded dictionary doesn't match its checksum, so it wasn't installed.	Спампаваны слоўнік не супаў з кантрольнай сумай — ён не ўсталяваны.
 Couldn't download the dictionary: 	Не ўдалося спампаваць слоўнік: 
 Correction	Выпраўленне
