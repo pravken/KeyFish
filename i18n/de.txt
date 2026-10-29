@@ -251,3 +251,17 @@ mistakes corrected since {0}	Fehler korrigiert seit {0}
 mistakes corrected	Fehler korrigiert
 Latest version · checked at {0}	Neueste Version · geprüft um {0}
 Could not connect to GitHub — retry	Keine Verbindung zu GitHub – erneut versuchen
+Menu of actions on selected text: case, layout, spaces, lines, calculating an expression	Menü mit Aktionen für markierten Text: Schreibweise, Tastaturlayout, Leerzeichen, Zeilen, Berechnen eines Ausdrucks
+Calculate: {0}	Berechnen: {0}
+Append the result: = {0}	Ergebnis anhängen: = {0}
+UPPERCASE	GROSSBUCHSTABEN
+lowercase	kleinbuchstaben
+Sentence case	Satzanfang groß
+Capitalize Each Word	Jedes Wort Groß
+Switch the layout	Tastaturlayout wechseln
+Transliterate	Transliterieren
+Clear formatting	Formatierung entfernen
+Remove extra spaces and empty lines	Überflüssige Leerzeichen und Leerzeilen entfernen
+Sort lines	Zeilen sortieren
+Remove duplicate lines	Doppelte Zeilen entfernen
+Name for code	Name für Code

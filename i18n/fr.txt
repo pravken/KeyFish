@@ -251,3 +251,17 @@ mistakes corrected since {0}	erreurs corrigées depuis le {0}
 mistakes corrected	erreurs corrigées
 Latest version · checked at {0}	Dernière version · vérifiée à {0}
 Could not connect to GitHub — retry	Impossible de se connecter à GitHub — réessayer
+Menu of actions on selected text: case, layout, spaces, lines, calculating an expression	Menu des actions sur le texte sélectionné : casse, disposition, espaces, lignes, calcul d’une expression
+Calculate: {0}	Calculer : {0}
+Append the result: = {0}	Ajouter le résultat : = {0}
+UPPERCASE	MAJUSCULES
+lowercase	minuscules
+Sentence case	Comme une phrase
+Capitalize Each Word	Majuscule À Chaque Mot
+Switch the layout	Changer de disposition
+Transliterate	Translittérer
+Clear formatting	Effacer la mise en forme
+Remove extra spaces and empty lines	Supprimer les espaces superflus et les lignes vides
+Sort lines	Trier les lignes
+Remove duplicate lines	Supprimer les lignes en double
+Name for code	Nom pour le code

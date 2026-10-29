@@ -251,3 +251,17 @@ mistakes corrected since {0}	выпраўлена памылак з {0}
 mistakes corrected	выпраўлена памылак
 Latest version · checked at {0}	Апошняя версія · праверана ў {0}
 Could not connect to GitHub — retry	Не ўдалося падключыцца да GitHub — паўтарыць
+Menu of actions on selected text: case, layout, spaces, lines, calculating an expression	Меню дзеянняў з вылучаным тэкстам: рэгістр, раскладка, прабелы, радкі, вылічэнне выразу
+Calculate: {0}	Вылічыць: {0}
+Append the result: = {0}	Дапісаць вынік: = {0}
+UPPERCASE	УСЕ ВЯЛІКІЯ
+lowercase	усе малыя
+Sentence case	Як у сказе
+Capitalize Each Word	Кожнае Слова З Вялікай
+Switch the layout	Змяніць раскладку
+Transliterate	Транслітарацыя
+Clear formatting	Выдаліць фарматаванне
+Remove extra spaces and empty lines	Выдаліць лішнія прабелы і пустыя радкі
+Sort lines	Сартаваць радкі
+Remove duplicate lines	Выдаліць паўторныя радкі
+Name for code	Імя для кода

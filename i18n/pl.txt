@@ -251,3 +251,17 @@ mistakes corrected since {0}	poprawionych błędów od {0}
 mistakes corrected	poprawionych błędów
 Latest version · checked at {0}	Najnowsza wersja · sprawdzono o {0}
 Could not connect to GitHub — retry	Nie udało się połączyć z GitHubem — ponów
+Menu of actions on selected text: case, layout, spaces, lines, calculating an expression	Menu działań na zaznaczonym tekście: wielkość liter, układ, spacje, wiersze, obliczanie wyrażenia
+Calculate: {0}	Oblicz: {0}
+Append the result: = {0}	Dopisz wynik: = {0}
+UPPERCASE	WIELKIE LITERY
+lowercase	małe litery
+Sentence case	Jak w zdaniu
+Capitalize Each Word	Każde Słowo Wielką Literą
+Switch the layout	Zmień układ klawiatury
+Transliterate	Transliteracja
+Clear formatting	Usuń formatowanie
+Remove extra spaces and empty lines	Usuń zbędne spacje i puste wiersze
+Sort lines	Sortuj wiersze
+Remove duplicate lines	Usuń powtarzające się wiersze
+Name for code	Nazwa w kodzie

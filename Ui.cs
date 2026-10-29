@@ -820,6 +820,16 @@ class ThemedMenuRenderer : ToolStripProfessionalRenderer
     protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
     {
         // Smoothed like the rest of KeyFish's text, not with ClearType's thinner colored letters
+        var menuItem = e.Item as ToolStripMenuItem;
+        if (menuItem != null && !string.IsNullOrEmpty(menuItem.ShortcutKeyDisplayString) && e.Text == menuItem.ShortcutKeyDisplayString)
+        {
+            // The hotkey that does the same, to the right and quieter, as in Windows' own menus
+            var r = e.TextRectangle;
+            // Measured as it is drawn: the menu makes room by Windows' own measure, a little narrower than smooth text
+            float w = e.Graphics.MeasureString(e.Text, e.TextFont).Width + 4;
+            Theme.SmoothText(e.Graphics, e.Text, e.TextFont, new RectangleF(r.Right - w, r.Top, w, r.Height), e.Item.Enabled ? Theme.SubText : Theme.DisabledText, false, false);
+            return;
+        }
         string text = (e.Text ?? "").Replace("&&", "\u0001").Replace("&", "").Replace("\u0001", "&");
         Theme.SmoothText(e.Graphics, text, e.TextFont, e.TextRectangle, e.Item.Enabled ? Theme.Text : Theme.DisabledText, false);
     }
@@ -1091,8 +1101,10 @@ class LayoutBadge : Form
         }
     }
 
-    // Under the caret if the focused app shows one, otherwise next to the mouse pointer
-    static Point Place(Size size)
+    static Point Place(Size size) { return Fit(CaretOrMouse(), size); }
+
+    // Just under the caret if the focused app shows one, otherwise next to the mouse pointer
+    public static Point CaretOrMouse()
     {
         IntPtr fg = W.GetForegroundWindow();
         uint pid;
@@ -1101,7 +1113,7 @@ class LayoutBadge : Form
         if (fg != IntPtr.Zero && W.GetGUIThreadInfo(W.GetWindowThreadProcessId(fg, out pid), ref info) && info.hwndCaret != IntPtr.Zero)
         {
             var p = new Native.POINT { x = info.rcCaret.left, y = info.rcCaret.bottom };
-            if (Native.ClientToScreen(info.hwndCaret, ref p) && (p.x != 0 || p.y != 0)) return Fit(new Point(p.x, p.y + 3), size);
+            if (Native.ClientToScreen(info.hwndCaret, ref p) && (p.x != 0 || p.y != 0)) return new Point(p.x, p.y + 3);
         }
         // Browsers and Electron apps (Chrome, Edge, Telegram, VS Code…) draw their own caret and don't show the one above,
         // but they report it to accessibility tools. Not asked of a hung window: the question would wait for its answer
@@ -1112,9 +1124,9 @@ class LayoutBadge : Form
         var guard = PasswordGuardClient.Current;
         Rectangle found;
         if (fg != IntPtr.Zero && !Native.IsHungAppWindow(fg) && guard != null && guard.Caret(target, 150, out found))
-            return Fit(new Point(found.Left, found.Bottom + 3), size);
+            return new Point(found.Left, found.Bottom + 3);
         var c = Cursor.Position;
-        return Fit(new Point(c.X + 14, c.Y + 20), size);
+        return new Point(c.X + 14, c.Y + 20);
     }
 
     // The caret's place on screen from the window's accessibility object (MSAA, OBJID_CARET). Asked in the

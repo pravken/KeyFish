@@ -42,6 +42,8 @@ static class UnitTests
         Run("Looks", () => SkinTests());
         Run("Sounds", () => SoundTests());
         Run("Plain text", () => PlainTests());
+        Run("Text actions", () => TextActionTests());
+        Run("Calculator", () => CalcTests());
         if (Directory.Exists("i18n")) Run("Translations", () => TranslationTests());
 
         Console.WriteLine("{0} passed, {1} failed", passed, failed);
@@ -220,6 +222,60 @@ static class UnitTests
             var missing = keys.Where(k => !have.Contains(k)).ToList();
             Is(Path.GetFileName(path) + " missing " + string.Join(" | ", missing.Take(5)), missing.Count, 0);
         }
+    }
+
+    static void TextActionTests()
+    {
+        var was = System.Threading.Thread.CurrentThread.CurrentCulture;
+        System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("ru-RU");
+        try
+        {
+            Is("sentence", TextActions.Sentence("пРИВЕТ. как ДЕЛА? хорошо"), "Привет. Как дела? Хорошо");
+            Is("sentence: lines", TextActions.Sentence("один\nдва"), "Один\nДва");
+            Is("spaces", TextActions.Spaces("  a   b \t c  \n\n\n\nd  \n\n"), "a b c\n\nd");
+            Is("spaces keep CRLF", TextActions.Spaces("a  b\r\nc"), "a b\r\nc");
+            Is("sort", TextActions.SortLines("в\nа\nБ\n"), "а\nБ\nв\n");
+            Is("sort numbers by value", TextActions.SortLines("item 10\r\nitem 2\r\nitem 1"), "item 1\r\nitem 2\r\nitem 10");
+            Is("unique", TextActions.UniqueLines("a\nb\na\nc\nb"), "a\nb\nc");
+            Is("snake", TextActions.CodeName("User Name", TextActions.Code.Snake), "user_name");
+            Is("camel", TextActions.CodeName("user_name id", TextActions.Code.Camel), "userNameId");
+            Is("pascal from camel", TextActions.CodeName("userName", TextActions.Code.Pascal), "UserName");
+            Is("kebab from acronym", TextActions.CodeName("HTMLParser", TextActions.Code.Kebab), "html-parser");
+            Is("constant", TextActions.CodeName("max-size2", TextActions.Code.Constant), "MAX_SIZE2");
+        }
+        finally { System.Threading.Thread.CurrentThread.CurrentCulture = was; }
+    }
+
+    static void CalcTests()
+    {
+        var was = System.Threading.Thread.CurrentThread.CurrentCulture;
+        Func<string, string> calc = e => { var v = Calc.Evaluate(e); return v.HasValue ? Calc.Format(v.Value, e) : null; };
+        try
+        {
+            System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("ru-RU");
+            Is("product with a decimal comma", calc("1250*12*0,87"), "13050");
+            Is("precedence and brackets", calc("2+3*(4-1)"), "11");
+            Is("decimal comma kept", calc("1/4"), "0,25");
+            Is("thousands with spaces", calc("1 234,5 × 2"), "2469");
+            Is("percent added", calc("200+15%"), "230");
+            Is("percent taken", calc("200 − 10%"), "180");
+            Is("percent of", calc("200*15%"), "30");
+            Is("power", calc("2^10"), "1024");
+            Is("trailing equals", calc("7÷2 ="), "3,5");
+            Is("float noise rounded", calc("0.1+0.2"), "0.3");
+            Is("negative", calc("3-5"), "-2");
+            Is("a number alone isn't", calc("42"), null);
+            Is("a negative number alone isn't", calc("-5"), null);
+            Is("a date isn't", calc("12.03.2026"), null);
+            Is("a time isn't", calc("12:30"), null);
+            Is("words aren't", calc("2 + два"), null);
+            Is("division by zero", calc("1/0"), null);
+            Is("unclosed bracket", calc("(1+2"), null);
+            System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("en-US");
+            Is("thousands comma", calc("1,234*2"), "2468");
+            Is("decimal point", calc("1.5*3"), "4.5");
+        }
+        finally { System.Threading.Thread.CurrentThread.CurrentCulture = was; }
     }
 
     static void PlainTests()

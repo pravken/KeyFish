@@ -1,6 +1,7 @@
 ﻿# End-to-end typing tests for KeyFish. They press real keys, so don't touch the keyboard or mouse while they run.
 # Your replacements, word lists and settings are backed up to tests\backup first and restored at the end (or on the next run, if this one is cut short).
-# Usage: powershell -ExecutionPolicy Bypass -File tests\run-tests.ps1
+# Usage: powershell -ExecutionPolicy Bypass -File tests\run-tests.ps1 [-Only <name pattern>]   (-Only 'menu*': those alone, no browser tests)
+param([string]$Only)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 # The tests run the build in tests\bin (build.bat with OUT=tests\bin\KeyFish.exe), which keeps its own lists next to it.
@@ -104,10 +105,15 @@ $tests = @(
   @('double Shift fixes word', "hello ~~ghjcnj~~!~!$w",                   'hello просто', ''),
   @('double Shift undoes fix', "hello ~~rfrfz ~~~~!~!$w",               'hello rfrfz ', ''),   # a word no earlier test sends to Never correct
   @('typography',             'one ~~- ~~two... ~~^9c^0 ~~~~',            'one — two… © ', ''),
-  @('clipboard',              'ghbdtn~~%a~~%c~~~~%^q~~~~~~%v~~~~',        'привет', '')
+  @('clipboard',              'ghbdtn~~%a~~%c~~~~%^q~~~~~~%v~~~~',        'привет', ''),
+  # Ctrl+Shift+F2: the text actions menu. Nothing selected: the line before the cursor; the first item is picked with Enter
+  @('menu: calculate',        "2^=3^84~~%^@$('_' * 15)`$~~~~~~~~~~",       '14', ''),
+  @('menu: uppercase',        "hello world~~%a~~%^@$('_' * 15)`$~~~~~~~~~~", 'HELLO WORLD', ''),
+  @('menu: closed, no change', "hello~~%^@$('_' * 15)``~~~~~~~~ ~~x~~~~",   'hello x', '')
 )
 $pass = 0; $total = 0
 foreach ($t in $tests) {
+  if ($Only -and $t[0] -notlike $Only) { continue }
   $total++
   Start-Process "$bin\Typer.exe" -ArgumentList "`"$bin\out.txt`" `"$($t[1])`" $($t[3])" -Wait
   $r = Get-Content "$bin\out.txt" -Encoding utf8 -Raw
@@ -115,7 +121,7 @@ foreach ($t in $tests) {
   "{0} {1,-24} [{2}]" -f $(if ($ok) { 'OK  ' } else { 'FAIL' }), $t[0], ($r -replace "`r`n", '⏎')
 }
 $pages = "file:///$($bin -replace '\\', '/')"
-foreach ($b in @(@('browser password', 'pw', 'KFPW', 'KFPW:ghbdtn vbh'), @('browser text field', 'tx', 'KFTX', 'KFTX:привет мир'),
+if (-not $Only) { foreach ($b in @(@('browser password', 'pw', 'KFPW', 'KFPW:ghbdtn vbh'), @('browser text field', 'tx', 'KFTX', 'KFTX:привет мир'),
                  @('password after text', 'pw', 'KFPW', 'KFPW:ghbdtn vbh'))) {
   $total++
   Start-Process "$bin\BrowserTyper.exe" -ArgumentList "`"$pages/$($b[1]).html`" $($b[2]) `"ghbdtn vbh ~~~~`" `"$bin\out.txt`"" -Wait
@@ -123,7 +129,7 @@ foreach ($b in @(@('browser password', 'pw', 'KFPW', 'KFPW:ghbdtn vbh'), @('brow
   $ok = $r -eq $b[3]; if ($ok) { $pass++ }
   "{0} {1,-24} [{2}]" -f $(if ($ok) { 'OK  ' } else { 'FAIL' }), $b[0], $r
   Start-Sleep 1
-}
+} }
 "passed: $pass of $total"
 }
 finally {

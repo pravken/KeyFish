@@ -63,7 +63,7 @@ static class Native
     [DllImport("user32.dll")] public static extern bool UpdateLayeredWindow(IntPtr hwnd, IntPtr dst, ref POINT pos, ref SIZE size, IntPtr src, ref POINT srcPos, int key, ref BLENDFUNCTION blend, int flags);
 
     public const uint MOD_ALT = 0x1, MOD_CONTROL = 0x2, MOD_SHIFT = 0x4, MOD_NOREPEAT = 0x4000;
-    public const byte VK_SHIFT = 0x10, VK_CONTROL = 0x11, VK_MENU = 0x12, VK_HOME = 0x24, VK_LEFT = 0x25, VK_LWIN = 0x5B, VK_RWIN = 0x5C;
+    public const byte VK_SHIFT = 0x10, VK_CONTROL = 0x11, VK_MENU = 0x12, VK_HOME = 0x24, VK_LEFT = 0x25, VK_RIGHT = 0x27, VK_LWIN = 0x5B, VK_RWIN = 0x5C;
     const uint KEYEVENTF_EXTENDEDKEY = 0x1, KEYEVENTF_KEYUP = 0x2;
 
     [DllImport("user32.dll")] public static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
@@ -107,5 +107,5 @@ static class Native
         keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
     }
 
-    static uint Flags(byte vk) { return vk == VK_LEFT || vk == VK_HOME ? KEYEVENTF_EXTENDEDKEY : 0; }
+    static uint Flags(byte vk) { return vk == VK_LEFT || vk == VK_RIGHT || vk == VK_HOME ? KEYEVENTF_EXTENDEDKEY : 0; }
 }

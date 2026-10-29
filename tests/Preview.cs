@@ -84,6 +84,8 @@ static class Preview
     {
         SetProcessDPIAware();
         // settings <page> <out> [theme] [lang]; about|aquarium <out> [theme] [lang]
+        // KeyFish's own setup (its theme from the registry) first, so the theme asked for here wins
+        System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(App).TypeHandle);
         int ta = args[0] == "settings" ? 3 : 2;
         if (args.Length > ta) typeof(Theme).GetField("Dark").SetValue(null, args[ta] == "dark");
         // "skin=N": that look (Skin.Number), whatever the date; "halloween" is skin=1
@@ -148,6 +150,24 @@ static class Preview
                     typeof(IntroForm).GetMethod("Show", BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { typeof(int) }, null)
                         .Invoke(form, new object[] { int.Parse(arg.Substring(5)) });
         }
+        else if (args[0] == "textmenu")
+        {
+            // The text actions menu over an empty window. "text=…": the selection it is for (\n: a new line);
+            // "code": the Name for code submenu opened
+            string text = "1250*12*0,87";
+            foreach (string a in args) if (a.StartsWith("text=")) text = a.Substring(5).Replace("\\n", "\n");
+            form = new Form { StartPosition = FormStartPosition.Manual, Location = new Point(100, 100), Size = new Size(620, 560), FormBorderStyle = FormBorderStyle.None, TopMost = true };
+            Theme.Apply(form);
+            var host = form;
+            form.Shown += (s, e) =>
+            {
+                var menu = App.TextMenuFor(text, t => Tuple.Create(t + "?", (Action)null), "ru", (r, a) => { });
+                menu.Show(host.Location + new Size(24, 24));
+                if (Array.IndexOf(args, "code") >= 0)
+                    foreach (ToolStripItem item in menu.Items)
+                        if (item is ToolStripMenuItem && ((ToolStripMenuItem)item).HasDropDownItems) ((ToolStripMenuItem)item).ShowDropDown();
+            };
+        }
         else form = new AboutForm(1234, new DateTime(2026, 3, 12), "2.0.0\n• Новое\n\n1.8.3\n• Старое\n", LayoutTable.Installed(),
                                   FakeUpdates(args), Array.IndexOf(args, "partial") >= 0 ? new[] { 23, -1, -1, 35 } : new[] { 12, 85, 310, 82 });
         string outPath = args[args[0] == "settings" ? 2 : 1];
@@ -206,7 +226,7 @@ static class Preview
         {
             timer.Stop();
             var r = form.Bounds;
-            bool screen = Array.IndexOf(args, "menu") >= 0 || Array.IndexOf(args, "colors") >= 0;
+            bool screen = Array.IndexOf(args, "menu") >= 0 || Array.IndexOf(args, "colors") >= 0 || args[0] == "textmenu";
             using (var bmp = new Bitmap(r.Width, r.Height))
             {
                 using (var g = Graphics.FromImage(bmp))

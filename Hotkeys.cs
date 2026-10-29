@@ -29,7 +29,9 @@ partial class App
                 L.T("Смена раскладки текста в буфере обмена", "Switch the layout of the text in the clipboard"),
                 L.T("Приостановить исправление на 1 час / возобновить", "Pause correction for 1 hour / resume"),
                 L.T("Удаление форматирования выделенного текста: полужирный, курсив, ссылки, стилизованные символы",
-                    "Clear the formatting of selected text: bold, italic, links, styled characters")
+                    "Clear the formatting of selected text: bold, italic, links, styled characters"),
+                L.T("Меню действий с выделенным текстом: регистр, раскладка, пробелы, строки, вычисление выражения",
+                    "Menu of actions on selected text: case, layout, spaces, lines, calculating an expression")
             };
         }
     }
@@ -39,10 +41,10 @@ partial class App
         Keys.Pause, Keys.Control | Keys.Shift | Keys.Space, Keys.Shift | Keys.F3, Keys.Shift | Keys.Pause, Keys.Alt | Keys.Pause,
         Keys.None,   // the clipboard: off until the user picks keys for it
         Keys.None,   // pause: the same
-        Keys.Shift | Keys.F2
+        Keys.Shift | Keys.F2, Keys.Control | Keys.Shift | Keys.F2
     };
 
-    const int HkLayout = 1, HkLayoutAlt = 2, HkCase = 3, HkTranslit = 4, HkLine = 5, HkClipboard = 6, HkPause = 7, HkPlain = 8;
+    const int HkLayout = 1, HkLayoutAlt = 2, HkCase = 3, HkTranslit = 4, HkLine = 5, HkClipboard = 6, HkPause = 7, HkPlain = 8, HkActions = 9;
 
     static Keys GetHotkey(int i) { return (Keys)GetSetting("Hotkey" + (i + 1), (int)HotkeyDefaults[i]); }
 
@@ -97,6 +99,7 @@ partial class App
             else if (id == HkTranslit) { string lang = TranslitLanguage(); TransformSelection(s => Transliterator.Convert(s, lang)); }
             else if (id == HkLine) ConvertLine();
             else if (id == HkPlain) PlainSelection();
+            else if (id == HkActions) TextMenu();
             else ConvertSelection();
         }
         catch { }
@@ -313,6 +316,152 @@ partial class App
         }
 
         RestoreClipboard(saved);
+    }
+
+    // The menu of text actions, next to the caret: for the selection or, with nothing selected, the line before the
+    // cursor. The result replaces the text; only what would change it can be picked
+    void TextMenu()
+    {
+        IntPtr target = hotkeyWindow;
+        Clip.Saved saved = SaveClipboard();
+        bool selectedHere = false;
+        string text = CopySelection();
+        if (string.IsNullOrEmpty(text) && SameWindow())
+        {
+            Native.Chord(Native.VK_SHIFT, Native.VK_HOME);
+            Pump(30);
+            text = CopySelection();
+            selectedHere = !string.IsNullOrEmpty(text);
+        }
+        if (string.IsNullOrEmpty(text) || text.Length > 100000) { RestoreClipboard(saved); return; }
+
+        string result = null;
+        Action after = null;
+        Point at = LayoutBadge.CaretOrMouse();
+        Func<string, Tuple<string, Action>> switchLayout = t =>
+        {
+            LayoutTable layout;
+            string r = watcher.ConvertText(t, target, out layout);
+            return r == null ? null : Tuple.Create(r, (Action)(() => W.SwitchLayout(target, layout.Hkl)));
+        };
+        // The menu takes the keyboard only while KeyFish is the active app: an invisible window of its own is
+        // brought forward first, and the window the text is in gets the focus back afterwards
+        using (var host = new Form { FormBorderStyle = FormBorderStyle.None, ShowInTaskbar = false, StartPosition = FormStartPosition.Manual,
+                                     Location = new Point(-32000, -32000), Size = new Size(1, 1) })
+        using (var menu = TextMenuFor(text, switchLayout, TranslitLanguage(), (r, a) => { result = r; after = a; }))
+        {
+            host.Show();
+            SetForegroundWindow(host.Handle);
+            menu.Show(at);
+            foreach (ToolStripItem item in menu.Items)
+                if (item is ToolStripMenuItem && item.Enabled) { item.Select(); break; }
+            while (menu.Visible) Pump(15);
+            host.Hide();
+        }
+        SetForegroundWindow(target);
+        for (int i = 0; i < 40 && !SameWindow(); i++) Pump(25);
+        if (result != null) { if (Paste(result) && after != null) after(); }
+        else if (selectedHere && SameWindow()) Unselect(target);   // closed: the line KeyFish selected is let go
+        RestoreClipboard(saved);
+    }
+
+    [DllImport("user32.dll")] static extern IntPtr SendMessageTimeout(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result);
+
+    // The selection KeyFish made let go, the cursor back at its end, where it was. Browsers and editors move it there
+    // with the Right key; a Windows text box would move it from the selection's start, so it is told directly
+    static void Unselect(IntPtr window)
+    {
+        uint pid;
+        var info = new W.GUITHREADINFO();
+        info.cbSize = Marshal.SizeOf(info);
+        if (W.GetGUIThreadInfo(W.GetWindowThreadProcessId(window, out pid), ref info) && info.hwndFocus != IntPtr.Zero &&
+            W.ClassName(info.hwndFocus).IndexOf("edit", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            IntPtr sel;
+            // EM_GETSEL: the two ends in the low and the high word, the right one either way round as text boxes
+            // report it (0xFFFF past that: then the Right key)
+            if (SendMessageTimeout(info.hwndFocus, 0x00B0, IntPtr.Zero, IntPtr.Zero, 0x2, 200, out sel) != IntPtr.Zero)
+            {
+                uint both = (uint)sel.ToInt64();
+                int end = (int)Math.Max(both & 0xFFFF, both >> 16);
+                if (end < 0xFFFF)
+                {
+                    IntPtr ignored;
+                    SendMessageTimeout(info.hwndFocus, 0x00B1, new IntPtr(end), new IntPtr(end), 0x2, 200, out ignored);   // EM_SETSEL
+                    return;
+                }
+            }
+        }
+        Native.Chord(Native.VK_RIGHT);
+    }
+
+    // switchLayout: the text in the other layout and what to do after pasting it (null: no other layout fits)
+    public static ContextMenuStrip TextMenuFor(string text, Func<string, Tuple<string, Action>> switchLayout, string translit,
+                                               Action<string, Action> choose)
+    {
+        var menu = new ContextMenuStrip { ShowImageMargin = false };
+        ThemedMenuRenderer.Apply(menu);
+        var culture = System.Globalization.CultureInfo.CurrentCulture;
+
+        double? value = Calc.Evaluate(text);
+        if (value.HasValue)
+        {
+            string number = Calc.Format(value.Value, text);
+            MenuAction(menu.Items, L.F("Вычислить: {0}", "Calculate: {0}", number), text, number, null, Keys.None, choose);
+            MenuAction(menu.Items, L.F("Дописать результат: = {0}", "Append the result: = {0}", number), text,
+                       text.TrimEnd().TrimEnd('=').TrimEnd() + " = " + number, null, Keys.None, choose);
+            menu.Items.Add(new ToolStripSeparator());
+        }
+
+        MenuAction(menu.Items, L.T("ВСЕ ПРОПИСНЫЕ", "UPPERCASE"), text, text.ToUpper(culture), null, Keys.None, choose);
+        MenuAction(menu.Items, L.T("все строчные", "lowercase"), text, text.ToLower(culture), null, Keys.None, choose);
+        MenuAction(menu.Items, L.T("Как в предложении", "Sentence case"), text, TextActions.Sentence(text), null, Keys.None, choose);
+        MenuAction(menu.Items, L.T("Каждое Слово С Прописной", "Capitalize Each Word"), text, CaseConverter.ToTitle(text), null, Keys.None, choose);
+        menu.Items.Add(new ToolStripSeparator());
+
+        var switched = switchLayout(text);
+        MenuAction(menu.Items, L.T("Сменить раскладку", "Switch the layout"), text, switched == null ? null : switched.Item1,
+                   switched == null ? null : switched.Item2, GetHotkey(HkLayout - 1), choose);
+        MenuAction(menu.Items, L.T("Транслитерация", "Transliterate"), text, Transliterator.Convert(text, translit), null, GetHotkey(HkTranslit - 1), choose);
+        // Pasted back as plain text, formatting goes even when the letters stay the same
+        MenuAction(menu.Items, L.T("Удалить форматирование", "Clear formatting"), null, PlainText.Clean(text), null, GetHotkey(HkPlain - 1), choose);
+        menu.Items.Add(new ToolStripSeparator());
+
+        MenuAction(menu.Items, L.T("Удалить лишние пробелы и пустые строки", "Remove extra spaces and empty lines"), text, TextActions.Spaces(text), null, Keys.None, choose);
+        if (text.TrimEnd('\r', '\n').Contains("\n"))
+        {
+            MenuAction(menu.Items, L.T("Сортировать строки", "Sort lines"), text, TextActions.SortLines(text), null, Keys.None, choose);
+            MenuAction(menu.Items, L.T("Удалить повторяющиеся строки", "Remove duplicate lines"), text, TextActions.UniqueLines(text), null, Keys.None, choose);
+        }
+        else if (text.Length <= 200)
+        {
+            // Each style shown as the name it makes
+            var code = new ToolStripMenuItem(L.T("Имя для кода", "Name for code"));
+            ThemedMenuRenderer.Apply(code.DropDown);
+            ((ToolStripDropDownMenu)code.DropDown).ShowImageMargin = false;
+            foreach (TextActions.Code style in Enum.GetValues(typeof(TextActions.Code)))
+            {
+                string name = TextActions.CodeName(text, style);
+                MenuAction(code.DropDownItems, name.Length > 40 ? name.Substring(0, 40) + "…" : name, text, name, null, Keys.None, choose);
+            }
+            code.Enabled = code.DropDownItems.Cast<ToolStripItem>().Any(i => i.Enabled);
+            menu.Items.Add(code);
+        }
+        return menu;
+    }
+
+    // An item of the text actions menu, with the hotkey that does the same if there is one. Off when the result is the
+    // text as it is (unless "same" is null: the action does something even then)
+    static void MenuAction(ToolStripItemCollection items, string title, string same, string result, Action after, Keys hotkey,
+                           Action<string, Action> choose)
+    {
+        var item = new ToolStripMenuItem(title.Replace("&", "&&"))
+        {
+            Enabled = result != null && result != same,
+            ShortcutKeyDisplayString = hotkey != Keys.None ? SettingsForm.Format(hotkey) : null
+        };
+        item.Click += (s, e) => choose(result, after);
+        items.Add(item);
     }
 
     // Wait while still processing messages, so the clipboard and the target window keep working meanwhile

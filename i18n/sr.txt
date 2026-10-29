@@ -251,3 +251,17 @@ mistakes corrected since {0}	исправљено грешака од {0}
 mistakes corrected	исправљено грешака
 Latest version · checked at {0}	Најновија верзија · проверено у {0}
 Could not connect to GitHub — retry	Повезивање са GitHub-ом није успело — покушај поново
+Menu of actions on selected text: case, layout, spaces, lines, calculating an expression	Мени радњи са изабраним текстом: величина слова, распоред, размаци, редови, израчунавање израза
+Calculate: {0}	Израчунај: {0}
+Append the result: = {0}	Допиши резултат: = {0}
+UPPERCASE	СВА ВЕЛИКА
+lowercase	сва мала
+Sentence case	Као у реченици
+Capitalize Each Word	Свака Реч Великим Словом
+Switch the layout	Промени распоред
+Transliterate	Транслитерација
+Clear formatting	Уклони форматирање
+Remove extra spaces and empty lines	Уклони сувишне размаке и празне редове
+Sort lines	Сортирај редове
+Remove duplicate lines	Уклони поновљене редове
+Name for code	Име за код

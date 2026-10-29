@@ -8,7 +8,9 @@ using System.Windows.Forms;
 // End-to-end typing test: opens its own window, types a script with real keystrokes and saves the resulting text.
 // Usage: Typer.exe <output file> <script> [full]
 // Script: letters and ; . , - are keys, ' ' space, '<' Backspace, '#' CapsLock, '|' Pause, '~' a 60 ms pause,
-// '^x' Shift+x, '%x' Ctrl+x, '[' hold Ctrl, ']' release Ctrl, '!' a tap of Shift alone. "full" makes the window borderless full screen.
+// '^x' Shift+x, '%x' Ctrl+x, '[' hold Ctrl, ']' release Ctrl, '!' a tap of Shift alone, '=' the =/+ key, '@' F2.
+// For KeyFish's own menu, which takes the focus: '_' a 60 ms pause, '}' Down, '$' Enter, '`' Esc — these go on while
+// another window is in front. "full" makes the window borderless full screen.
 static class Typer
 {
     [DllImport("user32.dll")] static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
@@ -29,6 +31,7 @@ static class Typer
         if (args.Length > 2 && args[2] == "full") { f.FormBorderStyle = FormBorderStyle.None; f.WindowState = FormWindowState.Maximized; }
 
         var steps = new Queue<Action>();
+        var free = new HashSet<Action>();   // steps that run while KeyFish's menu has the focus
         bool shift = false, ctrl = false;
         foreach (char c in script)
         {
@@ -38,10 +41,18 @@ static class Typer
             if (c == ']') { steps.Enqueue(() => keybd_event(0x11, 0, 2, UIntPtr.Zero)); continue; }
             if (c == '~') { steps.Enqueue(() => { }); continue; }
             if (c == '!') { steps.Enqueue(() => Key(0x10)); continue; }
+            if (c == '_' || c == '}' || c == '$' || c == '`')
+            {
+                byte menuKey = c == '}' ? (byte)0x28 : c == '$' ? (byte)0x0D : c == '`' ? (byte)0x1B : (byte)0;
+                Action a = () => { if (menuKey != 0) Key(menuKey); };
+                free.Add(a);
+                steps.Enqueue(a);
+                continue;
+            }
             bool s = shift, k = ctrl;
             shift = ctrl = false;
             byte vk = c == '<' ? (byte)0x08 : c == '#' ? (byte)0x14 : c == '|' ? (byte)0x13 : c == ' ' ? (byte)0x20 :
-                      c == ';' ? (byte)0xBA : c == '.' ? (byte)0xBE : c == ',' ? (byte)0xBC : c == '-' ? (byte)0xBD : (byte)char.ToUpper(c);
+                      c == ';' ? (byte)0xBA : c == '.' ? (byte)0xBE : c == ',' ? (byte)0xBC : c == '-' ? (byte)0xBD : c == '=' ? (byte)0xBB : c == '@' ? (byte)0x71 : (byte)char.ToUpper(c);
             steps.Enqueue(() =>
             {
                 if (s) keybd_event(0x10, 0, 0, UIntPtr.Zero);
@@ -61,6 +72,7 @@ static class Typer
             t.Tick += (o2, e2) =>
             {
                 if (warm-- > 0) return;
+                if (GetForegroundWindow() != f.Handle && steps.Count > 0 && free.Contains(steps.Peek())) { steps.Dequeue()(); return; }
                 if (GetForegroundWindow() != f.Handle)
                 {
                     // Never type into someone else's window. A click elsewhere (a notification's button) may take the
