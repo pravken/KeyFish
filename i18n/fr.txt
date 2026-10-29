@@ -7,7 +7,6 @@ What's new in KeyFish	Nouveautés de KeyFish
 Version 	Version
 Close	Fermer
 Mistakes corrected: {0}	Erreurs corrigées : {0}
- (since {0})	 (depuis le {0})
 Switch the layout of selected text; right after an auto-correction, undo it (as Ctrl+Z does)	Changer la disposition du texte sélectionné ; juste après une correction automatique, l'annuler (comme Ctrl+Z)
 Switch the layout of selected text (alternative hotkey)	Changer la disposition du texte sélectionné (raccourci secondaire)
 Change case of selected text (aa → Aa → AA)	Casse du texte sélectionné (aa → Aa → AA)
@@ -248,3 +247,7 @@ Apply the changes?	Appliquer les changements ?
 System language	Langue du système
 Color mode	Mode de couleur
 Word lists	Listes de mots
+mistakes corrected since {0}	erreurs corrigées depuis le {0}
+mistakes corrected	erreurs corrigées
+Latest version · checked at {0}	Dernière version · vérifiée à {0}
+Could not connect to GitHub — retry	Impossible de se connecter à GitHub — réessayer

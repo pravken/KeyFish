@@ -7,7 +7,6 @@ What's new in KeyFish	Шта је ново у KeyFish-у
 Version 	Верзија
 Close	Затвори
 Mistakes corrected: {0}	Исправљене грешке: {0}
- (since {0})	 (од {0})
 Switch the layout of selected text; right after an auto-correction, undo it (as Ctrl+Z does)	Промена распореда означеног текста; одмах после аутоматске исправке — њено поништавање (као Ctrl+Z)
 Switch the layout of selected text (alternative hotkey)	Промена распореда означеног текста (додатна пречица)
 Change case of selected text (aa → Aa → AA)	Велика/мала слова означеног текста (аа → Аа → АА)
@@ -248,3 +247,7 @@ Apply the changes?	Применити измене?
 System language	Језик система
 Color mode	Режим боја
 Word lists	Листе речи
+mistakes corrected since {0}	исправљено грешака од {0}
+mistakes corrected	исправљено грешака
+Latest version · checked at {0}	Најновија верзија · проверено у {0}
+Could not connect to GitHub — retry	Повезивање са GitHub-ом није успело — покушај поново

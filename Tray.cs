@@ -288,15 +288,14 @@ partial class App
 
         int total = statsBase + watcher.CorrectionCount;
         int since = GetSetting("StatsSince", 0);
-        string sinceText = "";
-        try { if (since > 0) sinceText = new DateTime(since / 10000, since / 100 % 100, since % 100).ToString("d", L.Culture); }
-        catch { since = 0; }
-        string stats = StatsLine(total) + (since > 0 ? L.F(" (с {0})", " (since {0})", sinceText) : "");   // no plural forms needed this way
+        DateTime? sinceDate = null;
+        try { if (since > 0) sinceDate = new DateTime(since / 10000, since / 100 % 100, since % 100); }
+        catch { }
 
         SaveStats();
 
         if (aboutForm != null) { aboutForm.Activate(); return; }
-        using (aboutForm = new AboutForm(stats, changes, new List<LayoutTable>(watcher.Layouts.All), updates, RecentStats(total)) { Icon = iconEn })
+        using (aboutForm = new AboutForm(total, sinceDate, changes, new List<LayoutTable>(watcher.Layouts.All), updates, RecentStats(total)) { Icon = iconEn })
             aboutForm.ShowDialog(owner);
         aboutForm = null;
     }

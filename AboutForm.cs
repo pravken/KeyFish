@@ -12,18 +12,21 @@ class AboutForm : Form
     const string ProjectUrl = "https://github.com/pravken/KeyFish";
     const string SupportUrl = "https://ko-fi.com/pravken";
 
-    // layouts: the installed keyboard layouts, for the easter egg; recent: caught today, in a week, in a month, and the
-    // minutes that saved (null: not shown)
-    public AboutForm(string stats, string changelog, ICollection<LayoutTable> layouts = null, UpdateInfo updates = null, int[] recent = null)
+    const int W = 420, Inner = 372;   // the window's width and its content's, centered
+    static readonly Font Big = new Font(Theme.Title.FontFamily, Theme.Title.Size * 1.25f, Theme.Title.Style);
+
+    // total: mistakes corrected in all; since: when the count began (null: not known); layouts: the installed keyboard
+    // layouts, for the easter egg; recent: caught today, in a week, in a month, and the minutes that saved (null: not shown)
+    public AboutForm(int total, DateTime? since, string changelog, ICollection<LayoutTable> layouts = null, UpdateInfo updates = null, int[] recent = null)
     {
         Text = L.T("О программе", "About KeyFish");
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = MinimizeBox = false;
         Theme.Apply(this);
-        ClientSize = new Size(500, 250);
 
-        var fish = new FishView { Location = new Point(24, 24), Size = new Size(96, 96) };
+        // Everything centered, top to bottom: the fish, the name, what it does, the statistics, the link and updates
+        var fish = new FishView { Location = new Point((W - 88) / 2, 24), Size = new Size(88, 88) };
         // Five clicks on the fish: the window turns into an aquarium for a few seconds
         fish.EasterEgg += (s, e) =>
         {
@@ -36,17 +39,76 @@ class AboutForm : Form
         };
         Controls.Add(fish);
 
-        var name = Theme.Label("KeyFish " + Application.ProductVersion, Theme.Title);
-        name.Location = new Point(136, 24);
-        Controls.Add(name);
+        var name = Centered("KeyFish " + Application.ProductVersion, Theme.Title, Theme.Text);
+        name.Top = 120;
         // The description wraps when it is long (German, a large screen), and everything below moves down with it
-        var what = Theme.Wrapped(L.T("Исправляет текст, набранный не в той раскладке", "Fixes text typed in the wrong keyboard layout"), 337, Theme.Body, Theme.SubText);
-        what.Location = new Point(139, 68);
-        Controls.Add(what);
-        var count = Theme.Wrapped(stats, 337, Theme.Body);
-        count.Location = new Point(139, what.Bottom + 2);
-        Controls.Add(count);
-        Control above = count;
+        var what = Centered(L.T("Исправляет текст, набранный не в той раскладке", "Fixes text typed in the wrong keyboard layout"), Theme.Body, Theme.SubText);
+        what.Top = name.Bottom;
+
+        var card = StatsCard(total, since, recent);
+        card.Location = new Point(24, what.Bottom + 16);
+        Controls.Add(card);
+
+        var link = Theme.Label("github.com/pravken/KeyFish", Theme.Body, Theme.AccentFill);
+        // An autosized label is measured on this screen: back to 96-DPI pixels like the rest of the layout
+        link.Location = new Point((W - (int)Math.Ceiling(link.PreferredWidth / Theme.Scale)) / 2, card.Bottom + 14);
+        link.Cursor = Cursors.Hand;
+        var underlined = new Font(Theme.Body, FontStyle.Underline);
+        FormClosed += (s, e) => underlined.Dispose();
+        link.MouseEnter += (s, e) => link.Font = underlined;
+        link.MouseLeave += (s, e) => link.Font = Theme.Body;
+        link.Click += (s, e) => { try { Process.Start(ProjectUrl); } catch { } };
+        Controls.Add(link);
+        int y = link.Top + (int)Math.Ceiling(link.PreferredHeight / Theme.Scale);
+        if (updates != null) y = UpdateLine(updates, y).Bottom;
+
+        // Three buttons of one width across the window
+        var support = new RoundButton { Text = L.T("Поддержать", "Donate"), Glyph = "", GlyphColor = Color.FromArgb(232, 72, 85) };
+        // A quiet way to support the project: only here and in Settings, never as a reminder
+        support.Click += (s, e) => { try { Process.Start(SupportUrl); } catch { } };
+        var changes = new RoundButton { Text = L.T("Что нового", "What's new") };
+        changes.Click += (s, e) => { using (var f = new ChangelogForm(changelog)) f.ShowDialog(this); };
+        var ok = new RoundButton { Text = L.T("Закрыть", "Close"), AccentStyle = true };
+        ok.Click += (s, e) => Close();
+        var buttons = new[] { support, changes, ok };
+        int width = (Inner - 16) / 3;
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            buttons[i].Bounds = new Rectangle(24 + i * (width + 8), y + 22, width, 34);
+            Controls.Add(buttons[i]);
+        }
+        ClientSize = new Size(W, y + 22 + 34 + 24);
+        KeyPreview = true;
+        KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape || e.KeyCode == Keys.Enter) Close(); };
+        Theme.SolidLabels(this);
+        Theme.ScaleWindow(this);
+    }
+
+    // A text centered across the window, wrapped when it doesn't fit
+    Label Centered(string text, Font font, Color color)
+    {
+        var l = Theme.Wrapped(text, Inner, font, color);
+        l.TextAlign = ContentAlignment.MiddleCenter;
+        l.Left = 24;
+        Controls.Add(l);
+        return l;
+    }
+
+    // The total as a big number, with what it counts under it, and the count by period under a line
+    Card StatsCard(int total, DateTime? since, int[] recent)
+    {
+        var card = new Card { Width = Inner };
+        var big = Theme.Wrapped(total.ToString("N0", L.Culture), Inner - 24, Big);
+        big.TextAlign = ContentAlignment.MiddleCenter;
+        big.Location = new Point(12, 8);
+        card.Controls.Add(big);
+        // "corrected since" rather than "N mistakes": no plural forms needed this way
+        var caption = Theme.Wrapped(since.HasValue ? L.F("исправлено ошибок с {0}", "mistakes corrected since {0}", since.Value.ToString("d", L.Culture))
+                                                   : L.T("исправлено ошибок", "mistakes corrected"), Inner - 24, Theme.Small, Theme.SubText);
+        caption.TextAlign = ContentAlignment.MiddleCenter;
+        caption.Location = new Point(12, big.Bottom - 4);
+        card.Controls.Add(caption);
+        card.Height = caption.Bottom + 10;
         if (recent != null)
         {
             // A dash: the count by day is younger than the period
@@ -57,77 +119,50 @@ class AboutForm : Form
                 Tuple.Create(number(recent[1]), L.T("за неделю", "this week")),
                 Tuple.Create(number(recent[2]), L.T("за месяц", "this month")),
                 Tuple.Create(L.F("≈{0} мин", "≈{0} min", recent[3].ToString("N0", L.Culture)), L.T("сэкономлено", "saved"))
-            }) { Location = new Point(139, count.Bottom + 10), Size = new Size(337, 46) };
-            Controls.Add(strip);
-            above = strip;
+            }) { Location = new Point(0, caption.Bottom + 10), Size = new Size(Inner, 52) };
+            card.Controls.Add(strip);
+            card.Height = strip.Bottom + 4;
         }
-
-        var link = Theme.Label("github.com/pravken/KeyFish", Theme.Body, Theme.AccentFill);
-        link.Location = new Point(139, above.Bottom + (recent != null ? 10 : 2));
-        link.Cursor = Cursors.Hand;
-        var underlined = new Font(Theme.Body, FontStyle.Underline);
-        FormClosed += (s, e) => underlined.Dispose();
-        link.MouseEnter += (s, e) => link.Font = underlined;
-        link.MouseLeave += (s, e) => link.Font = Theme.Body;
-        link.Click += (s, e) => { try { Process.Start(ProjectUrl); } catch { } };
-        Controls.Add(link);
-
-        // Updates: "Check for updates", then the answer; a new version is a link that installs it
-        Control below = link;
-        if (updates != null)
-        {
-            // The answer wraps, and the place is kept for the longest one, so a check that ends later never runs
-            // into the buttons
-            var update = Theme.Wrapped(L.T("Не удалось подключиться к GitHub. Проверьте подключение к интернету и повторите попытку позже.",
-                                           "Could not connect to GitHub. Check the internet connection and try again later.").Replace(". ", ".\n"), 337, Theme.Body, Theme.AccentFill);
-            update.Location = new Point(139, link.Top + (int)Math.Ceiling(link.Height / Theme.Scale) + 2);
-            Action refresh = () =>
-            {
-                bool act = !updates.Checking && (updates.NewVersion || updates.Latest == null);
-                update.Text = updates.Checking ? L.T("Проверка…", "Checking…")
-                            : updates.NewVersion ? L.F("Доступна версия {0} — обновить", "Version {0} is available — update", updates.Latest.Tag)
-                            : updates.Latest == null && !updates.Failed ? L.T("Проверить обновления", "Check for updates")
-                            : updates.Status.Replace(". ", ".\n");   // a sentence a line: "checked at" stays whole
-                update.ForeColor = act ? Theme.AccentFill : Theme.SubText;
-                update.Cursor = act ? Cursors.Hand : Cursors.Default;
-            };
-            update.Click += (s, e) =>
-            {
-                if (updates.Checking) return;
-                if (updates.NewVersion) { updates.Install(); return; }
-                if (updates.Latest != null && !updates.Failed) return;
-                updates.Check(() => { if (!IsDisposed) refresh(); });
-                refresh();
-            };
-            refresh();
-            Controls.Add(update);
-            below = update;
-        }
-
-        // A quiet way to support the project: only here and in Settings, never as a reminder
-        var support = new RoundButton
-        {
-            Text = L.T("Поддержать", "Donate"), Glyph = "", GlyphColor = Color.FromArgb(232, 72, 85),
-            Location = new Point(24, 0), Size = new Size(150, 34)
-        };
-        support.Click += (s, e) => { try { Process.Start(SupportUrl); } catch { } };
-        Controls.Add(support);
-
-        var changes = new RoundButton { Text = L.T("Что нового", "What's new"), Location = new Point(246, 0), Size = new Size(124, 34) };
-        changes.Click += (s, e) => { using (var f = new ChangelogForm(changelog)) f.ShowDialog(this); };
-        var ok = new RoundButton { Text = L.T("Закрыть", "Close"), AccentStyle = true, Location = new Point(378, 0), Size = new Size(98, 34) };
-        ok.Click += (s, e) => Close();
-        Controls.Add(changes);
-        Controls.Add(ok);
-        // The buttons sit under the text, however many lines it took ("link" is sized by its font: back to 96-DPI pixels)
-        int buttons = Math.Max(192, below.Top + (below == link ? (int)Math.Ceiling(below.Height / Theme.Scale) : below.Height) + 34);
-        foreach (var b in new Control[] { support, changes, ok }) b.Top = buttons;
-        ClientSize = new Size(500, buttons + 58);
-        KeyPreview = true;
-        KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape || e.KeyCode == Keys.Enter) Close(); };
-        Theme.SolidLabels(this);
-        Theme.ScaleWindow(this);
+        return card;
     }
+
+    // Updates in one short line under the link: "Check for updates", then the answer; a new version, or no answer,
+    // is a link that installs it or asks again
+    Label UpdateLine(UpdateInfo updates, int top)
+    {
+        Func<string> latest = () => L.F("Последняя версия · проверено в {0}", "Latest version · checked at {0}",
+                                        updates.CheckedAt.ToString(updates.CheckedAt.Date == DateTime.Today ? "t" : "g", L.Culture));
+        Func<string> text = () => updates.Checking ? L.T("Проверка…", "Checking…")
+                                : updates.NewVersion ? L.F("Доступна версия {0} — обновить", "Version {0} is available — update", updates.Latest.Tag)
+                                : updates.Failed ? L.T("Не удалось подключиться к GitHub — повторить", "Could not connect to GitHub — retry")
+                                : updates.Latest == null ? L.T("Проверить обновления", "Check for updates")
+                                : latest();
+        // The place is kept for the longest answer, so a check that ends later never runs into the buttons
+        var update = Centered(L.T("Не удалось подключиться к GitHub — повторить", "Could not connect to GitHub — retry"), Theme.Body, Theme.SubText);
+        int height = update.Height;
+        update.Text = latest();
+        height = Math.Max(height, Theme.Wrapped(update.Text, Inner, Theme.Body).Height);
+        update.Height = height;
+        update.Top = top;
+        Action refresh = () =>
+        {
+            bool act = !updates.Checking && (updates.NewVersion || updates.Latest == null || updates.Failed);
+            update.Text = text();
+            update.ForeColor = act ? Theme.AccentFill : Theme.SubText;
+            update.Cursor = act ? Cursors.Hand : Cursors.Default;
+        };
+        update.Click += (s, e) =>
+        {
+            if (updates.Checking) return;
+            if (updates.NewVersion) { updates.Install(); return; }
+            if (updates.Latest != null && !updates.Failed) return;
+            updates.Check(() => { if (!IsDisposed) refresh(); });
+            refresh();
+        };
+        refresh();
+        return update;
+    }
+
     // "Hello" in each language KeyFish knows
     static readonly Dictionary<string, string> Hello = new Dictionary<string, string>
     {
@@ -542,7 +577,8 @@ class IntroForm : Form
     }
 }
 
-// The statistics in About as a row of numbers with a caption under each, split by thin lines
+// The statistics in About as a row of numbers with a caption under each, split by thin lines, under a line that
+// parts them from the total above
 class StatsStrip : Control
 {
     readonly Tuple<string, string>[] items;
@@ -560,14 +596,16 @@ class StatsStrip : Control
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics;
-        float w = (float)Width / items.Length, valueH = Height * 0.56f;
+        float side = Theme.S(12), top = Theme.S(6), h = Height - top;
+        using (var p = new Pen(Theme.CardBorder)) g.DrawLine(p, side, 0, Width - side, 0);
+        float w = (float)Width / items.Length, valueH = h * 0.56f;
         for (int i = 0; i < items.Length; i++)
         {
             float x = i * w;
             if (i > 0)
-                using (var p = new Pen(Theme.InputBorder)) g.DrawLine(p, x, Height * 0.15f, x, Height * 0.85f);
-            Theme.SmoothText(g, items[i].Item1, Theme.Section, new RectangleF(x, 0, w, valueH), Theme.Text, true);
-            Theme.SmoothText(g, items[i].Item2, Theme.Small, new RectangleF(x, valueH - 2, w, Height - valueH), Theme.SubText, true, false);
+                using (var p = new Pen(Theme.CardBorder)) g.DrawLine(p, x, top + h * 0.15f, x, top + h * 0.85f);
+            Theme.SmoothText(g, items[i].Item1, Theme.Section, new RectangleF(x, top, w, valueH), Theme.Text, true);
+            Theme.SmoothText(g, items[i].Item2, Theme.Small, new RectangleF(x, top + valueH - 2, w, h - valueH), Theme.SubText, true, false);
         }
     }
 }

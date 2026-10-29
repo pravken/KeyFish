@@ -7,7 +7,6 @@ What's new in KeyFish	Што новага ў KeyFish
 Version 	Версія
 Close	Закрыць
 Mistakes corrected: {0}	Выпраўлена памылак: {0}
- (since {0})	 (з {0})
 Switch the layout of selected text; right after an auto-correction, undo it (as Ctrl+Z does)	Змена раскладкі вылучанага тэксту; адразу пасля аўтавыпраўлення — яго адмена (як Ctrl+Z)
 Switch the layout of selected text (alternative hotkey)	Змена раскладкі вылучанага тэксту (дадатковае спалучэнне)
 Change case of selected text (aa → Aa → AA)	Рэгістр вылучанага тэксту (аа → Аа → АА)
@@ -248,3 +247,7 @@ Apply the changes?	Ужыць змены?
 System language	Мова сістэмы
 Color mode	Каляровы рэжым
 Word lists	Спісы слоў
+mistakes corrected since {0}	выпраўлена памылак з {0}
+mistakes corrected	выпраўлена памылак
+Latest version · checked at {0}	Апошняя версія · праверана ў {0}
+Could not connect to GitHub — retry	Не ўдалося падключыцца да GitHub — паўтарыць
