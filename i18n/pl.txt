@@ -173,3 +173,4 @@ Double-click the fish in the tray for Settings: hotkeys, replacements, exclusion
 Back	Wstecz
 Start	Zaczynamy
 Next	Dalej
+Today {0} · week {1} · month {2} · about {3} min saved	Dziś {0} · tydzień {1} · miesiąc {2} · zaoszczędzono około {3} min

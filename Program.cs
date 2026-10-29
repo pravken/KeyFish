@@ -226,6 +226,7 @@ class App : ApplicationContext
             if (corrections != savedCorrections)
             {
                 SetSetting("StatsTotal", statsBase + corrections);
+                AddDaily(corrections - savedCorrections);
                 savedCorrections = corrections;
                 FirstCorrectionsTip();
             }
@@ -359,7 +360,47 @@ class App : ApplicationContext
     void SaveStats()
     {
         int corrections = watcher.CorrectionCount;
-        if (corrections != savedCorrections) { SetSetting("StatsTotal", statsBase + corrections); savedCorrections = corrections; }
+        if (corrections != savedCorrections) { SetSetting("StatsTotal", statsBase + corrections); AddDaily(corrections - savedCorrections); savedCorrections = corrections; }
+    }
+
+    // Mistakes caught per day, for the last two months: only the numbers, kept as "yyyyMMdd=n;…" in the registry
+    Dictionary<int, int> daily;
+
+    Dictionary<int, int> Daily()
+    {
+        if (daily != null) return daily;
+        daily = new Dictionary<int, int>();
+        foreach (string part in (GetText("StatsDays") ?? "").Split(';'))
+        {
+            int eq = part.IndexOf('='), day, n;
+            if (eq > 0 && int.TryParse(part.Substring(0, eq), out day) && int.TryParse(part.Substring(eq + 1), out n) && n > 0) daily[day] = n;
+        }
+        return daily;
+    }
+
+    static int DayKey(DateTime d) { return d.Year * 10000 + d.Month * 100 + d.Day; }
+
+    void AddDaily(int n)
+    {
+        if (n <= 0) return;
+        var d = Daily();
+        int today = DayKey(DateTime.Today), oldest = DayKey(DateTime.Today.AddDays(-62));
+        int cur;
+        d.TryGetValue(today, out cur);
+        d[today] = cur + n;
+        foreach (int k in d.Keys.Where(k => k < oldest).ToList()) d.Remove(k);
+        try { SetText("StatsDays", string.Join(";", d.OrderBy(kv => kv.Key).Select(kv => kv.Key + "=" + kv.Value))); } catch { }
+    }
+
+    // Caught today, in the last 7 and 30 days, and the time that saved: erasing a word, switching the layout and
+    // typing it again takes about 4 seconds
+    string RecentStats(int total)
+    {
+        var d = Daily();
+        Func<int, int> last = days => d.Where(kv => kv.Key >= DayKey(DateTime.Today.AddDays(1 - days))).Sum(kv => kv.Value);
+        int minutes = (int)Math.Round(total * 4 / 60.0);
+        return L.F("Сегодня {0} · за неделю {1} · за месяц {2} · сэкономлено примерно {3} мин",
+                   "Today {0} · week {1} · month {2} · about {3} min saved", last(1), last(7), last(30), minutes.ToString("N0", L.Culture));
     }
 
     static string StatsLine(int total)
@@ -392,6 +433,9 @@ class App : ApplicationContext
         if (L.Ru) stats = "Рыбка поймала " + count + " " + Plural(total, "ошибку", "ошибки", "ошибок") + (since > 0 ? " с " + sinceText : "");
         else if (L.Code == "en") stats = "The fish has caught " + count + (total == 1 ? " mistake" : " mistakes") + (since > 0 ? " since " + sinceText : "");
         else stats = StatsLine(total) + (since > 0 ? L.F("", " (since {0})", sinceText) : "");   // no plural forms needed this way
+
+        SaveStats();
+        stats += "\n" + RecentStats(total);
 
         if (aboutForm != null) { aboutForm.Activate(); return; }
         using (aboutForm = new AboutForm(stats, changes, new List<LayoutTable>(watcher.Layouts.All), updates) { Icon = iconEn })

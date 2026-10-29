@@ -19,7 +19,7 @@ Copy-Item "$PSScriptRoot\pw.html", "$PSScriptRoot\tx.html" $bin -Force
 # so a run that was cut short (window closed, power lost) is undone by the next run before it starts.
 # "complete" is written last: without it the copy is unfinished, and the user's own files were never touched
 $files = 'replacements.txt', 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt'
-$regNames = 'Typos', 'StatsTotal', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect', 'QuickKey', 'CorrectionTips', 'Typography', 'Hotkey6', 'IntroShown'
+$regNames = 'Typos', 'StatsTotal', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect', 'QuickKey', 'CorrectionTips', 'Typography', 'Hotkey6', 'IntroShown', 'StatsDays'
 $backupDir = Join-Path $PSScriptRoot 'backup'
 
 # KeyFish's settings in the registry go through reg.exe in a .cmd started by Explorer: when this script runs inside a
@@ -36,15 +36,19 @@ function Real-Reg($lines) {
 }
 function Set-Real($values) {
   Real-Reg ($values.GetEnumerator() | ForEach-Object {
-    if ("$($_.Value)" -ne '') { "reg add HKCU\Software\KeyFish /v $($_.Key) /t REG_DWORD /d $($_.Value) /f >nul" }
+    if ("$($_.Value)" -like 'sz:*') { "reg add HKCU\Software\KeyFish /v $($_.Key) /t REG_SZ /d ""$("$($_.Value)".Substring(3))"" /f >nul" }
+    elseif ("$($_.Value)" -ne '') { "reg add HKCU\Software\KeyFish /v $($_.Key) /t REG_DWORD /d $($_.Value) /f >nul" }
     else { "reg delete HKCU\Software\KeyFish /v $($_.Key) /f >nul 2>nul" } })
 }
 # name=value for each, nothing after = where the value isn't set
 function Get-Real($names) {
   $out = Join-Path $bin 'reg.txt'
-  Real-Reg (@('type nul > "' + $out + '"') + ($names | ForEach-Object { '(reg query HKCU\Software\KeyFish /v ' + $_ + ' 2>nul | find "REG_DWORD") >> "' + $out + '"' }))
+  Real-Reg (@('type nul > "' + $out + '"') + ($names | ForEach-Object { '(reg query HKCU\Software\KeyFish /v ' + $_ + ' 2>nul | find "REG_") >> "' + $out + '"' }))
   $found = @{}
-  foreach ($l in Get-Content $out) { if ($l -match '^\s*(\S+)\s+REG_DWORD\s+0x([0-9a-fA-F]+)') { $found[$Matches[1]] = [Convert]::ToInt32($Matches[2], 16) } }
+  foreach ($l in Get-Content $out) {
+    if ($l -match '^\s*(\S+)\s+REG_DWORD\s+0x([0-9a-fA-F]+)') { $found[$Matches[1]] = [Convert]::ToInt32($Matches[2], 16) }
+    elseif ($l -match '^\s*(\S+)\s+REG_SZ\s+(.*)$') { $found[$Matches[1]] = 'sz:' + $Matches[2].Trim() }   # text values (StatsDays) as sz:text
+  }
   $names | ForEach-Object { "$_=" + $(if ($found.ContainsKey($_)) { $found[$_] } else { '' }) }
 }
 

@@ -173,3 +173,4 @@ Double-click the fish in the tray for Settings: hotkeys, replacements, exclusion
 Back	Назад
 Start	Почни
 Next	Даље
+Today {0} · week {1} · month {2} · about {3} min saved	Данас {0} · недеља {1} · месец {2} · уштеђено око {3} мин
