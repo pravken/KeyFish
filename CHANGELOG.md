@@ -1,3 +1,9 @@
+2.3.0 2026-10-30
+New:
+• Statistics in a Settings section of their own, with a chart for the last 30 days and a reset button
+• In the text actions menu: typo correction, typographic quotes, non-breaking spaces, the letter ё
+• "Do not correct in" the current app from the fish menu
+
 2.2.1 2026-10-30
 Fixed:
 • Hotkeys did not work while the Settings window was open
