@@ -266,3 +266,13 @@ Sort lines	Ordenar líneas
 Remove duplicate lines	Quitar líneas repetidas
 Name for code	Nombre para código
 Paste text from the clipboard without formatting	Pegar el texto del portapapeles sin formato
+Statistics	Estadísticas
+A dash means that counting by day began after the start of the period, so the number for the whole period is unknown.	Un guion significa que el recuento por días comenzó después del inicio del período, por lo que se desconoce la cifra de todo el período.
+Typed text is not recorded	El texto escrito no se registra
+KeyFish does not keep a typing log. Only counters are stored for the statistics: the total number of corrections, the date counting began and the number of corrections for each of the last 62 days. Words, corrected text, app names and correction times are not stored.	KeyFish no lleva un registro de lo que se escribe. Para las estadísticas solo se guardan contadores: el número total de correcciones, la fecha de inicio del recuento y el número de correcciones de cada uno de los últimos 62 días. No se guardan palabras, texto corregido, nombres de aplicaciones ni la hora de las correcciones.
+Where the data is stored	Dónde se guardan los datos
+The counters are stored in the Windows registry under HKCU\Software\KeyFish (StatsTotal, StatsSince, StatsDays) and never leave the computer.	Los contadores se guardan en el registro de Windows en HKCU\Software\KeyFish (StatsTotal, StatsSince, StatsDays) y nunca salen del equipo.
+What is counted	Qué se cuenta
+Automatic corrections while typing: of the layout, the case and typos. Replacements, typography and actions performed with hotkeys are not counted.	Las correcciones automáticas al escribir: de la distribución, de mayúsculas y minúsculas y de errores tipográficos. No se cuentan los reemplazos, la tipografía ni las acciones realizadas con atajos de teclado.
+Time saved	Tiempo ahorrado
+Calculated as 4 seconds per correction: on average, the time it takes to erase a word, switch the layout and type it again.	Se calcula a razón de 4 segundos por corrección: de media, lo que se tarda en borrar una palabra, cambiar la distribución y volver a escribirla.

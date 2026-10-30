@@ -556,8 +556,11 @@ partial class App : ApplicationContext
     {
         var keys = new Keys[HotkeyDefaults.Length];
         for (int i = 0; i < keys.Length; i++) keys[i] = GetHotkey(i);
+        SaveStats();
+        int total = statsBase + watcher.CorrectionCount;
         var form = new SettingsForm
         {
+            StatsTotal = total, StatsSince = StatsSince(), StatsRecent = RecentStats(total),
             OpenAbout = owner => ShowAbout(owner), Updates = updates,
             BackupDir = backupDir, TrayLetters = trayLetters, LayoutColors = new Dictionary<string, Color>(layoutColors, StringComparer.OrdinalIgnoreCase), AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, SoundMap = new Dictionary<string, string>(Sounds.Map), SoundsDir = Sounds.Dir, RecentMenu = watcher.KeepRecent, Typography = watcher.Typography, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
             CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting, ThemeMode = Theme.Mode, SkinNumber = shownSkin, Holiday = Theme.Holidays, SkinLogo = Theme.SkinLogo, SkinSound = Theme.SkinSound, CustomAccent = Skin.Custom.Accent, CustomFish = Skin.Custom.Latin,

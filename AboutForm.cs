@@ -13,11 +13,9 @@ class AboutForm : Form
     const string SupportUrl = "https://ko-fi.com/pravken";
 
     const int W = 420, Inner = 372;   // the window's width and its content's, centered
-    static readonly Font Big = new Font(Theme.Title.FontFamily, Theme.Title.Size * 1.25f, Theme.Title.Style);
 
-    // total: mistakes corrected in all; since: when the count began (null: not known); layouts: the installed keyboard
-    // layouts, for the easter egg; recent: caught today, in a week, in a month, and the minutes that saved (null: not shown)
-    public AboutForm(int total, DateTime? since, string changelog, ICollection<LayoutTable> layouts = null, UpdateInfo updates = null, int[] recent = null)
+    // layouts: the installed keyboard layouts, for the easter egg. The statistics are in Settings → Statistics
+    public AboutForm(string changelog, ICollection<LayoutTable> layouts = null, UpdateInfo updates = null)
     {
         Text = L.T("О программе", "About KeyFish");
         StartPosition = FormStartPosition.CenterScreen;
@@ -25,7 +23,7 @@ class AboutForm : Form
         MaximizeBox = MinimizeBox = false;
         Theme.Apply(this);
 
-        // Everything centered, top to bottom: the fish, the name, what it does, the statistics, the link and updates
+        // Everything centered, top to bottom: the fish, the name, what it does, the link and updates
         var fish = new FishView { Location = new Point((W - 88) / 2, 24), Size = new Size(88, 88) };
         // Five clicks on the fish: the window turns into an aquarium for a few seconds
         fish.EasterEgg += (s, e) =>
@@ -45,13 +43,9 @@ class AboutForm : Form
         var what = Centered(L.T("Исправляет текст, набранный не в той раскладке", "Fixes text typed in the wrong keyboard layout"), Theme.Body, Theme.SubText);
         what.Top = name.Bottom;
 
-        var card = StatsCard(total, since, recent);
-        card.Location = new Point(24, what.Bottom + 16);
-        Controls.Add(card);
-
         var link = Theme.Label("github.com/pravken/KeyFish", Theme.Body, Theme.AccentFill);
         // An autosized label is measured on this screen: back to 96-DPI pixels like the rest of the layout
-        link.Location = new Point((W - (int)Math.Ceiling(link.PreferredWidth / Theme.Scale)) / 2, card.Bottom + 14);
+        link.Location = new Point((W - (int)Math.Ceiling(link.PreferredWidth / Theme.Scale)) / 2, what.Bottom + 14);
         link.Cursor = Cursors.Hand;
         var underlined = new Font(Theme.Body, FontStyle.Underline);
         FormClosed += (s, e) => underlined.Dispose();
@@ -92,38 +86,6 @@ class AboutForm : Form
         l.Left = 24;
         Controls.Add(l);
         return l;
-    }
-
-    // The total as a big number, with what it counts under it, and the count by period under a line
-    Card StatsCard(int total, DateTime? since, int[] recent)
-    {
-        var card = new Card { Width = Inner };
-        var big = Theme.Wrapped(total.ToString("N0", L.Culture), Inner - 24, Big);
-        big.TextAlign = ContentAlignment.MiddleCenter;
-        big.Location = new Point(12, 8);
-        card.Controls.Add(big);
-        // "corrected since" rather than "N mistakes": no plural forms needed this way
-        var caption = Theme.Wrapped(since.HasValue ? L.F("исправлено ошибок с {0}", "mistakes corrected since {0}", since.Value.ToString("d", L.Culture))
-                                                   : L.T("исправлено ошибок", "mistakes corrected"), Inner - 24, Theme.Small, Theme.SubText);
-        caption.TextAlign = ContentAlignment.MiddleCenter;
-        caption.Location = new Point(12, big.Bottom - 4);
-        card.Controls.Add(caption);
-        card.Height = caption.Bottom + 10;
-        if (recent != null)
-        {
-            // A dash: the count by day is younger than the period
-            Func<int, string> number = n => n < 0 ? "—" : n.ToString("N0", L.Culture);
-            var strip = new StatsStrip(new[]
-            {
-                Tuple.Create(number(recent[0]), L.T("сегодня", "today")),
-                Tuple.Create(number(recent[1]), L.T("за неделю", "this week")),
-                Tuple.Create(number(recent[2]), L.T("за месяц", "this month")),
-                Tuple.Create(L.F("≈{0} мин", "≈{0} min", recent[3].ToString("N0", L.Culture)), L.T("сэкономлено", "saved"))
-            }) { Location = new Point(0, caption.Bottom + 10), Size = new Size(Inner, 52) };
-            card.Controls.Add(strip);
-            card.Height = strip.Bottom + 4;
-        }
-        return card;
     }
 
     // Updates in one short line under the link: "Check for updates", then the answer; a new version, or no answer,
@@ -574,38 +536,5 @@ class IntroForm : Form
     {
         if (disposing) { fishEn.Dispose(); fishRu.Dispose(); }
         base.Dispose(disposing);
-    }
-}
-
-// The statistics in About as a row of numbers with a caption under each, split by thin lines, under a line that
-// parts them from the total above
-class StatsStrip : Control
-{
-    readonly Tuple<string, string>[] items;
-
-    public StatsStrip(Tuple<string, string>[] items)
-    {
-        this.items = items;
-        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint |
-                 ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
-        BackColor = Color.Transparent;
-        AccessibleRole = AccessibleRole.StaticText;
-        AccessibleName = string.Join(", ", items.Select(i => i.Item1 + " " + i.Item2));
-    }
-
-    protected override void OnPaint(PaintEventArgs e)
-    {
-        var g = e.Graphics;
-        float side = Theme.S(12), top = Theme.S(6), h = Height - top;
-        using (var p = new Pen(Theme.CardBorder)) g.DrawLine(p, side, 0, Width - side, 0);
-        float w = (float)Width / items.Length, valueH = h * 0.56f;
-        for (int i = 0; i < items.Length; i++)
-        {
-            float x = i * w;
-            if (i > 0)
-                using (var p = new Pen(Theme.CardBorder)) g.DrawLine(p, x, top + h * 0.15f, x, top + h * 0.85f);
-            Theme.SmoothText(g, items[i].Item1, Theme.Section, new RectangleF(x, top, w, valueH), Theme.Text, true);
-            Theme.SmoothText(g, items[i].Item2, Theme.Small, new RectangleF(x, top + valueH - 2, w, h - valueH), Theme.SubText, true, false);
-        }
     }
 }

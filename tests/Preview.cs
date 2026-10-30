@@ -133,7 +133,10 @@ static class Preview
                     ? "Code\ndevenv\ncmd\npowershell\npwsh\nWindowsTerminal\nidea64\npycharm64\nrider64\nKeePass\nKeePassXC\n1Password\nmstsc\n"
                     : "Code\ncmd\nWindowsTerminal\n", AppLayouts = "Telegram = " + hkl[hkl.Length - 1].ToInt64().ToString("X") + "\nCode = " + hkl[0].ToInt64().ToString("X") + "\n",
                 Ignored = "lol\nкек\n", Learned = "ghbdtn\n", InstalledLayouts = layouts,
-                Updates = FakeUpdates(args)
+                Updates = FakeUpdates(args),
+                // "partial": the count by day began this week
+                StatsTotal = 1234, StatsSince = new DateTime(2026, 3, 12),
+                StatsRecent = Array.IndexOf(args, "partial") >= 0 ? new[] { 23, -1, -1, 82 } : new[] { 12, 85, 310, 82 }
             };
         }
         else if (args[0] == "changelog")   // the real changelog of the interface language
@@ -168,8 +171,7 @@ static class Preview
                         if (item is ToolStripMenuItem && ((ToolStripMenuItem)item).HasDropDownItems) ((ToolStripMenuItem)item).ShowDropDown();
             };
         }
-        else form = new AboutForm(1234, new DateTime(2026, 3, 12), "2.0.0\n• Новое\n\n1.8.3\n• Старое\n", LayoutTable.Installed(),
-                                  FakeUpdates(args), Array.IndexOf(args, "partial") >= 0 ? new[] { 23, -1, -1, 35 } : new[] { 12, 85, 310, 82 });
+        else form = new AboutForm("2.0.0\n• Новое\n\n1.8.3\n• Старое\n", LayoutTable.Installed(), FakeUpdates(args));
         string outPath = args[args[0] == "settings" ? 2 : 1];
         int at = 3200; foreach (string a in args) if (a.StartsWith("at=")) at = int.Parse(a.Substring(3));   // aquarium: when to take the shot, ms
         var timer = new Timer { Interval = args[0] == "aquarium" || Array.Exists(args, x => x.StartsWith("at=")) ? at : 700 };

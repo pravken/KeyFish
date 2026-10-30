@@ -274,6 +274,14 @@ partial class App
         return new[] { last(1), last(7), last(30), (int)Math.Round(total * 4 / 60.0) };
     }
 
+    // When the count began (null: not known)
+    DateTime? StatsSince()
+    {
+        int since = GetSetting("StatsSince", 0);
+        try { return since > 0 ? new DateTime(since / 10000, since / 100 % 100, since % 100) : (DateTime?)null; }
+        catch { return null; }
+    }
+
     static string StatsLine(int total)
     {
         return L.F("Исправлено ошибок: {0}", "Mistakes corrected: {0}", total.ToString("N0", L.Culture));
@@ -286,16 +294,8 @@ partial class App
         using (var s = typeof(App).Assembly.GetManifestResourceStream(L.Ru ? "changelog-ru.txt" : "changelog-en.txt"))
             if (s != null) using (var r = new StreamReader(s, Encoding.UTF8)) changes = r.ReadToEnd();
 
-        int total = statsBase + watcher.CorrectionCount;
-        int since = GetSetting("StatsSince", 0);
-        DateTime? sinceDate = null;
-        try { if (since > 0) sinceDate = new DateTime(since / 10000, since / 100 % 100, since % 100); }
-        catch { }
-
-        SaveStats();
-
         if (aboutForm != null) { aboutForm.Activate(); return; }
-        using (aboutForm = new AboutForm(total, sinceDate, changes, new List<LayoutTable>(watcher.Layouts.All), updates, RecentStats(total)) { Icon = iconEn })
+        using (aboutForm = new AboutForm(changes, new List<LayoutTable>(watcher.Layouts.All), updates) { Icon = iconEn })
             aboutForm.ShowDialog(owner);
         aboutForm = null;
     }

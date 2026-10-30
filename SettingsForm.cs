@@ -29,6 +29,11 @@ class SettingsForm : Form
     public IList<LayoutTable> InstalledLayouts = new List<LayoutTable>();
     public Dictionary<string, Color> LayoutColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);   // "EN" → color
     public int StartPage { get; set; }   // the section to open with (tests\Preview opens any)
+    // Statistics: mistakes corrected in all, since when, and today, in a week, in a month and the minutes that saved
+    // (a period's -1: the count by day began after it did)
+    public int StatsTotal;
+    public DateTime? StatsSince;
+    public int[] StatsRecent;
     // Apply: KeyFish takes the values of this window's fields and keeps them; ApplyLook: only the look's, at once when
     // one is picked. True when the window has to be built again to show them (another language, theme or look)
     public Func<SettingsForm, bool> Apply, ApplyLook;
@@ -122,7 +127,7 @@ class SettingsForm : Form
         side.Controls.Add(ver);
         side.Controls.Add(name);
 
-        nav = new NavList { Location = new Point(8, 74), Size = new Size(SideWidth - 16, 8 * 40) };
+        nav = new NavList { Location = new Point(8, 74), Size = new Size(SideWidth - 16, 9 * 40) };
         // The sections in the order of use: correction, what KeyFish is about, first; the system settings last
         nav.Items.Add(Tuple.Create("\uE70F", L.T("Исправление", "Correction")));
         nav.Items.Add(Tuple.Create("\uE790", L.T("Оформление", "Appearance")));
@@ -131,6 +136,7 @@ class SettingsForm : Form
         nav.Items.Add(Tuple.Create("\uE8AC", L.T("Автозамены", "Replacements")));
         nav.Items.Add(Tuple.Create("\uE71D", L.T("Программы", "Apps")));
         nav.Items.Add(Tuple.Create("\uE82D", L.T("Списки слов", "Word lists")));
+        nav.Items.Add(Tuple.Create("\uE9D2", L.T("Статистика", "Statistics")));
         nav.Items.Add(Tuple.Create("\uE713", L.T("Система", "System")));
         side.Controls.Add(nav);
 
@@ -156,6 +162,7 @@ class SettingsForm : Form
         pages.Add(ReplacementsPage());
         pages.Add(AppsPage());
         pages.Add(WordsPage());
+        pages.Add(StatsPage());
         pages.Add(SystemPage());
         foreach (var p in pages) { p.Visible = false; content.Controls.Add(p); }
         nav.Selected = Math.Max(0, Math.Min(StartPage, pages.Count - 1));
@@ -877,6 +884,87 @@ class SettingsForm : Form
             string s = raw.Trim();
             if (s.Length > 0 && !s.StartsWith("#")) yield return s;
         }
+    }
+
+    // ---------- Statistics ----------
+
+    static readonly Font Big = new Font(Theme.Title.FontFamily, Theme.Title.Size * 1.25f, Theme.Title.Style);
+
+    // The counts, and how they are made: only numbers are kept, never what was typed
+    Panel StatsPage()
+    {
+        int y;
+        var page = Page(L.T("Статистика", "Statistics"), out y);
+        var card = StatsCard(StatsTotal, StatsSince, StatsRecent);
+        card.Location = new Point(16, y);
+        page.Controls.Add(card);
+        y = card.Bottom + 8;
+        if (StatsRecent != null && StatsRecent.Take(3).Any(n => n < 0))
+            Intro(page, ref y, L.T("Прочерк означает, что подсчёт по дням начат позже начала периода и число за весь период неизвестно.",
+                                   "A dash means that counting by day began after the start of the period, so the number for the whole period is unknown."));
+        y += 8;
+        InfoCard(page, ref y, L.T("Набранный текст не записывается", "Typed text is not recorded"),
+            L.T("KeyFish не ведёт журнал набора. Для статистики сохраняются только счётчики: общее число исправлений, дата начала подсчёта и число исправлений за каждый из последних 62 дней. Слова, исправленный текст, названия программ и время исправлений не сохраняются.",
+                "KeyFish does not keep a typing log. Only counters are stored for the statistics: the total number of corrections, the date counting began and the number of corrections for each of the last 62 days. Words, corrected text, app names and correction times are not stored."));
+        InfoCard(page, ref y, L.T("Где хранятся данные", "Where the data is stored"),
+            L.T("Счётчики хранятся в реестре Windows в разделе HKCU\\Software\\KeyFish (StatsTotal, StatsSince, StatsDays) и не передаются за пределы компьютера.",
+                "The counters are stored in the Windows registry under HKCU\\Software\\KeyFish (StatsTotal, StatsSince, StatsDays) and never leave the computer."));
+        InfoCard(page, ref y, L.T("Что учитывается", "What is counted"),
+            L.T("Автоматические исправления при наборе: раскладки, регистра и опечаток. Автозамены, типографика и действия, выполненные по сочетаниям клавиш, не учитываются.",
+                "Automatic corrections while typing: of the layout, the case and typos. Replacements, typography and actions performed with hotkeys are not counted."));
+        InfoCard(page, ref y, L.T("Сэкономленное время", "Time saved"),
+            L.T("Рассчитывается из 4 секунд на каждое исправление: столько в среднем занимает удалить слово, переключить раскладку и набрать его заново.",
+                "Calculated as 4 seconds per correction: on average, the time it takes to erase a word, switch the layout and type it again."));
+        return End(page, y);
+    }
+
+    // The total as a big number with what it counts under it, and the count by period under a line
+    static Card StatsCard(int total, DateTime? since, int[] recent)
+    {
+        int width = ContentWidth;
+        var card = new Card { Width = width };
+        var big = Theme.Wrapped(total.ToString("N0", L.Culture), width - 24, Big);
+        big.TextAlign = ContentAlignment.MiddleCenter;
+        big.Location = new Point(12, 10);
+        card.Controls.Add(big);
+        // "corrected since" rather than "N mistakes": no plural forms needed this way
+        var caption = Theme.Wrapped(since.HasValue ? L.F("исправлено ошибок с {0}", "mistakes corrected since {0}", since.Value.ToString("d", L.Culture))
+                                                   : L.T("исправлено ошибок", "mistakes corrected"), width - 24, Theme.Small, Theme.SubText);
+        caption.TextAlign = ContentAlignment.MiddleCenter;
+        caption.Location = new Point(12, big.Bottom - 4);
+        card.Controls.Add(caption);
+        card.Height = caption.Bottom + 12;
+        if (recent != null)
+        {
+            // A dash: the count by day is younger than the period
+            Func<int, string> number = n => n < 0 ? "—" : n.ToString("N0", L.Culture);
+            var strip = new StatsStrip(new[]
+            {
+                Tuple.Create(number(recent[0]), L.T("сегодня", "today")),
+                Tuple.Create(number(recent[1]), L.T("за неделю", "this week")),
+                Tuple.Create(number(recent[2]), L.T("за месяц", "this month")),
+                Tuple.Create(L.F("≈{0} мин", "≈{0} min", recent[3].ToString("N0", L.Culture)), L.T("сэкономлено", "saved"))
+            }) { Location = new Point(0, caption.Bottom + 10), Size = new Size(width, 56) };
+            card.Controls.Add(strip);
+            card.Height = strip.Bottom + 6;
+        }
+        return card;
+    }
+
+    // A card of text alone: a title and an explanation under it
+    static void InfoCard(Control page, ref int y, string title, string text)
+    {
+        const int pad = 18;
+        var card = new Card { Location = new Point(16, y), Width = ContentWidth };
+        var t = Theme.Wrapped(title, ContentWidth - pad * 2);
+        t.Location = new Point(pad, 14);
+        var d = Theme.Wrapped(text, ContentWidth - pad * 2, Theme.Small, Theme.SubText);
+        d.Location = new Point(pad, t.Bottom + 2);
+        card.Controls.Add(t);
+        card.Controls.Add(d);
+        card.Height = d.Bottom + 14;
+        page.Controls.Add(card);
+        y += card.Height + 4;
     }
 
     // ---------- General ----------
@@ -1988,5 +2076,38 @@ static class SettingsArchive
                 sb.Append(buffer, 0, n);
             }
         return sb.ToString();
+    }
+}
+
+// The statistics in Settings as a row of numbers with a caption under each, split by thin lines, under a line that
+// parts them from the total above
+class StatsStrip : Control
+{
+    readonly Tuple<string, string>[] items;
+
+    public StatsStrip(Tuple<string, string>[] items)
+    {
+        this.items = items;
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint |
+                 ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
+        BackColor = Color.Transparent;
+        AccessibleRole = AccessibleRole.StaticText;
+        AccessibleName = string.Join(", ", items.Select(i => i.Item1 + " " + i.Item2));
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        float side = Theme.S(12), top = Theme.S(6), h = Height - top;
+        using (var p = new Pen(Theme.CardBorder)) g.DrawLine(p, side, 0, Width - side, 0);
+        float w = (float)Width / items.Length, valueH = h * 0.56f;
+        for (int i = 0; i < items.Length; i++)
+        {
+            float x = i * w;
+            if (i > 0)
+                using (var p = new Pen(Theme.CardBorder)) g.DrawLine(p, x, top + h * 0.15f, x, top + h * 0.85f);
+            Theme.SmoothText(g, items[i].Item1, Theme.Section, new RectangleF(x, top, w, valueH), Theme.Text, true);
+            Theme.SmoothText(g, items[i].Item2, Theme.Small, new RectangleF(x, top + valueH - 2, w, h - valueH), Theme.SubText, true, false);
+        }
     }
 }

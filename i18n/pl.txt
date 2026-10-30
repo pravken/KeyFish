@@ -266,3 +266,13 @@ Sort lines	Sortuj wiersze
 Remove duplicate lines	Usuń powtarzające się wiersze
 Name for code	Nazwa w kodzie
 Paste text from the clipboard without formatting	Wklejanie tekstu ze schowka bez formatowania
+Statistics	Statystyki
+A dash means that counting by day began after the start of the period, so the number for the whole period is unknown.	Kreska oznacza, że liczenie według dni rozpoczęto po początku okresu i liczba za cały okres jest nieznana.
+Typed text is not recorded	Wpisywany tekst nie jest zapisywany
+KeyFish does not keep a typing log. Only counters are stored for the statistics: the total number of corrections, the date counting began and the number of corrections for each of the last 62 days. Words, corrected text, app names and correction times are not stored.	KeyFish nie prowadzi dziennika pisania. Na potrzeby statystyk zapisywane są tylko liczniki: łączna liczba poprawek, data rozpoczęcia liczenia i liczba poprawek z każdego z ostatnich 62 dni. Słowa, poprawiony tekst, nazwy programów i czas poprawek nie są zapisywane.
+Where the data is stored	Gdzie są przechowywane dane
+The counters are stored in the Windows registry under HKCU\Software\KeyFish (StatsTotal, StatsSince, StatsDays) and never leave the computer.	Liczniki są przechowywane w rejestrze Windows w kluczu HKCU\Software\KeyFish (StatsTotal, StatsSince, StatsDays) i nie opuszczają komputera.
+What is counted	Co jest liczone
+Automatic corrections while typing: of the layout, the case and typos. Replacements, typography and actions performed with hotkeys are not counted.	Automatyczne poprawki podczas pisania: układu klawiatury, wielkości liter i literówek. Autozamiany, typografia i działania wykonane skrótami klawiszowymi nie są liczone.
+Time saved	Zaoszczędzony czas
+Calculated as 4 seconds per correction: on average, the time it takes to erase a word, switch the layout and type it again.	Obliczany jako 4 sekundy na każdą poprawkę: średnio tyle trwa usunięcie słowa, zmiana układu i ponowne wpisanie.
