@@ -274,6 +274,20 @@ partial class App
         return new[] { last(1), last(7), last(30), (int)Math.Round(total * 4 / 60.0) };
     }
 
+    // Statistics from zero: the total, the count by day and the date counting began
+    void ResetStats()
+    {
+        SaveStats();
+        statsBase = -watcher.CorrectionCount;   // the total is statsBase plus the corrections since KeyFish started
+        savedCorrections = watcher.CorrectionCount;
+        SetSetting("StatsTotal", 0);
+        int today = DayKey(DateTime.Today);
+        SetSetting("StatsSince", today);
+        SetSetting("StatsDaysSince", today);
+        daily = new Dictionary<int, int>();
+        SetText("StatsDays", "");
+    }
+
     // When the count began (null: not known)
     DateTime? StatsSince()
     {
@@ -347,6 +361,14 @@ partial class App
         ThemedMenuRenderer.Apply(whyItem.DropDown);
         whyItem.DropDownItems.Add("…");   // filled when the menu opens
         menu.Items.Add(whyItem);
+        // The app last typed in, in or out of the exclusions in one click
+        var excludeItem = new ToolStripMenuItem();
+        excludeItem.Click += (s, e) =>
+        {
+            string app = (string)excludeItem.Tag;
+            if (ExcludedApp(app)) IncludeApp(app); else ExcludeApp(app);
+        };
+        menu.Items.Add(excludeItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(typosItem);
         menu.Items.Add(typographyItem);
@@ -366,6 +388,13 @@ partial class App
             typographyItem.Checked = watcher.Typography;
             soundItem.Checked = playSound;
             layoutItem.Text = L.F("Раскладка: {0}", "Layout: {0}", LayoutDisplayName());
+            string lastApp = lastForeground != IntPtr.Zero ? W.ProcessName(lastForeground) : "";
+            excludeItem.Tag = lastApp;
+            excludeItem.Visible = lastApp.Length > 0;
+            excludeItem.Text = ExcludedApp(lastApp) ? L.F("Исправлять в программе {0}", "Correct in {0}", lastApp)
+                                                    : L.F("Не исправлять в программе {0}", "Do not correct in {0}", lastApp);
+            // Settings would write its own copy of the list over this change
+            excludeItem.Enabled = settingsForm == null;
         };
         menu.Items.Add(L.T("Настройки…", "Settings…"), null, (s, e) => OpenSettings());
         menu.Items.Add(L.T("Проверить обновления", "Check for updates"), null, (s, e) => CheckForUpdates(true));
@@ -448,6 +477,24 @@ partial class App
             else item.Enabled = false;
             parent.DropDownItems.Add(item);
         }
+    }
+
+    bool ExcludedApp(string app)
+    {
+        return app.Length > 0 && ReadText(exclusionsPath).Replace("\r\n", "\n").Split('\n')
+            .Any(l => string.Equals(SettingsForm.StripExe(l.Trim()), app, StringComparison.OrdinalIgnoreCase));
+    }
+
+    // "Do not correct in Telegram": the app joins the exclusions, at the end of the list
+    void ExcludeApp(string app)
+    {
+        try
+        {
+            string text = ReadText(exclusionsPath);
+            File.WriteAllText(exclusionsPath, text + (text.Length == 0 || text.EndsWith("\n") ? "" : "\r\n") + app + "\r\n", Encoding.UTF8);
+            watcher.ReloadSoon();
+        }
+        catch { }
     }
 
     // "Correct in Code": the app leaves the exclusions (the line with its name is removed, the rest of the file stays)

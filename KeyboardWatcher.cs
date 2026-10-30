@@ -218,6 +218,33 @@ class KeyboardWatcher
         }
     }
 
+    // Typos in a text, fixed the way they are while typing: a word that none of the word lists of its alphabet's
+    // installed languages knows, and that the Windows spell checker of one of them fixes with confidence. The case kept
+    public string FixTyposIn(string text)
+    {
+        return System.Text.RegularExpressions.Regex.Replace(text, @"\p{L}{3,}", m =>
+        {
+            string word = m.Value, lower = word.ToLowerInvariant();
+            string script = LayoutTable.ScriptOf(word[0]);
+            var langs = new List<string>();
+            foreach (var t in Layouts.All)
+                if (t.Script == script && t.Lang != null && !langs.Contains(t.Lang)) langs.Add(t.Lang);
+            foreach (string lang in langs)
+            {
+                var model = Detector.Load(lang);
+                if (model != null && model.Count(lower) > 0) return word;
+            }
+            foreach (string lang in langs)
+            {
+                string fix = CheckTypo(word, lang);
+                if (fix == null || fix.Length == 0) continue;
+                if (word.ToUpperInvariant() == word && word.Length > 1) return fix.ToUpperInvariant();
+                return char.IsUpper(word[0]) ? char.ToUpperInvariant(fix[0]) + fix.Substring(1) : fix;
+            }
+            return word;
+        });
+    }
+
     // The installed keyboard layouts and what each key types in them
     public readonly LayoutSet Layouts = new LayoutSet();
 

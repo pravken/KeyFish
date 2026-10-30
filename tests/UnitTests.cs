@@ -242,6 +242,15 @@ static class UnitTests
             Is("pascal from camel", TextActions.CodeName("userName", TextActions.Code.Pascal), "UserName");
             Is("kebab from acronym", TextActions.CodeName("HTMLParser", TextActions.Code.Kebab), "html-parser");
             Is("constant", TextActions.CodeName("max-size2", TextActions.Code.Constant), "MAX_SIZE2");
+            Is("quotes, Cyrillic", TextActions.Quotes("он сказал \"привет\""), "он сказал «привет»");
+            Is("quotes inside quotes", TextActions.Quotes("\"фильм \"Брат\" вышел\""), "«фильм „Брат“ вышел»");
+            Is("quotes, Latin", TextActions.Quotes("say \"hi\" (\"yes\")"), "say “hi” (“yes”)");
+            Is("no-break: short words", TextActions.NoBreakSpaces("я в доме и на улице"), "я в доме и на улице");
+            Is("no-break: dash and numbers", TextActions.NoBreakSpaces("Москва — 10 кг, № 5"), "Москва — 10 кг, № 5");
+            Is("yo", TextActions.Yo("Еще ее ЕЩЕ"), "Ещё её ЕЩЁ");
+            Is("yo: ambiguous words stay", TextActions.Yo("все звезды черта"), "все звезды черта");
+            Is("yo: все-таки", TextActions.Yo("Все-таки"), "Всё-таки");
+            Is("yo: other words stay", TextActions.Yo("лет дом hello"), "лет дом hello");
         }
         finally { System.Threading.Thread.CurrentThread.CurrentCulture = was; }
     }

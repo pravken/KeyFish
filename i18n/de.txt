@@ -276,3 +276,12 @@ What is counted	Was gezählt wird
 Automatic corrections while typing: of the layout, the case and typos. Replacements, typography and actions performed with hotkeys are not counted.	Automatische Korrekturen beim Tippen: des Tastaturlayouts, der Groß- und Kleinschreibung und von Tippfehlern. Ersetzungen, Typografie und per Tastenkombination ausgeführte Aktionen werden nicht gezählt.
 Time saved	Eingesparte Zeit
 Calculated as 4 seconds per correction: on average, the time it takes to erase a word, switch the layout and type it again.	Berechnet mit 4 Sekunden pro Korrektur: So lange dauert es im Durchschnitt, ein Wort zu löschen, das Tastaturlayout zu wechseln und es erneut einzugeben.
+Typographic quotes	Typografische Anführungszeichen
+Non-breaking spaces	Geschützte Leerzeichen
+The letter ё from the dictionary	Buchstabe ё laut Wörterbuch
+Corrections over the last 30 days	Korrekturen der letzten 30 Tage
+All statistics counters will be set to zero, and counting will start again from today. Continue?	Alle Statistikzähler werden auf null gesetzt, und die Zählung beginnt ab heute neu. Fortfahren?
+Reset statistics	Statistik zurücksetzen
+All counters are set to zero, and counting starts again from today.	Alle Zähler werden auf null gesetzt, und die Zählung beginnt ab heute neu.
+no data	keine Daten
+Do not correct in {0}	In {0} nicht korrigieren

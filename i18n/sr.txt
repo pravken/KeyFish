@@ -276,3 +276,12 @@ What is counted	Шта се рачуна
 Automatic corrections while typing: of the layout, the case and typos. Replacements, typography and actions performed with hotkeys are not counted.	Аутоматске исправке током куцања: распореда, величине слова и грешака у куцању. Аутозамене, типографија и радње извршене пречицама на тастатури се не рачунају.
 Time saved	Уштеђено време
 Calculated as 4 seconds per correction: on average, the time it takes to erase a word, switch the layout and type it again.	Рачуна се као 4 секунде по исправци: толико у просеку траје брисање речи, промена распореда и поновно куцање.
+Typographic quotes	Типографски наводници
+Non-breaking spaces	Неприкидни размаци
+The letter ё from the dictionary	Слово ё према речнику
+Corrections over the last 30 days	Исправке за последњих 30 дана
+All statistics counters will be set to zero, and counting will start again from today. Continue?	Сви бројачи статистике биће враћени на нулу, а бројање ће почети изнова од данас. Наставити?
+Reset statistics	Ресетуј статистику
+All counters are set to zero, and counting starts again from today.	Сви бројачи се враћају на нулу, а бројање почиње изнова од данас.
+no data	нема података
+Do not correct in {0}	Не исправљај у програму {0}

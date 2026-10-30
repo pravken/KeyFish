@@ -34,6 +34,9 @@ class SettingsForm : Form
     public int StatsTotal;
     public DateTime? StatsSince;
     public int[] StatsRecent;
+    public Dictionary<int, int> StatsDays;   // yyyyMMdd → mistakes caught that day
+    public int StatsDaysSince;               // the day counting by day began, yyyyMMdd
+    public Action ResetStats;
     // Apply: KeyFish takes the values of this window's fields and keeps them; ApplyLook: only the look's, at once when
     // one is picked. True when the window has to be built again to show them (another language, theme or look)
     public Func<SettingsForm, bool> Apply, ApplyLook;
@@ -898,7 +901,17 @@ class SettingsForm : Form
         var card = StatsCard(StatsTotal, StatsSince, StatsRecent);
         card.Location = new Point(16, y);
         page.Controls.Add(card);
-        y = card.Bottom + 8;
+        y = card.Bottom + 4;
+        // The last 30 days by day
+        var chartCard = new Card { Location = new Point(16, y), Width = ContentWidth };
+        var chartTitle = Theme.Wrapped(L.T("Исправления за последние 30 дней", "Corrections over the last 30 days"), ContentWidth - 36);
+        chartTitle.Location = new Point(18, 14);
+        chartCard.Controls.Add(chartTitle);
+        var chart = new StatsChart(StatsDays, StatsDaysSince) { Location = new Point(18, chartTitle.Bottom + 8), Size = new Size(ContentWidth - 36, 120) };
+        chartCard.Controls.Add(chart);
+        chartCard.Height = chart.Bottom + 12;
+        page.Controls.Add(chartCard);
+        y = chartCard.Bottom + 8;
         if (StatsRecent != null && StatsRecent.Take(3).Any(n => n < 0))
             Intro(page, ref y, L.T("Прочерк означает, что подсчёт по дням начат позже начала периода и число за весь период неизвестно.",
                                    "A dash means that counting by day began after the start of the period, so the number for the whole period is unknown."));
@@ -915,6 +928,26 @@ class SettingsForm : Form
         InfoCard(page, ref y, L.T("Сэкономленное время", "Time saved"),
             L.T("Рассчитывается из 4 секунд на каждое исправление: столько в среднем занимает удалить слово, переключить раскладку и набрать его заново.",
                 "Calculated as 4 seconds per correction: on average, the time it takes to erase a word, switch the layout and type it again."));
+        if (ResetStats != null)
+        {
+            y += 8;
+            var reset = new RoundButton { Text = L.T("Сбросить", "Reset"), Size = new Size(170, 34) };
+            reset.Click += (s, e) =>
+            {
+                if (ThemedMessage.Show(this, L.T("Все счётчики статистики будут обнулены, подсчёт начнётся заново с сегодняшнего дня. Продолжить?",
+                                                 "All statistics counters will be set to zero, and counting will start again from today. Continue?"),
+                                       L.T("Сброс статистики", "Reset statistics"), MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+                ResetStats();
+                StatsTotal = 0;
+                StatsSince = DateTime.Today;
+                StatsRecent = new[] { 0, 0, 0, 0 };
+                StatsDays = new Dictionary<int, int>();
+                StatsDaysSince = DateTime.Today.Year * 10000 + DateTime.Today.Month * 100 + DateTime.Today.Day;
+                Rebuild();
+            };
+            Row(page, ref y, L.T("Сбросить статистику", "Reset statistics"),
+                L.T("Все счётчики обнуляются, подсчёт начинается заново с сегодняшнего дня.", "All counters are set to zero, and counting starts again from today."), reset);
+        }
         return End(page, y);
     }
 
@@ -2109,5 +2142,90 @@ class StatsStrip : Control
             Theme.SmoothText(g, items[i].Item1, Theme.Section, new RectangleF(x, top, w, valueH), Theme.Text, true);
             Theme.SmoothText(g, items[i].Item2, Theme.Small, new RectangleF(x, top + valueH - 2, w, h - valueH), Theme.SubText, true, false);
         }
+    }
+}
+
+// Mistakes caught per day over the last 30 days, today on the right. A day before counting by day began has no bar;
+// hovering a bar tells its date and number
+class StatsChart : Control
+{
+    const int Days = 30;
+    readonly int[] counts = new int[Days];   // -1: not counted yet
+    readonly DateTime[] dates = new DateTime[Days];
+    readonly ToolTip tip = new ToolTip();
+    int hover = -1;
+
+    public StatsChart(Dictionary<int, int> days, int since)
+    {
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint |
+                 ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
+        BackColor = Color.Transparent;
+        for (int i = 0; i < Days; i++)
+        {
+            var d = DateTime.Today.AddDays(i - (Days - 1));
+            int key = d.Year * 10000 + d.Month * 100 + d.Day, n;
+            dates[i] = d;
+            counts[i] = key < since ? -1 : days != null && days.TryGetValue(key, out n) ? n : 0;
+        }
+        AccessibleRole = AccessibleRole.Chart;
+        AccessibleName = L.T("Исправления за последние 30 дней", "Corrections over the last 30 days");
+    }
+
+    string Describe(int i)
+    {
+        return dates[i].ToString("M", L.Culture) + ": " + (counts[i] < 0 ? L.T("нет данных", "no data") : counts[i].ToString("N0", L.Culture));
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        float labels = Theme.Small.GetHeight(g) + Theme.S(4);
+        float area = Height - labels, slot = (float)Width / Days, bar = slot * 0.62f;
+        int max = Math.Max(1, counts.Max());
+        using (var line = new Pen(Theme.CardBorder)) g.DrawLine(line, 0, area - 0.5f, Width, area - 0.5f);
+        for (int i = 0; i < Days; i++)
+        {
+            if (counts[i] <= 0) continue;
+            float h = Math.Max(Theme.S(3), (area - Theme.S(4)) * counts[i] / max);
+            var r = new RectangleF(i * slot + (slot - bar) / 2, area - h, bar, h);
+            using (var path = Theme.Rounded(r, Math.Min(bar / 2, Theme.S(3))))
+            using (var b = new SolidBrush(Color.FromArgb(i == hover ? 255 : 200, Theme.AccentFill)))
+                g.FillPath(b, path);
+        }
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+        // Under the bars: the first day, the middle one and today
+        var row = new RectangleF(0, area + Theme.S(2), Width, labels);
+        Theme.SmoothText(g, dates[0].ToString("M", L.Culture), Theme.Small, row, Theme.SubText, false, false);
+        Theme.SmoothText(g, dates[Days / 2].ToString("M", L.Culture), Theme.Small, row, Theme.SubText, true, false);
+        string today = L.T("сегодня", "today");
+        float w = g.MeasureString(today, Theme.Small).Width + 4;
+        Theme.SmoothText(g, today, Theme.Small, new RectangleF(Width - w, row.Y, w, row.Height), Theme.SubText, false, false);
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        int i = Math.Max(0, Math.Min(Days - 1, (int)(e.X / ((float)Width / Days))));
+        if (i != hover)
+        {
+            hover = i;
+            tip.Show(Describe(i), this, e.X + 12, e.Y + 16);
+            Invalidate();
+        }
+        base.OnMouseMove(e);
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        hover = -1;
+        tip.Hide(this);
+        Invalidate();
+        base.OnMouseLeave(e);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) tip.Dispose();
+        base.Dispose(disposing);
     }
 }

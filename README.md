@@ -20,11 +20,11 @@ A tiny Windows tray app that fixes text typed in the wrong keyboard layout — f
 - **Layout per app:** Telegram always in Russian, VS Code in English — KeyFish switches when you go to the app
 - The tray fish shows the current layout: blue — Latin, orange — another alphabet, or a color of your own per layout; or the tray can show the layout's letters (EN, RU…) instead
 - Optional: **double Shift** or **Caps Lock** fixes the last word, like Pause; the layout shows next to the text cursor for a moment when it changes
-- The fish menu: **pause for an hour**, and **recent corrections** — click one and KeyFish won't correct it that way again
+- The fish menu: **pause for an hour**, **recent corrections** — click one and KeyFish won't correct it that way again — and **do not correct in** the app you were just typing in
 - **Import** replacements and word lists from other programs: plain text, CSV/TSV, AutoHotkey hotstrings, Espanso; all settings export to one file, and a copy is kept before settings are changed
 - **Alt+Pause** — switch the layout of the whole line before the cursor
 - **Shift+F2** — clear the formatting of selected text: bold, italics, links, 𝐬𝐭𝐲𝐥𝐞𝐝 letters
-- **Ctrl+Shift+F2** — a menu of actions on the selected text (or, with nothing selected, the line before the cursor), next to the cursor: case, layout, transliteration, formatting, extra spaces, sorting lines and removing repeated ones, a name for code (`user_name`, `userName`…) and calculating an expression: `1250*12*0,87` → `13050`, `200+15%` → `230`
+- **Ctrl+Shift+F2** — a menu of actions on the selected text (or, with nothing selected, the line before the cursor), next to the cursor: case, layout, transliteration, formatting, typos, typographic quotes, non-breaking spaces, the letter ё, extra spaces, sorting lines and removing repeated ones, a name for code (`user_name`, `userName`…) and calculating an expression: `1250*12*0,87` → `13050`, `200+15%` → `230`
 - **Ctrl+Shift+V** — paste the text from the clipboard without its formatting, in any app. Where Ctrl+Shift+V already does something of its own (VS Code, Visual Studio, JetBrains IDEs, Sublime Text, Windows Terminal, Outlook), it keeps doing that
 - **Looks** with a preview before applying (classic, holiday, or your own from two colors) and **sounds** of your choice for each event, your own .wav files too
 

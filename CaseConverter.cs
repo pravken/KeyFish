@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 
 public static class CaseConverter
 {
@@ -174,6 +175,93 @@ public static class TextActions
             }
         }
         return (a.Length - i).CompareTo(b.Length - j);
+    }
+
+    // Straight quotes made typographic: «ёлочки» and „лапки“ inside them in Cyrillic text, “ ” and ‘ ’ in other text.
+    // A quote opens at the start, after a space or an opening bracket or quote, and closes elsewhere
+    public static string Quotes(string text)
+    {
+        bool cyrillic = text.Any(c => LayoutTable.ScriptOf(c) == "Cyrillic");
+        string open1 = cyrillic ? "«" : "“", close1 = cyrillic ? "»" : "”", open2 = cyrillic ? "„" : "‘", close2 = cyrillic ? "“" : "’";
+        var sb = new StringBuilder(text.Length);
+        int depth = 0;
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            if (c == '«') depth++;
+            else if (c == '»') depth = Math.Max(0, depth - 1);
+            if (c != '"') { sb.Append(c); continue; }
+            char prev = i > 0 ? text[i - 1] : ' ';
+            bool opens = char.IsWhiteSpace(prev) || "([{«„“—–-/".IndexOf(prev) >= 0;
+            if (opens) { sb.Append(depth == 0 ? open1 : open2); depth++; }
+            else { depth = Math.Max(0, depth - 1); sb.Append(depth == 0 ? close1 : close2); }
+        }
+        return sb.ToString();
+    }
+
+    // Spaces that a line must not break at made non-breaking: after a word of one or two letters (в, и, на, a, to),
+    // before a dash, between a number and the word after it (10 кг, 2026 г.), after № and §
+    public static string NoBreakSpaces(string text)
+    {
+        string s = Regex.Replace(text, @"(?m)(?<=(?:^|[\s(«„“""'])\p{L}{1,2}) (?=\S)", " ");
+        s = Regex.Replace(s, @" (?=[—–] )", " ");
+        s = Regex.Replace(s, @"(?<=\d) (?=\p{L})", " ");
+        return Regex.Replace(s, @"(?<=[№§]) ?(?=\d)", " ");
+    }
+
+    // Ё where the word list says the word is written with it (еще → ещё, ее → её), the case of each letter kept.
+    // A word that is another word without ё (все — всё, звезды — звёзды, черта — чёрта) is left as it is
+    public static string Yo(string text)
+    {
+        var map = YoWords();
+        string s = Regex.Replace(text, @"\b([Вв])се-таки\b", m => m.Groups[1].Value + "сё-таки");
+        return Regex.Replace(s, @"\p{L}+", m =>
+        {
+            string w = m.Value, yo;
+            if (w.IndexOf('е') < 0 && w.IndexOf('Е') < 0) return w;
+            if (!map.TryGetValue(w.ToLower(CultureInfo.CurrentCulture), out yo)) return w;
+            var sb = new StringBuilder(w);
+            for (int i = 0; i < w.Length; i++)
+                if (yo[i] == 'ё') sb[i] = w[i] == 'Е' ? 'Ё' : 'ё';
+            return sb.ToString();
+        });
+    }
+
+    static readonly HashSet<string> YoAmbiguous = new HashSet<string>
+    {
+        "все", "берет", "осел", "мел", "лен", "небо", "падеж", "заем", "сел", "села", "озера", "звезды", "слезы", "колеса", "ребра",
+        "бедра", "сестры", "жены", "пчелы", "весла", "гнезда", "ведра", "стекла", "черта", "черту", "чем", "совершенно", "узнаем",
+        // names in the word list's films and series
+        "кен", "тернера", "кертиса", "сегуна", "хека", "хена", "ена", "енджу", "ета"
+    };
+
+    static Dictionary<string, string> yoWords;
+
+    // The Russian word list's words with ё, by their spelling without it: those written with ё at least a fifth as
+    // often as without it (ещё, её; not лёт for лет), and of three letters or more, but её
+    static Dictionary<string, string> YoWords()
+    {
+        if (yoWords != null) return yoWords;
+        var counts = new Dictionary<string, long>();
+        foreach (string line in Detector.Source("ru"))
+        {
+            int sp = line.IndexOf(' ');
+            string w = sp > 0 ? line.Substring(0, sp) : line.Trim();
+            long n = 1;
+            if (sp > 0) long.TryParse(line.Substring(sp + 1).Trim(), out n);
+            if (w.Length > 0 && !counts.ContainsKey(w)) counts[w] = n;   // the main list first: the extended one has no counts
+        }
+        var map = new Dictionary<string, string>();
+        foreach (var kv in counts)
+        {
+            if (kv.Key.IndexOf('ё') < 0 || (kv.Key.Length < 3 && kv.Key != "её")) continue;
+            string plain = kv.Key.Replace('ё', 'е');
+            long without;
+            counts.TryGetValue(plain, out without);
+            if (YoAmbiguous.Contains(plain) || kv.Value * 5 < without) continue;
+            map[plain] = kv.Key;
+        }
+        return yoWords = map;
     }
 
     // A name for code: the words of the selection ("user name", "userName", "user-name") joined the way asked

@@ -396,7 +396,7 @@ partial class App
         // brought forward first, and the window the text is in gets the focus back afterwards
         using (var host = new Form { FormBorderStyle = FormBorderStyle.None, ShowInTaskbar = false, StartPosition = FormStartPosition.Manual,
                                      Location = new Point(-32000, -32000), Size = new Size(1, 1) })
-        using (var menu = TextMenuFor(text, switchLayout, TranslitLanguage(), (r, a) => { result = r; after = a; }))
+        using (var menu = TextMenuFor(text, switchLayout, TranslitLanguage(), watcher.FixTyposIn, (r, a) => { result = r; after = a; }))
         {
             host.Show();
             SetForegroundWindow(host.Handle);
@@ -443,9 +443,10 @@ partial class App
         Native.Chord(Native.VK_RIGHT);
     }
 
-    // switchLayout: the text in the other layout and what to do after pasting it (null: no other layout fits)
+    // switchLayout: the text in the other layout and what to do after pasting it (null: no other layout fits);
+    // fixTypos: the text with its typos fixed
     public static ContextMenuStrip TextMenuFor(string text, Func<string, Tuple<string, Action>> switchLayout, string translit,
-                                               Action<string, Action> choose)
+                                               Func<string, string> fixTypos, Action<string, Action> choose)
     {
         var menu = new ContextMenuStrip { ShowImageMargin = false };
         ThemedMenuRenderer.Apply(menu);
@@ -473,6 +474,20 @@ partial class App
         MenuAction(menu.Items, L.T("Транслитерация", "Transliterate"), text, Transliterator.Convert(text, translit), null, GetHotkey(HkTranslit - 1), choose);
         // Pasted back as plain text, formatting goes even when the letters stay the same
         MenuAction(menu.Items, L.T("Удалить форматирование", "Clear formatting"), null, PlainText.Clean(text), null, GetHotkey(HkPlain - 1), choose);
+        menu.Items.Add(new ToolStripSeparator());
+
+        // Spelling and typography on request: while typing they could be in the way
+        string fixedTypos = null;
+        if (text.Length <= 5000) try { fixedTypos = fixTypos(text); } catch { }
+        MenuAction(menu.Items, L.T("Исправить опечатки", "Fix typos"), text, fixedTypos, null, Keys.None, choose);
+        MenuAction(menu.Items, L.T("Типографские кавычки", "Typographic quotes"), text, TextActions.Quotes(text), null, Keys.None, choose);
+        MenuAction(menu.Items, L.T("Неразрывные пробелы", "Non-breaking spaces"), text, TextActions.NoBreakSpaces(text), null, Keys.None, choose);
+        if (text.Any(c => LayoutTable.ScriptOf(c) == "Cyrillic"))
+        {
+            string yo = null;
+            try { yo = TextActions.Yo(text); } catch { }
+            MenuAction(menu.Items, L.T("Буква ё по словарю", "The letter ё from the dictionary"), text, yo, null, Keys.None, choose);
+        }
         menu.Items.Add(new ToolStripSeparator());
 
         MenuAction(menu.Items, L.T("Удалить лишние пробелы и пустые строки", "Remove extra spaces and empty lines"), text, TextActions.Spaces(text), null, Keys.None, choose);

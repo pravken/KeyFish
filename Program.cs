@@ -560,7 +560,8 @@ partial class App : ApplicationContext
         int total = statsBase + watcher.CorrectionCount;
         var form = new SettingsForm
         {
-            StatsTotal = total, StatsSince = StatsSince(), StatsRecent = RecentStats(total),
+            StatsTotal = total, StatsSince = StatsSince(), StatsRecent = RecentStats(total), StatsDays = new Dictionary<int, int>(Daily()),
+            StatsDaysSince = GetSetting("StatsDaysSince", DayKey(DateTime.Today)), ResetStats = ResetStats,
             OpenAbout = owner => ShowAbout(owner), Updates = updates,
             BackupDir = backupDir, TrayLetters = trayLetters, LayoutColors = new Dictionary<string, Color>(layoutColors, StringComparer.OrdinalIgnoreCase), AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, SoundMap = new Dictionary<string, string>(Sounds.Map), SoundsDir = Sounds.Dir, RecentMenu = watcher.KeepRecent, Typography = watcher.Typography, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
             CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting, ThemeMode = Theme.Mode, SkinNumber = shownSkin, Holiday = Theme.Holidays, SkinLogo = Theme.SkinLogo, SkinSound = Theme.SkinSound, CustomAccent = Skin.Custom.Accent, CustomFish = Skin.Custom.Latin,

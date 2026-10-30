@@ -24,6 +24,22 @@ static class Preview
         return null;
     }
 
+    static int Key(DateTime d) { return d.Year * 10000 + d.Month * 100 + d.Day; }
+
+    // Mistakes per day for the chart: more on weekdays, none on some days
+    static Dictionary<int, int> FakeDays()
+    {
+        var days = new Dictionary<int, int>();
+        var rnd = new Random(7);
+        for (int i = 0; i < 60; i++)
+        {
+            var d = DateTime.Today.AddDays(-i);
+            int n = d.DayOfWeek == DayOfWeek.Saturday || d.DayOfWeek == DayOfWeek.Sunday ? rnd.Next(0, 4) : rnd.Next(4, 22);
+            if (n > 0) days[Key(d)] = n;
+        }
+        return days;
+    }
+
     // "newver": a newer release is out; "uptodate": the installed one is the latest; "offline": GitHub didn't answer;
     // otherwise nothing was checked yet
     static UpdateInfo FakeUpdates(string[] args)
@@ -136,7 +152,9 @@ static class Preview
                 Updates = FakeUpdates(args),
                 // "partial": the count by day began this week
                 StatsTotal = 1234, StatsSince = new DateTime(2026, 3, 12),
-                StatsRecent = Array.IndexOf(args, "partial") >= 0 ? new[] { 23, -1, -1, 82 } : new[] { 12, 85, 310, 82 }
+                StatsRecent = Array.IndexOf(args, "partial") >= 0 ? new[] { 23, -1, -1, 82 } : new[] { 12, 85, 310, 82 },
+                StatsDays = FakeDays(), ResetStats = () => { },
+                StatsDaysSince = Key(DateTime.Today.AddDays(Array.IndexOf(args, "partial") >= 0 ? -9 : -60))
             };
         }
         else if (args[0] == "changelog")   // the real changelog of the interface language
@@ -164,7 +182,7 @@ static class Preview
             var host = form;
             form.Shown += (s, e) =>
             {
-                var menu = App.TextMenuFor(text, t => Tuple.Create(t + "?", (Action)null), "ru", (r, a) => { });
+                var menu = App.TextMenuFor(text, t => Tuple.Create(t + "?", (Action)null), "ru", t => t.Replace("ошибко", "ошибка"), (r, a) => { });
                 menu.Show(host.Location + new Size(24, 24));
                 if (Array.IndexOf(args, "code") >= 0)
                     foreach (ToolStripItem item in menu.Items)
