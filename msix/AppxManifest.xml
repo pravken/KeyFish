@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KeyFish for the Microsoft Store. msix\build-msix.ps1 fills in the version and packs it; the identity is the one
+     Partner Center gave the app (Product identity) -->
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+         xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+         xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+         xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+         IgnorableNamespaces="uap desktop rescap">
+  <Identity Name="MaximPravko.KeyFish" Publisher="CN=141973C4-6C65-4E15-870A-09678C44B441" Version="{VERSION}" ProcessorArchitecture="x64" />
+  <Properties>
+    <DisplayName>KeyFish</DisplayName>
+    <PublisherDisplayName>Maxim Pravko</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+  <Resources>
+    <Resource Language="en-us" />
+    <Resource Language="ru-ru" />
+    <Resource Language="uk-ua" />
+    <Resource Language="be-by" />
+    <Resource Language="de-de" />
+    <Resource Language="pl-pl" />
+    <Resource Language="fr-fr" />
+    <Resource Language="es-es" />
+    <Resource Language="sr-cyrl-rs" />
+  </Resources>
+  <Applications>
+    <Application Id="KeyFish" Executable="KeyFish.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements DisplayName="KeyFish" Description="Fixes text typed in the wrong keyboard layout"
+                          BackgroundColor="transparent" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" />
+      <Extensions>
+        <!-- Starting with Windows: on after the first launch, switched in Settings or in Task Manager's Startup apps -->
+        <desktop:Extension Category="windows.startupTask" Executable="KeyFish.exe" EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask TaskId="KeyFishStartup" Enabled="true" DisplayName="KeyFish" />
+        </desktop:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+  <Capabilities>
+    <!-- An ordinary Win32 app: it watches typing in all apps and retypes words, which a sandboxed app can't do -->
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

@@ -9,7 +9,7 @@ using Microsoft.Win32;
 using Windows.Data.Xml.Dom;
 using Windows.UI.Notifications;
 
-// Windows notifications with a button. KeyFish isn't a Store app, so Windows learns its name and icon from
+// Windows notifications with a button. KeyFish from GitHub isn't packaged, so Windows learns its name and icon from
 // HKCU\Software\Classes\AppUserModelId\KeyFish (the icon: a small PNG in %LOCALAPPDATA%\KeyFish). A notification
 // lasts a minute, and its button works while KeyFish runs. Where one can't be shown, Show returns false and the
 // caller uses the tray balloon instead
@@ -39,7 +39,8 @@ static class Toasts
             var a = e as ToastActivatedEventArgs;
             if (a != null && a.Arguments == "go" && clicked != null) ui.Post(_ => clicked(), null);
         };
-        ToastNotificationManager.CreateToastNotifier(Id).Show(toast);
+        // From the Store, the package gives the notifications their name and icon
+        (Packaged.Yes ? ToastNotificationManager.CreateToastNotifier() : ToastNotificationManager.CreateToastNotifier(Id)).Show(toast);
         current = toast;
         return true;
     }
@@ -49,7 +50,7 @@ static class Toasts
 
     static void Register()
     {
-        if (registered) return;
+        if (registered || Packaged.Yes) return;
         string icon = null;
         try
         {

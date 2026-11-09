@@ -285,3 +285,4 @@ Reset statistics	Ресетуј статистику
 All counters are set to zero, and counting starts again from today.	Сви бројачи се враћају на нулу, а бројање почиње изнова од данас.
 no data	нема података
 Do not correct in {0}	Не исправљај у програму {0}
+KeyFish's autostart is turned off in Task Manager. Turn it on there: Startup apps, KeyFish, Enable.	Аутоматско покретање програма KeyFish искључено је у менаџеру задатака. Укључите га тамо: апликације за покретање, KeyFish, Омогући.

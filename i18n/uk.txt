@@ -285,3 +285,4 @@ Reset statistics	Скинути статистику
 All counters are set to zero, and counting starts again from today.	Усі лічильники обнуляються, підрахунок починається заново з сьогоднішнього дня.
 no data	немає даних
 Do not correct in {0}	Не виправляти в програмі {0}
+KeyFish's autostart is turned off in Task Manager. Turn it on there: Startup apps, KeyFish, Enable.	Автозапуск KeyFish вимкнено в диспетчері завдань. Увімкніть його там: вкладка «Автозавантаження», KeyFish, «Увімкнути».

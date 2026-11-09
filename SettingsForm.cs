@@ -1015,9 +1015,11 @@ class SettingsForm : Form
         Row(page, ref y, L.T("Язык интерфейса", "Interface language"), null, cbLanguage);
         Row(page, ref y, L.T("Запускать вместе с Windows", "Start with Windows"), null, tAutostart = Toggle(Autostart));
         UpdatesRow(page, ref y);
-        Row(page, ref y, L.T("Проверять обновления", "Check for updates"),
-            L.T("Раз в сутки KeyFish запрашивает у GitHub сведения о новой версии. Другие данные не передаются.",
-                "Once a day KeyFish checks GitHub for a new version. No other data is sent."), tUpdates = Toggle(CheckUpdates));
+        tUpdates = Toggle(CheckUpdates);
+        if (Updates != null)   // none in the Store version: the Store updates it
+            Row(page, ref y, L.T("Проверять обновления", "Check for updates"),
+                L.T("Раз в сутки KeyFish запрашивает у GitHub сведения о новой версии. Другие данные не передаются.",
+                    "Once a day KeyFish checks GitHub for a new version. No other data is sent."), tUpdates);
         ArchiveRow(page, ref y);
         page.Controls.Add(SupportCard(ref y));
         return End(page, y);

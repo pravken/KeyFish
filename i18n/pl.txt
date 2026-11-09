@@ -285,3 +285,4 @@ Reset statistics	Resetuj statystyki
 All counters are set to zero, and counting starts again from today.	Wszystkie liczniki są zerowane, a liczenie zaczyna się od nowa od dzisiaj.
 no data	brak danych
 Do not correct in {0}	Nie poprawiaj w programie {0}
+KeyFish's autostart is turned off in Task Manager. Turn it on there: Startup apps, KeyFish, Enable.	Autostart KeyFish jest wyłączony w Menedżerze zadań. Włącz go tam: Aplikacje autostartu, KeyFish, Włącz.

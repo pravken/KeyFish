@@ -309,7 +309,7 @@ partial class App
             if (s != null) using (var r = new StreamReader(s, Encoding.UTF8)) changes = r.ReadToEnd();
 
         if (aboutForm != null) { aboutForm.Activate(); return; }
-        using (aboutForm = new AboutForm(changes, new List<LayoutTable>(watcher.Layouts.All), updates) { Icon = iconEn })
+        using (aboutForm = new AboutForm(changes, new List<LayoutTable>(watcher.Layouts.All), Packaged.Yes ? null : updates) { Icon = iconEn })
             aboutForm.ShowDialog(owner);
         aboutForm = null;
     }
@@ -397,7 +397,7 @@ partial class App
             excludeItem.Enabled = settingsForm == null;
         };
         menu.Items.Add(L.T("Настройки…", "Settings…"), null, (s, e) => OpenSettings());
-        menu.Items.Add(L.T("Проверить обновления", "Check for updates"), null, (s, e) => CheckForUpdates(true));
+        if (!Packaged.Yes) menu.Items.Add(L.T("Проверить обновления", "Check for updates"), null, (s, e) => CheckForUpdates(true));
         menu.Items.Add(L.T("О программе…", "About…"), null, (s, e) => ShowAbout());
         menu.Items.Add(L.T("Выход", "Exit"), null, (s, e) => ExitThread());
         return menu;

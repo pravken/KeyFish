@@ -137,6 +137,7 @@ partial class App : ApplicationContext
     // read-only (Program Files), they go to %APPDATA%\KeyFish
     public static string DataDir()
     {
+        if (Packaged.Yes) return Packaged.DataDir();
         string exeDir = Path.GetDirectoryName(Application.ExecutablePath);
         try
         {
@@ -437,7 +438,7 @@ partial class App : ApplicationContext
             updateTimer.Interval = 24 * 60 * 60 * 1000;
             if (GetSetting("CheckUpdates", 1) != 0) CheckForUpdates(false);
         };
-        updateTimer.Start();
+        if (!Packaged.Yes) updateTimer.Start();   // the Store version is updated by the Store
 
         // A new user (no settings saved yet, nothing corrected yet) gets a short introduction once
         if (GetSetting("IntroShown", 0) == 0)
@@ -567,7 +568,7 @@ partial class App : ApplicationContext
         {
             StatsTotal = total, StatsSince = StatsSince(), StatsRecent = RecentStats(total), StatsDays = new Dictionary<int, int>(Daily()),
             StatsDaysSince = GetSetting("StatsDaysSince", DayKey(DateTime.Today)), ResetStats = ResetStats,
-            OpenAbout = owner => ShowAbout(owner), Updates = updates,
+            OpenAbout = owner => ShowAbout(owner), Updates = Packaged.Yes ? null : updates,
             BackupDir = backupDir, TrayLetters = trayLetters, LayoutColors = new Dictionary<string, Color>(layoutColors, StringComparer.OrdinalIgnoreCase), AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, SoundMap = new Dictionary<string, string>(Sounds.Map), SoundsDir = Sounds.Dir, RecentMenu = watcher.KeepRecent, Typography = watcher.Typography, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
             CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting, ThemeMode = Theme.Mode, SkinNumber = shownSkin, Holiday = Theme.Holidays, SkinLogo = Theme.SkinLogo, SkinSound = Theme.SkinSound, CustomAccent = Skin.Custom.Accent, CustomFish = Skin.Custom.Latin,
             Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ignored, Learned = learned,
@@ -733,6 +734,7 @@ partial class App : ApplicationContext
     // Autostart counts as on only if it launches an exe that exists
     static bool IsAutostart()
     {
+        if (Packaged.Yes) return Packaged.Autostart;
         string target = AutostartTarget();
         return target != null && File.Exists(target);
     }
@@ -741,6 +743,7 @@ partial class App : ApplicationContext
     // otherwise autostart silently does nothing after a reboot
     static void RepairAutostart()
     {
+        if (Packaged.Yes) return;
         try
         {
             string target = AutostartTarget();
@@ -751,6 +754,15 @@ partial class App : ApplicationContext
 
     static void SetAutostart(bool on)
     {
+        if (Packaged.Yes)
+        {
+            // Turned off in Task Manager's Startup apps, the startup task can only be turned on there again
+            if (!Packaged.SetAutostart(on))
+                ThemedMessage.Show(L.T("Автозапуск KeyFish выключен в диспетчере задач. Включите его там: вкладка «Автозагрузка», KeyFish, «Включить».",
+                                       "KeyFish's autostart is turned off in Task Manager. Turn it on there: Startup apps, KeyFish, Enable."),
+                                   "KeyFish", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
         using (var k = Registry.CurrentUser.CreateSubKey(RunKey))
         {
             if (on) k.SetValue(AppName, "\"" + Application.ExecutablePath + "\"");
@@ -770,5 +782,113 @@ partial class App : ApplicationContext
         if (foregroundHook != IntPtr.Zero) Native.UnhookWinEvent(foregroundHook);
         CrashLog.Stop();
         base.ExitThreadCore();
+    }
+}
+
+// KeyFish installed from the Microsoft Store runs inside a package (MSIX). The Store updates it, it starts with
+// Windows through the package's startup task, and its files live in the package's own folder. Any other folder
+// it wrote to would be redirected into the package where no other app (Explorer, an editor) could see it
+static class Packaged
+{
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    static extern int GetCurrentPackageFamilyName(ref int length, StringBuilder name);
+
+    const string StartupTaskId = "KeyFishStartup";   // as in msix\AppxManifest.xml
+
+    static readonly string family = Family();
+    public static bool Yes { get { return family != null; } }
+
+    static string Family()
+    {
+        try
+        {
+            int length = 0;
+            if (GetCurrentPackageFamilyName(ref length, null) != 122) return null;   // ERROR_INSUFFICIENT_BUFFER: there is a package
+            var name = new StringBuilder(length);
+            return GetCurrentPackageFamilyName(ref length, name) == 0 ? name.ToString() : null;
+        }
+        catch { return null; }   // Windows 7 has no packages
+    }
+
+    // %LOCALAPPDATA%\Packages\<package>\LocalState. The first time, the files of the KeyFish used before the Store
+    // one are copied there: from its own folder (where its autostart pointed) or from %APPDATA%\KeyFish. Its settings
+    // in the registry are read as they are
+    public static string DataDir()
+    {
+        string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Packages", family, "LocalState");
+        try
+        {
+            Directory.CreateDirectory(dir);
+            if (!File.Exists(Path.Combine(dir, "exclusions.txt")))
+                foreach (string from in Earlier())
+                    if (File.Exists(Path.Combine(from, "exclusions.txt"))) { Copy(from, dir); break; }
+        }
+        catch { }
+        return dir;
+    }
+
+    static IEnumerable<string> Earlier()
+    {
+        string run = null;
+        try
+        {
+            using (var k = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"))
+                run = k == null ? null : k.GetValue("KeyFish") as string;
+        }
+        catch { }
+        if (run != null) yield return Path.GetDirectoryName(run.Trim().Trim('"'));
+        yield return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "KeyFish");
+    }
+
+    // KeyFish's own files and folders (word lists, sounds, dictionaries, backups); not programs or anything else
+    static readonly string[] Folders = { "sounds", "dictionaries", "backups" };
+
+    static void Copy(string from, string to)
+    {
+        foreach (string f in Directory.GetFiles(from, "*.txt"))
+            try { File.Copy(f, Path.Combine(to, Path.GetFileName(f)), false); } catch { }
+        foreach (string sub in Folders)
+        {
+            string src = Path.Combine(from, sub);
+            if (!Directory.Exists(src)) continue;
+            string dst = Path.Combine(to, sub);
+            Directory.CreateDirectory(dst);
+            foreach (string f in Directory.GetFiles(src))
+                try { File.Copy(f, Path.Combine(dst, Path.GetFileName(f)), false); } catch { }
+        }
+    }
+
+    static Windows.ApplicationModel.StartupTask Task()
+    {
+        return Wait(Windows.ApplicationModel.StartupTask.GetAsync(StartupTaskId));
+    }
+
+    // A Windows call answered later, waited for here; these take milliseconds. An error comes out of GetResults
+    static T Wait<T>(Windows.Foundation.IAsyncOperation<T> op)
+    {
+        for (int i = 0; i < 500 && op.Status == Windows.Foundation.AsyncStatus.Started; i++) Thread.Sleep(10);
+        return op.GetResults();
+    }
+
+    static bool On(Windows.ApplicationModel.StartupTaskState state)
+    {
+        return state == Windows.ApplicationModel.StartupTaskState.Enabled || state == Windows.ApplicationModel.StartupTaskState.EnabledByPolicy;
+    }
+
+    public static bool Autostart
+    {
+        get { try { return On(Task().State); } catch { return false; } }
+    }
+
+    // False when the user turned autostart off in Task Manager: only they can turn it on there again
+    public static bool SetAutostart(bool on)
+    {
+        try
+        {
+            var task = Task();
+            if (!on) { task.Disable(); return true; }
+            return On(Wait(task.RequestEnableAsync()));
+        }
+        catch { return true; }
     }
 }

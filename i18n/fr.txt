@@ -285,3 +285,4 @@ Reset statistics	Réinitialiser les statistiques
 All counters are set to zero, and counting starts again from today.	Tous les compteurs sont remis à zéro et le décompte recommence à partir d’aujourd’hui.
 no data	aucune donnée
 Do not correct in {0}	Ne pas corriger dans {0}
+KeyFish's autostart is turned off in Task Manager. Turn it on there: Startup apps, KeyFish, Enable.	Le démarrage automatique de KeyFish est désactivé dans le Gestionnaire des tâches. Activez-le à cet endroit : Applications de démarrage, KeyFish, Activer.
