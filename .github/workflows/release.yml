@@ -45,17 +45,6 @@ jobs:
         with:
           subject-path: KeyFish.exe
 
-      # The same KeyFish.exe packed for the Microsoft Store. Not a release asset: unsigned, it installs nowhere; it is
-      # uploaded to Partner Center, and the Store signs it
-      - name: Store package
-        shell: pwsh
-        run: msix\build-msix.ps1 -Exe KeyFish.exe -Out KeyFish.msix
-
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: KeyFish-Store-${{ github.ref_name }}
-          path: KeyFish.msix
-
       - name: Release notes from the changelogs
         shell: pwsh
         run: |
@@ -83,3 +72,15 @@ jobs:
         run: |
           $version = "${{ github.ref_name }}".TrimStart('v')
           gh release create "${{ github.ref_name }}" KeyFish.exe KeyFish.exe.sha256 --title "KeyFish $version" --notes-file notes.md
+
+      # The same KeyFish.exe packed for the Microsoft Store, after the release: a failure here can't hold the exe back.
+      # Not a release asset: unsigned, it installs nowhere; it is uploaded to Partner Center, and the Store signs it
+      - name: Store package
+        shell: pwsh
+        run: msix\build-msix.ps1 -Exe KeyFish.exe -Out KeyFish.msix
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: KeyFish-Store-${{ github.ref_name }}
+          path: KeyFish.msix
+          if-no-files-found: error

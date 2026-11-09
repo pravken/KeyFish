@@ -1,4 +1,4 @@
-﻿# The built app is published in GitHub releases, not in the source
+# The built app is published in GitHub releases, not in the source
 *.exe
 
 # Personal user settings; the app creates them itself
@@ -19,3 +19,4 @@ debug-log.txt
 crash.log
 ~keyfish.running
 backups/
+*.msix

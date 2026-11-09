@@ -12,6 +12,13 @@ $sdk = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.*\x64\make
 if (-not $sdk) { throw 'The Windows SDK is not installed: makeappx.exe not found' }
 $bin = $sdk.DirectoryName
 
+# An SDK tool; its own output is shown only when it fails, so a failure on the build server says why
+function Tool([string]$name) {
+  $ErrorActionPreference = 'Continue'   # its messages on stderr are not errors of this script
+  $output = & "$bin\$name" @args 2>&1
+  if ($LASTEXITCODE -ne 0) { $output | ForEach-Object { Write-Host $_ }; throw "$name $($args[0]) failed with exit code $LASTEXITCODE" }
+}
+
 # The version: 2.3.0 in Version.cs is 2.3.0.0 here (the Store wants the last number 0)
 $v = [regex]::Match((Get-Content Version.cs -Raw), 'AssemblyVersion\("(\d+\.\d+\.\d+)').Groups[1].Value
 if (-not $v) { throw 'No version in Version.cs' }
@@ -75,16 +82,14 @@ $big.Dispose()
 
 # The resource index that lets Windows pick the right tile for the scale and size
 $cfg = Join-Path $root 'obj\priconfig.xml'
-& "$bin\makepri.exe" createconfig /cf $cfg /dq en-US /pv 10.0.0 /o | Out-Null
-if ($LASTEXITCODE -ne 0) { throw 'makepri createconfig failed' }
+Tool makepri.exe createconfig /cf $cfg /dq en-US /pv 10.0.0 /o
 # One index for all scales in the one package, not a separate resource package for each
 $x = [xml](Get-Content $cfg -Raw)
 $p = $x.resources.SelectSingleNode('packaging'); if ($p) { [void]$x.resources.RemoveChild($p) }
 $x.Save($cfg)
-& "$bin\makepri.exe" new /pr $layout /cf $cfg /mn "$layout\AppxManifest.xml" /of "$layout\resources.pri" /o | Out-Null
-if ($LASTEXITCODE -ne 0) { throw 'makepri new failed' }
+Tool makepri.exe new /pr $layout /cf $cfg /mn "$layout\AppxManifest.xml" /of "$layout\resources.pri" /o
 
+if (-not [IO.Path]::IsPathRooted($Out)) { $Out = Join-Path $root $Out }   # a bare name (KeyFish.msix) goes into the project folder
 New-Item -ItemType Directory -Force (Split-Path $Out -Parent) | Out-Null
-& "$bin\makeappx.exe" pack /d $layout /p $Out /o | Out-Null
-if ($LASTEXITCODE -ne 0) { throw 'makeappx pack failed' }
+Tool makeappx.exe pack /d $layout /p $Out /o
 "KeyFish $v.0 packed: $Out"

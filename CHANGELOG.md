@@ -1,10 +1,11 @@
-2.4.0 2026-11-10
+2.4.1 2026-11-10
 New:
 • Support for installation from the Microsoft Store
 Improved:
 • The password field check uses many times less processor time
 • Less memory in use
 Fixed:
+• The Store version closes an earlier copy of KeyFish running at the same time
 • A word is not corrected when the password field check fails
 
 2.3.0 2026-10-30

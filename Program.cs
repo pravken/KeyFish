@@ -43,12 +43,15 @@ static class Program
         {
             if (!created)
             {
+                // The Store version found an earlier KeyFish running (its own autostart from before the Store won
+                // the race at sign-in): the Store one takes over, or the user would be left with the old copy
+                bool replaced = Packaged.Yes && Packaged.CloseUnpackaged();
                 // After an update the old copy is still closing, so wait for it instead of exiting.
                 // If it hangs, it is closed: otherwise the user would be left with no KeyFish at all
-                if (!updated) return;
+                if (!updated && !replaced) return;
                 try
                 {
-                    if (!mutex.WaitOne(15000))
+                    if (!mutex.WaitOne(replaced ? 5000 : 15000))
                     {
                         int self = Process.GetCurrentProcess().Id;
                         foreach (var p in Process.GetProcessesByName("KeyFish"))
@@ -746,6 +749,8 @@ partial class App : ApplicationContext
         if (Packaged.Yes) return;
         try
         {
+            // The Store version is installed and starts with Windows itself: this copy's autostart would only race it
+            if (Packaged.StoreInstalled) { SetAutostart(false); return; }
             string target = AutostartTarget();
             if (target != null && !File.Exists(target)) SetAutostart(true);
         }
@@ -836,7 +841,9 @@ static class Packaged
                 run = k == null ? null : k.GetValue("KeyFish") as string;
         }
         catch { }
-        if (run != null) yield return Path.GetDirectoryName(run.Trim().Trim('"'));
+        string runDir = null;
+        try { if (run != null) runDir = Path.GetDirectoryName(run.Trim().Trim('"')); } catch { }
+        if (runDir != null) yield return runDir;
         yield return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "KeyFish");
     }
 
@@ -887,8 +894,38 @@ static class Packaged
         {
             var task = Task();
             if (!on) { task.Disable(); return true; }
-            return On(Wait(task.RequestEnableAsync()));
+            return Wait(task.RequestEnableAsync()) != Windows.ApplicationModel.StartupTaskState.DisabledByUser;
         }
         catch { return true; }
+    }
+
+    // The Store version is installed for this user (seen from the KeyFish downloaded from GitHub)
+    public static bool StoreInstalled
+    {
+        get
+        {
+            try { return Directory.Exists(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Packages", StoreFamily)); }
+            catch { return false; }
+        }
+    }
+
+    const string StoreFamily = "MaximPravko.KeyFish_q2dp1ns3fa4wr";   // Partner Center: Product identity
+
+    // Closes the KeyFish copies that aren't this package's exe (with their password checks); true if there were any
+    public static bool CloseUnpackaged()
+    {
+        bool closed = false;
+        int self = Process.GetCurrentProcess().Id;
+        foreach (var p in Process.GetProcessesByName("KeyFish"))
+        {
+            try
+            {
+                if (p.Id == self || string.Equals(p.MainModule.FileName, Application.ExecutablePath, StringComparison.OrdinalIgnoreCase)) continue;
+                p.Kill();
+                closed = true;
+            }
+            catch { }
+        }
+        return closed;
     }
 }
