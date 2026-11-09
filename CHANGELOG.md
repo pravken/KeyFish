@@ -1,3 +1,12 @@
+2.4.0 2026-11-10
+New:
+• Support for installation from the Microsoft Store
+Improved:
+• The password field check uses many times less processor time
+• Less memory in use
+Fixed:
+• A word is not corrected when the password field check fails
+
 2.3.0 2026-10-30
 New:
 • Statistics in a Settings section of their own, with a chart for the last 30 days and a reset button
