@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -331,7 +332,8 @@ class KeyboardWatcher
         {
             InstallHooks();
             var watchdog = new System.Windows.Forms.Timer { Interval = 2000 };
-            watchdog.Tick += (s, e) => CheckHooks();
+            // An error must not leave this thread: WinForms would show its error window here, and the hooks would stop
+            watchdog.Tick += (s, e) => { try { CheckHooks(); } catch (Exception ex) { CrashLog.Write("error", ex); } };
             watchdog.Start();
             Application.Run();
         }) { IsBackground = true }.Start();
@@ -354,6 +356,7 @@ class KeyboardWatcher
         var info = new W.LASTINPUTINFO { cbSize = (uint)Marshal.SizeOf(typeof(W.LASTINPUTINFO)) };
         if (!W.GetLastInputInfo(ref info)) return;
         int seen = (int)info.dwTime;
+        if (diagnose) perf.Tick(this);
         bool lost = keyboardHook == IntPtr.Zero || mouseHook == IntPtr.Zero || seen - lastHookEvent > 1000;
         if (!lost || Environment.TickCount - lastReinstall < 10000) return;
         lastReinstall = Environment.TickCount;
@@ -398,6 +401,19 @@ class KeyboardWatcher
         lastHookEvent = Environment.TickCount;
         if (code >= 0)
         {
+            bool timed = diagnose;
+            long started = timed ? Stopwatch.GetTimestamp() : 0;
+            bool swallow = OnHookKey(wParam, lParam);
+            if (timed) perf.Hook(Stopwatch.GetTimestamp() - started);
+            if (swallow) return (IntPtr)1;
+        }
+        return W.CallNextHookEx(IntPtr.Zero, code, wParam, lParam);
+    }
+
+    // True: the key is swallowed
+    bool OnHookKey(IntPtr wParam, IntPtr lParam)
+    {
+        {
             Notify();
             // The fields are read in place: copying the structure would allocate on every key, down and up
             var k = new W.KBDLLHOOKSTRUCT
@@ -422,17 +438,17 @@ class KeyboardWatcher
                 bool swallowQuick;
                 try { swallowQuick = OnQuickKey((int)k.vkCode, down); }
                 catch { swallowQuick = false; }
-                if (swallowQuick) return (IntPtr)1;
+                if (swallowQuick) return true;
             }
             if (down && k.dwExtraInfo != W.Marker)
             {
                 bool swallow;
                 try { swallow = OnKey((int)k.vkCode, (int)k.scanCode, (k.flags & 1) != 0); }   // LLKHF_EXTENDED
                 catch { swallow = false; }
-                if (swallow) return (IntPtr)1;
+                if (swallow) return true;
             }
         }
-        return W.CallNextHookEx(IntPtr.Zero, code, wParam, lParam);
+        return false;
     }
 
     static bool IsModifier(int vk)
@@ -1301,6 +1317,74 @@ class KeyboardWatcher
         }
         string line = DateTime.Now.ToString("HH:mm:ss.fff") + "  " + W.ProcessName(hwnd) + "  " + what + "  (" + word.Count + " keys, password check " + check + ")\r\n";
         FileQueue.Run(() => File.AppendAllText(diagnosePath, line, Encoding.UTF8));
+    }
+
+    // Diagnostics too: every half minute while keys come, one line on how long the keyboard hook took per key (each
+    // millisecond there is added to every key in every app), the memory KeyFish holds and its processor time
+    readonly HookPerf perf = new HookPerf();
+    public static DateTime ReadyAt;   // the tray icon is up
+
+    void WriteDiagnostics(string line)
+    {
+        line = DateTime.Now.ToString("HH:mm:ss.fff") + "  " + line + "\r\n";
+        FileQueue.Run(() => File.AppendAllText(diagnosePath, line, Encoding.UTF8));
+    }
+
+    // Used on the hook thread alone (the hook and the watchdog timer): no locks
+    class HookPerf
+    {
+        static readonly double TicksPerMs = Stopwatch.Frequency / 1000.0;
+        static readonly double[] Limits = { 0.1, 0.5, 1, 2, 5, 20 };
+        readonly int[] counts = new int[Limits.Length + 1];
+        int keys, ticks;
+        double totalMs, maxMs;
+        bool startWritten;
+
+        public void Hook(long elapsed)
+        {
+            double ms = elapsed / TicksPerMs;
+            int i = 0;
+            while (i < Limits.Length && ms >= Limits[i]) i++;
+            counts[i]++;
+            keys++;
+            totalMs += ms;
+            if (ms > maxMs) maxMs = ms;
+        }
+
+        // Every 2 seconds
+        public void Tick(KeyboardWatcher w)
+        {
+            if (!startWritten && ReadyAt != DateTime.MinValue && LayoutSet.ModelsLoaded != DateTime.MinValue)
+            {
+                startWritten = true;
+                FileQueue.Run(() =>
+                {
+                    DateTime launched = Process.GetCurrentProcess().StartTime;
+                    w.WriteDiagnostics("start: tray icon " + (int)(ReadyAt - launched).TotalMilliseconds + " ms after launch, language models (" +
+                                       LayoutSet.ModelsLoadedLangs + ") " + (int)(LayoutSet.ModelsLoaded - launched).TotalMilliseconds + " ms");
+                });
+            }
+            if (++ticks < 15) return;
+            ticks = 0;
+            if (keys == 0) return;
+            var line = new StringBuilder();
+            line.AppendFormat(CultureInfo.InvariantCulture, "perf: {0} keys, hook {1:0.000} ms on average, {2:0.0} ms at most;", keys, totalMs / keys, maxMs);
+            for (int i = 0; i < counts.Length; i++)
+                line.AppendFormat(CultureInfo.InvariantCulture, " {0}{1} ms: {2};", i == counts.Length - 1 ? "over " : "under ",
+                                  i == counts.Length - 1 ? Limits[i - 1] : Limits[i], counts[i]);
+            // Process figures take a snapshot of all processes in Windows, milliseconds the hook thread can't spare
+            FileQueue.Run(() =>
+            {
+                var p = Process.GetCurrentProcess();
+                line.AppendFormat(CultureInfo.InvariantCulture, " managed {0:0.0} MB, private {1:0.0} MB, processor {2:0.0} s",
+                                  GC.GetTotalMemory(false) / 1048576.0, p.PrivateMemorySize64 / 1048576.0, p.TotalProcessorTime.TotalSeconds);
+                if (w.guard != null) line.Append("; password check: " + w.guard.Usage());
+                w.WriteDiagnostics(line.ToString());
+            });
+            Array.Clear(counts, 0, counts.Length);
+            keys = 0;
+            totalMs = maxMs = 0;
+        }
     }
 
     bool IsExcluded(IntPtr hwnd) { return excluded.Contains(W.ProcessName(hwnd)); }

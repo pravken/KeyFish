@@ -144,23 +144,31 @@ static class Dictionaries
 
     public static bool Installed(string lang) { return Dir != null && File.Exists(PathOf(lang)); }
 
-    // The words of an installed dictionary ("word count" lines); nothing if there is none or it can't be read
+    // The words of an installed dictionary ("word count" lines), read as they are used: the whole file was once held in
+    // memory at once, tens of megabytes. Nothing if there is none or it can't be opened; the words up to the damage if
+    // the file breaks off
     public static IEnumerable<string> Lines(string lang)
     {
-        var lines = new List<string>();
-        if (!Installed(lang)) return lines;
+        if (!Installed(lang)) yield break;
+        StreamReader reader = null;
         try
         {
-            using (var file = File.OpenRead(PathOf(lang)))
-            using (var gz = new System.IO.Compression.GZipStream(file, System.IO.Compression.CompressionMode.Decompress))
-            using (var reader = new StreamReader(gz, System.Text.Encoding.UTF8))
+            reader = new StreamReader(new System.IO.Compression.GZipStream(File.OpenRead(PathOf(lang)),
+                                                                          System.IO.Compression.CompressionMode.Decompress), System.Text.Encoding.UTF8);
+        }
+        catch { }
+        if (reader == null) yield break;
+        using (reader)
+        {
+            for (int n = 0; n < 2000000; n++)
             {
                 string line;
-                while ((line = reader.ReadLine()) != null && lines.Count < 2000000) lines.Add(line);
+                try { line = reader.ReadLine(); }
+                catch { line = null; }
+                if (line == null) yield break;
+                yield return line;
             }
         }
-        catch { lines.Clear(); }
-        return lines;
     }
 
     // Downloads the dictionaries of these languages (those the release has); null on success or an error message.

@@ -741,6 +741,7 @@ class SettingsForm : Form
                 if (remove) Dictionaries.Remove(langs);
                 else error = Dictionaries.Download(langs);
                 foreach (string lang in langs) try { Detector.Reload(lang); } catch { }   // KeyFish uses the new words at once
+                Detector.ReturnMemory();
                 try
                 {
                     BeginInvoke(new Action(() =>

@@ -382,6 +382,13 @@ public class LayoutSet
         System.Threading.ThreadPool.QueueUserWorkItem(_ =>
         {
             foreach (string l in langs) { try { Detector.Load(l); } catch { } }
+            Detector.ReturnMemory();
+            ModelsLoaded = DateTime.Now;
+            ModelsLoadedLangs = string.Join(" ", langs);
         });
     }
+
+    // When the language models of the installed layouts were last ready, for the diagnostics log
+    public static DateTime ModelsLoaded;
+    public static string ModelsLoadedLangs = "";
 }

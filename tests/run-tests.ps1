@@ -1,7 +1,9 @@
 ﻿# End-to-end typing tests for KeyFish. They press real keys, so don't touch the keyboard or mouse while they run.
 # Your replacements, word lists and settings are backed up to tests\backup first and restored at the end (or on the next run, if this one is cut short).
-# Usage: powershell -ExecutionPolicy Bypass -File tests\run-tests.ps1 [-Only <name pattern>]   (-Only 'menu*': those alone, no browser tests)
-param([string]$Only)
+# Usage: powershell -ExecutionPolicy Bypass -File tests\run-tests.ps1 [-Only <name pattern>] [-Perf]   (-Only 'menu*': those alone, no browser tests)
+# -Perf: KeyFish writes its diagnostics log during the run, a longer text is typed at the end, and the timings of the
+# keyboard hook, the memory and the processor time of both KeyFish processes are shown
+param([string]$Only, [switch]$Perf)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 # The tests run the build in tests\bin (build.bat with OUT=tests\bin\KeyFish.exe), which keeps its own lists next to it.
@@ -78,6 +80,8 @@ foreach ($f in 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt') { $p
 # QuickKey 1: double Shift; CorrectionTips 2: no first-fix tips over the test windows
 Set-Real ([ordered]@{ Typos = 1; UndoCtrlZ = 1; QuietFullscreen = 1; AutoCorrect = 1; QuickKey = 1; Typography = 1; CorrectionTips = 2; Hotkey6 = 196689; IntroShown = 1 })   # Hotkey6: Ctrl+Shift+Q converts the clipboard
 Get-Process KeyFish -ErrorAction SilentlyContinue | Stop-Process; Start-Sleep -Milliseconds 800
+$debugLog = Join-Path $data 'debug-log.txt'
+if ($Perf) { Set-Content $debugLog '' -Encoding utf8 }
 explorer.exe $app; Start-Sleep 5
 
 try {
@@ -133,10 +137,30 @@ if (-not $Only) { foreach ($b in @(@('browser password', 'pw', 'KFPW', 'KFPW:ghb
   Start-Sleep 1
 } }
 "passed: $pass of $total"
+if ($Perf) {
+  # Processor time of both KeyFish processes while about 400 keys of mixed text are typed (words in the wrong layout
+  # among them), in a plain text box and in a browser field; then the next half-minute summary is waited for
+  function Cpu { $r = @{}; Get-CimInstance Win32_Process -Filter "Name='KeyFish.exe'" | Where-Object ExecutablePath -eq $app | ForEach-Object {
+      $k = if ($_.CommandLine -match '--password-guard') { 'guard' } else { 'main' }; $r[$k] = ($_.KernelModeTime + $_.UserModeTime) / 10000 }; $r }
+  $words = 'hello ~world ~ghbdtn ~vbh ~this ~is ~ckjdj ~a ~ntrcn ~test ~'
+  $c0 = Cpu
+  Start-Process "$bin\Typer.exe" -ArgumentList "`"$bin\out.txt`" `"$($words * 8)~~~~`"" -Wait
+  $c1 = Cpu
+  Start-Process "$bin\BrowserTyper.exe" -ArgumentList "`"$pages/tx.html`" KFTX `"$($words * 8)~~~~`" `"$bin\out.txt`"" -Wait
+  $c2 = Cpu
+  "text box: KeyFish {0:N0} ms, password check {1:N0} ms of processor" -f ($c1.main - $c0.main), ($c1.guard - $c0.guard)
+  "browser:  KeyFish {0:N0} ms, password check {1:N0} ms of processor" -f ($c2.main - $c1.main), ($c2.guard - $c1.guard)
+  $before = (Get-Content $debugLog | Where-Object { $_ -match '  perf: ' }).Count
+  for ($i = 0; $i -lt 40 -and (Get-Content $debugLog | Where-Object { $_ -match '  perf: ' }).Count -eq $before; $i++) { Start-Sleep 1 }
+  Get-Content $debugLog | Where-Object { $_ -match '  (perf|start): ' }
+  Get-Process KeyFish | Where-Object Path -eq $app | ForEach-Object {
+    "{0,-6} private {1:0.0} MB, working set {2:0.0} MB, processor {3:0.0} s" -f $_.Id, ($_.PrivateMemorySize64 / 1MB), ($_.WorkingSet64 / 1MB), $_.TotalProcessorTime.TotalSeconds }
+}
 }
 finally {
+  if ($Perf) { Remove-Item $debugLog -ErrorAction SilentlyContinue }
   # Restore everything and start KeyFish normally again (also when a test fails with an error)
   Restore-Backup
-  explorer.exe (Join-Path $root 'KeyFish.exe')   # the user's own copy again
+  if (Test-Path (Join-Path $root 'KeyFish.exe')) { explorer.exe (Join-Path $root 'KeyFish.exe') }   # the user's own copy again
   "tests finished"
 }

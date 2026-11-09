@@ -233,6 +233,15 @@ public static class Detector
     }
 
 
+    // Building a model reads every line of its word lists into temporary lists and tables, tens of megabytes with an
+    // extended dictionary, while the model itself keeps a few. Collected and compacted at once, that memory goes back
+    // to Windows instead of staying with KeyFish. A fraction of a second, so off the keyboard hook too
+    public static void ReturnMemory()
+    {
+        System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
+        GC.Collect();
+    }
+
     static IEnumerable<string> ReadResource(string name)
     {
         using (var s = Assembly.GetExecutingAssembly().GetManifestResourceStream(name))

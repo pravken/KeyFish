@@ -33,6 +33,10 @@ static class Program
             return;
         }
 
+        // Garbage collection without long pauses of all threads: the keyboard hook's thread is one of them, and every
+        // pause holds up the keys typed in any app
+        System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
+
         bool updated = Array.IndexOf(args, "--updated") >= 0;
         bool created;
         using (var mutex = new Mutex(true, "KeyFish_SingleInstance", out created))
@@ -458,6 +462,7 @@ partial class App : ApplicationContext
         var cleanup = new System.Windows.Forms.Timer { Interval = 60 * 1000 };
         cleanup.Tick += (s, e) => { cleanup.Stop(); cleanup.Dispose(); Updater.CleanUp(); };
         cleanup.Start();
+        KeyboardWatcher.ReadyAt = DateTime.Now;
     }
 
     // Nothing is sent by KeyFish itself: the report opens as a new GitHub issue for the user to read and submit,
