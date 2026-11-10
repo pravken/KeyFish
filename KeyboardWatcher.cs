@@ -328,6 +328,8 @@ class KeyboardWatcher
         try { guard = new PasswordGuardClient(); }
         catch (Exception ex) { CrashLog.Write("the password-field check couldn't start", ex); }   // nothing is corrected then, and the fish is grey
         new Thread(Worker) { IsBackground = true }.Start();
+        // Above the rest of KeyFish: Windows drops a low-level hook that answers too slowly, and a busy computer is
+        // when that happens
         new Thread(() =>
         {
             InstallHooks();
@@ -336,7 +338,7 @@ class KeyboardWatcher
             watchdog.Tick += (s, e) => { try { CheckHooks(); } catch (Exception ex) { CrashLog.Write("error", ex); } };
             watchdog.Start();
             Application.Run();
-        }) { IsBackground = true }.Start();
+        }) { IsBackground = true, Priority = ThreadPriority.Highest }.Start();
     }
 
     void InstallHooks()
@@ -1578,11 +1580,22 @@ static class W
     [DllImport("user32.dll")] public static extern uint MapVirtualKeyEx(uint code, uint mapType, IntPtr hkl);
     [DllImport("user32.dll")] static extern bool PostMessage(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
 
-    // The keyboard layout of the window's thread (HKL)
+    [DllImport("imm32.dll")] static extern IntPtr ImmGetDefaultIMEWnd(IntPtr hwnd);
+
+    // The window with the keyboard focus in this window's thread: a control in a dialog, the app's own window inside a
+    // Store app's frame (its input is joined to the frame's); the window itself when none has it
+    public static IntPtr FocusOf(IntPtr hwnd)
+    {
+        uint pid;
+        var info = new GUITHREADINFO { cbSize = Marshal.SizeOf(typeof(GUITHREADINFO)) };
+        return GetGUIThreadInfo(GetWindowThreadProcessId(hwnd, out pid), ref info) && info.hwndFocus != IntPtr.Zero ? info.hwndFocus : hwnd;
+    }
+
+    // The keyboard layout (HKL) typing goes to in this window: that of the thread whose window has the focus
     public static IntPtr LayoutHkl(IntPtr hwnd)
     {
         uint pid;
-        return GetKeyboardLayout(GetWindowThreadProcessId(hwnd, out pid));
+        return GetKeyboardLayout(GetWindowThreadProcessId(FocusOf(hwnd), out pid));
     }
 
 
@@ -1657,9 +1670,37 @@ static class W
         if (r) { list.Add(Key((ushort)right, 0, 2)); undo.Add(Key((ushort)right, 0, 0)); }
     }
 
+    // Asks the app to switch the layout (WM_INPUTLANGCHANGEREQUEST), through the IME window of the focused control's
+    // thread: it takes the request in dialogs, consoles and Store apps alike, where the top window may ignore it. If the
+    // layout hasn't changed a tenth of a second later, the window itself is asked as well. The check waits on the thread
+    // pool: callers, the keyboard hook among them, never wait
+    // The second request is only made for the latest switch, in the same window, and while nobody else changed the layout
+    static int switchSerial;
+
     public static void SwitchLayout(IntPtr hwnd, IntPtr hkl)
     {
-        if (hkl != IntPtr.Zero) PostMessage(hwnd, 0x0050, IntPtr.Zero, hkl); // WM_INPUTLANGCHANGEREQUEST
+        if (hkl == IntPtr.Zero) return;
+        IntPtr before = LayoutHkl(hwnd);
+        if (before == hkl) return;
+        int my = Interlocked.Increment(ref switchSerial);
+        IntPtr ime = ImmGetDefaultIMEWnd(FocusOf(hwnd));
+        if (ime == IntPtr.Zero || !PostMessage(ime, 0x0050, IntPtr.Zero, hkl))
+        {
+            PostMessage(hwnd, 0x0050, IntPtr.Zero, hkl);
+            return;
+        }
+        ThreadPool.QueueUserWorkItem(_ =>
+        {
+            for (int i = 0; i < 10; i++)
+            {
+                Thread.Sleep(10);
+                IntPtr now = LayoutHkl(hwnd);
+                if (now == hkl) return;
+                if (now != before) return;   // the user switched to another one meanwhile
+            }
+            if (switchSerial != my || GetForegroundWindow() != hwnd) return;
+            PostMessage(hwnd, 0x0050, IntPtr.Zero, hkl);
+        });
     }
 }
 
