@@ -59,18 +59,18 @@ KeyFish is free and open source.
 
 **Product features**
 
-1. Fixes words typed in the wrong layout as you type
+1. Fixes words typed in the wrong layout as you type, often before the word is finished
 2. Fixes accidental Caps Lock and two capital letters at the start of a word
 3. Pause undoes a correction or switches the layout of the selected text
 4. A menu of actions on the selected text: case, layout, transliteration, typos, quotes, line sorting, calculation
 5. Paste without formatting with Ctrl+Shift+V
-6. Text replacements: an abbreviation and a space expand into your text
-7. A layout per app: KeyFish switches the layout when you go to the app
+6. Text replacements: an abbreviation and a space expand into your text, with the date, the time or the clipboard if you like
+7. A layout and a mode per app: KeyFish switches the layout when you go to the app, and can keep only the hotkeys or stay off there; rules by window title too
 8. Remembers words you undo and learns from words you fix yourself
 9. Never corrects in password fields; stays quiet in games and full-screen apps
 10. Statistics of corrections, computed from counters only
 11. Interface in English, Russian, Ukrainian, Belarusian, German, Polish, Serbian, French and Spanish
-12. Light and dark themes
+12. Light and dark themes, interface size from 100 to 200 %
 
 **Search terms**
 
@@ -104,18 +104,18 @@ KeyFish бесплатна, исходный код открыт.
 
 **Возможности**
 
-1. Исправляет слова, набранные не в той раскладке, прямо при наборе
+1. Исправляет слова, набранные не в той раскладке, прямо при наборе, часто ещё до конца слова
 2. Исправляет случайно включённый Caps Lock и две заглавные буквы в начале слова
 3. Pause отменяет исправление или меняет раскладку выделенного текста
 4. Меню действий с выделенным текстом: регистр, раскладка, транслитерация, опечатки, кавычки, сортировка строк, вычисление
 5. Вставка без форматирования по Ctrl+Shift+V
-6. Автозамены: сокращение и пробел превращаются в ваш текст
-7. Раскладка для каждой программы: KeyFish переключает её при переходе в программу
+6. Автозамены: сокращение и пробел превращаются в ваш текст, по желанию с датой, временем или содержимым буфера обмена
+7. Раскладка и режим для каждой программы: KeyFish переключает раскладку при переходе в программу, а где нужно, оставляет только горячие клавиши или не работает; правила и по заголовку окна
 8. Запоминает отменённые слова и учится на словах, которые вы исправили сами
 9. Никогда не исправляет в полях пароля, не мешает в играх и полноэкранных программах
 10. Статистика исправлений, только по счётчикам
 11. Интерфейс на русском, английском, украинском, белорусском, немецком, польском, сербском, французском и испанском
-12. Светлая и тёмная темы
+12. Светлая и тёмная темы, размер интерфейса от 100 до 200 %
 
 **Ключевые слова**
 
