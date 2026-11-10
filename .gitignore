@@ -7,6 +7,7 @@ ignored-words.txt
 replacements.txt
 learned-words.txt
 app-layouts.txt
+no-auto-layouts.txt
 
 # Test outputs
 tests/bin/
