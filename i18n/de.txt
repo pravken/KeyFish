@@ -201,7 +201,7 @@ Sound signals when text is corrected or changed. A sound can be chosen or turned
 Play: {0}	Abspielen: {0}
 Sounds folder	Ordner für Töne
 Appearance	Darstellung
-Window colors, the notification area icon and the correction sound. Changes apply immediately.	Fensterfarben, das Symbol im Infobereich und der Korrekturton. Änderungen werden sofort übernommen.
+Window colors, the notification area icon and the correction sound.	Fensterfarben, das Symbol im Infobereich und der Korrekturton.
 Preview	Vorschau
 High contrast mode is on: KeyFish windows use system colors, and the theme does not apply.	Der Modus „Hoher Kontrast“ ist aktiv: KeyFish-Fenster verwenden Systemfarben, das Design wird nicht angewendet.
 Themed icon	Symbol im Stil des Designs
@@ -286,3 +286,7 @@ All counters are set to zero, and counting starts again from today.	Alle Zähler
 no data	keine Daten
 Do not correct in {0}	In {0} nicht korrigieren
 KeyFish's autostart is turned off in Task Manager. Turn it on there: Startup apps, KeyFish, Enable.	Der Autostart von KeyFish ist im Task-Manager deaktiviert. Aktivieren Sie ihn dort: Autostart-Apps, KeyFish, Aktivieren.
+As in Windows	Wie in Windows
+Interface size	Größe der Oberfläche
+The size of KeyFish's windows, text and icons.	Die Größe der Fenster, Texte und Symbole von KeyFish.
+Windows	Fenster

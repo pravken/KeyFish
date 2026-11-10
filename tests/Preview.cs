@@ -111,6 +111,9 @@ static class Preview
                 Theme.Skin = Skin.Find(a == "halloween" ? 1 : int.Parse(a.Substring(5)));
                 if (!Theme.Skin.Accent.IsEmpty) Theme.Accent = Theme.Skin.Accent;
             }
+        // "accent=RRGGBB": that accent color instead of the one Windows has (screenshots for the Store)
+        foreach (string a in args)
+            if (a.StartsWith("accent=")) Theme.Accent = Color.FromArgb(unchecked((int)0xFF000000) | Convert.ToInt32(a.Substring(7), 16));
         // "nologo": the look without its fish (Settings → The fish in the look's style off)
         if (Array.IndexOf(args, "nologo") >= 0) Theme.SkinLogo = false;
         if (args[0] == "icons") { Icons(args[1]); return; }
@@ -190,6 +193,9 @@ static class Preview
             };
         }
         else form = new AboutForm("2.0.0\n• Новое\n\n1.8.3\n• Старое\n", LayoutTable.Installed(), FakeUpdates(args));
+        // "height=N": a taller window, so that a page ends between its cards instead of cutting one (Store screenshots)
+        foreach (string a in args)
+            if (a.StartsWith("height=")) form.Height = int.Parse(a.Substring(7));
         string outPath = args[args[0] == "settings" ? 2 : 1];
         int at = 3200; foreach (string a in args) if (a.StartsWith("at=")) at = int.Parse(a.Substring(3));   // aquarium: when to take the shot, ms
         var timer = new Timer { Interval = args[0] == "aquarium" || Array.Exists(args, x => x.StartsWith("at=")) ? at : 700 };
@@ -215,6 +221,20 @@ static class Preview
                         if (sp != null && sp.AutoScroll && c != form && c.Visible) { sp.AutoScrollPosition = new Point(0, int.Parse(arg.Substring(7))); break; }
                         foreach (Control child in c.Controls) stack.Push(child);
                     }
+                }
+            // "rescale=N": the interface size changed to N % while the window is open, as Settings → Appearance does
+            foreach (string arg in args)
+                if (arg.StartsWith("rescale=") && form is SettingsForm)
+                {
+                    var sf = (SettingsForm)form;
+                    var later = new Timer { Interval = 300 };
+                    later.Tick += (s2, e2) =>
+                    {
+                        later.Stop();
+                        Theme.SetScale(int.Parse(arg.Substring(8)));
+                        typeof(SettingsForm).GetMethod("Rebuild", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(sf, new object[] { true });
+                    };
+                    later.Start();
                 }
             // "fury": the sidebar fish beats its tail as after five clicks
             if (Array.IndexOf(args, "fury") >= 0)

@@ -52,41 +52,45 @@ class Skin
         TintTray = true, Hat = true, Bats = true, Night = true, Sound = "ghost",
     };
 
-    // The user's own: an accent color and a fish color, and the windows take a hint of the accent (Paint)
-    public static readonly Color DefaultAccent = Color.FromArgb(0, 128, 120), DefaultFish = Color.FromArgb(30, 150, 136);
+    // The user's own: an accent color (switches, buttons, the selection and the fish) and a color the windows lean to (Paint)
+    public static readonly Color DefaultAccent = Color.FromArgb(0, 128, 120), DefaultWindow = Color.FromArgb(0, 128, 120);
+    public Color Window;                  // the custom look's window color
     static Skin custom;
-    public static Skin Custom { get { return custom ?? (custom = Make(DefaultAccent, DefaultFish)); } }
+    public static Skin Custom { get { return custom ?? (custom = Make(DefaultAccent, DefaultWindow)); } }
 
     static Skin[] all;
     public static Skin[] All { get { return all ?? (all = new[] { Classic, Halloween, Custom }); } }
 
     // A custom skin with these colors: for Settings to show one before it is saved
-    public static Skin Make(Color accent, Color fish)
+    public static Skin Make(Color accent, Color window)
     {
         var s = new Skin { Number = 2, NameRu = "Своя тема", NameEn = "Custom theme", TintTray = true, Other = Color.FromArgb(232, 112, 30) };
-        Paint(s, accent, fish);
+        Paint(s, accent, window);
         return s;
     }
 
     // The colors of the custom skin in use, from the settings
-    public static void SetCustom(Color accent, Color fish) { Paint(Custom, accent, fish); }
+    public static void SetCustom(Color accent, Color window) { Paint(Custom, accent, window); }
 
-    static void Paint(Skin s, Color accent, Color fish)
+    static void Paint(Skin s, Color accent, Color window)
     {
         if (accent.IsEmpty || accent.A == 0) accent = DefaultAccent;
-        if (fish.IsEmpty || fish.A == 0) fish = DefaultFish;
+        if (window.IsEmpty || window.A == 0) window = DefaultWindow;
         accent = Color.FromArgb(255, accent);
-        fish = Color.FromArgb(255, fish);
+        window = Color.FromArgb(255, window);
         s.Accent = accent;
-        s.DiscCenter = Mix(fish, Color.White, 0.3);
-        s.DiscEdge = Mix(fish, Color.Black, 0.3);
-        s.Latin = fish;
-        // The classic colors with a little of the accent: more in the dark theme, where it shows less
+        s.Window = window;
+        // The fish in the accent too: the logo's disc and the tray icon
+        s.DiscCenter = Mix(accent, Color.White, 0.3);
+        s.DiscEdge = Mix(accent, Color.Black, 0.3);
+        s.Latin = accent;
+        // The classic colors leaning to the window color: enough to be seen, not so much that text reads worse;
+        // more in the dark theme, where a color shows less
         var l = ClassicLight; var d = ClassicDark;
-        s.Light = new Palette(Mix(l.Back, accent, 0.04), Mix(l.Card, accent, 0.025), Mix(l.CardBorder, accent, 0.06), l.Input,
-                              Mix(l.InputBorder, accent, 0.08), Mix(l.Hover, accent, 0.07), Mix(l.Selected, accent, 0.1));
-        s.Dark = new Palette(Mix(d.Back, accent, 0.07), Mix(d.Card, accent, 0.07), Mix(d.CardBorder, accent, 0.05), Mix(d.Input, accent, 0.07),
-                             Mix(d.InputBorder, accent, 0.15), Mix(d.Hover, accent, 0.12), Mix(d.Selected, accent, 0.16));
+        s.Light = new Palette(Mix(l.Back, window, 0.12), Mix(l.Card, window, 0.06), Mix(l.CardBorder, window, 0.12), l.Input,
+                              Mix(l.InputBorder, window, 0.15), Mix(l.Hover, window, 0.14), Mix(l.Selected, window, 0.2));
+        s.Dark = new Palette(Mix(d.Back, window, 0.16), Mix(d.Card, window, 0.14), Mix(d.CardBorder, window, 0.1), Mix(d.Input, window, 0.12),
+                             Mix(d.InputBorder, window, 0.25), Mix(d.Hover, window, 0.2), Mix(d.Selected, window, 0.26));
     }
 
     static Color Mix(Color a, Color b, double t)

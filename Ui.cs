@@ -69,9 +69,31 @@ static class Theme
 
     // The screen's scale (125 % → 1.25). Windows are laid out in 96-DPI pixels and scaled by this once, when built
     // (ScaleWindow); fonts are in points and grow with the screen by themselves.
-    // KEYFISH_UI_SCALE=1.5 shows the windows as on a 150 % screen, to check layouts on a 100 % one (fonts grow too)
-    public static readonly float Scale = ReadScale();
-    static readonly float FontBoost = Scale / ScreenScale();
+    // KEYFISH_UI_SCALE=1.5 shows the windows as on a 150 % screen, to check layouts on a 100 % one (fonts grow too).
+    // The Interface size setting (Settings → Appearance, UiScale in percent) does the same for the user. Windows
+    // already open keep their size: a changed size applies to those opened after it (SetScale)
+    public static float Scale = ReadScale();
+    public static float FontBoost = Scale / ScreenScale();
+
+    // The Interface size chosen in Settings, in percent (0: as Windows has it): new fonts, and the windows opened
+    // from now on are laid out at it
+    public static void SetScale(int percent)
+    {
+        Scale = percent >= 100 && percent <= 200 ? percent / 100f : ScreenScale();
+        FontBoost = Scale / ScreenScale();
+        MakeFonts();
+        iconFonts.Clear();
+        Pictures.ResetFonts();
+    }
+
+    static void MakeFonts()
+    {
+        Body = new Font(Regular, 10.5f * FontBoost);
+        Small = new Font(Regular, 9f * FontBoost);
+        Strong = new Font(Semibold, 10.5f * FontBoost);
+        Title = new Font(Semibold, 20f * FontBoost);
+        Section = new Font(Semibold, 11f * FontBoost);
+    }
 
     static float ScreenScale()
     {
@@ -85,6 +107,15 @@ static class Theme
         string env = Environment.GetEnvironmentVariable("KEYFISH_UI_SCALE");
         if (env != null && float.TryParse(env, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out forced) && forced >= 1 && forced <= 3)
             return forced;
+        try
+        {
+            using (var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\KeyFish"))
+            {
+                object v = k == null ? null : k.GetValue("UiScale");
+                if (v is int && (int)v >= 100 && (int)v <= 200) return (int)v / 100f;
+            }
+        }
+        catch { }
         return ScreenScale();
     }
 
@@ -102,19 +133,21 @@ static class Theme
     static readonly bool Variable = HasFont("Segoe UI Variable Text") && HasFont("Segoe UI Variable Text Semibold");
     static readonly string Regular = Variable ? "Segoe UI Variable Text" : "Segoe UI";
     static readonly string Semibold = Variable ? "Segoe UI Variable Text Semibold" : "Segoe UI Semibold";
-    public static readonly Font Body = new Font(Regular, 10.5f * FontBoost);
-    public static readonly Font Small = new Font(Regular, 9f * FontBoost);
-    public static readonly Font Strong = new Font(Semibold, 10.5f * FontBoost);
-    public static readonly Font Title = new Font(Semibold, 20f * FontBoost);
-    public static readonly Font Section = new Font(Semibold, 11f * FontBoost);
+    // Made again when the interface size changes (SetScale); the old ones stay with the windows that use them
+    public static Font Body = new Font(Regular, 10.5f * FontBoost);
+    public static Font Small = new Font(Regular, 9f * FontBoost);
+    public static Font Strong = new Font(Semibold, 10.5f * FontBoost);
+    public static Font Title = new Font(Semibold, 20f * FontBoost);
+    public static Font Section = new Font(Semibold, 11f * FontBoost);
     public static readonly string IconFontName = HasFont("Segoe Fluent Icons") ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
 
-    // The icon font at a size, made once and kept for the life of KeyFish (a few sizes in all)
+    // The icon font at a size, made once and kept for the life of KeyFish (a few sizes in all). It grows with the
+    // interface scale like the text fonts above
     static readonly System.Collections.Generic.Dictionary<float, Font> iconFonts = new System.Collections.Generic.Dictionary<float, Font>();
     public static Font IconFont(float size)
     {
         Font f;
-        if (!iconFonts.TryGetValue(size, out f)) iconFonts[size] = f = new Font(IconFontName, size);
+        if (!iconFonts.TryGetValue(size, out f)) iconFonts[size] = f = new Font(IconFontName, size * FontBoost);
         return f;
     }
 
@@ -694,7 +727,7 @@ class RoundButton : Control
             return;
         }
         {
-            var icon = Theme.IconFont(Font.SizeInPoints);
+            var icon = Theme.IconFont(Font.SizeInPoints / Theme.FontBoost);   // the button's font has grown already
             // The icon is smoothed the same way as the text, not with ClearType's colored edges
             SizeF iconSize = g.MeasureString(Glyph, icon);
             SizeF textSize = g.MeasureString(Text, font);
@@ -799,8 +832,9 @@ class NavList : Control
             if (i == selected || i == hover)
                 using (var path = Theme.Rounded(r, 4))
                 using (var b = new SolidBrush(i == selected ? Theme.Selected : Theme.Hover)) g.FillPath(b, path);
+            // The marker inside the highlight, clear of its rounded corner, as in Windows 11
             if (i == selected)
-                using (var path = Theme.Rounded(new RectangleF(r.X, r.Y + r.Height / 2 - 8, 3, 16), 1.5f))
+                using (var path = Theme.Rounded(new RectangleF(r.X + Theme.S(3), r.Y + r.Height / 2 - Theme.S(8), Theme.S(3), Theme.S(16)), Theme.S(3) / 2f))
                 using (var b = new SolidBrush(Theme.AccentFill)) g.FillPath(b, path);
             Color under = i == selected ? Theme.Selected : i == hover ? Theme.Hover : BackColor;
             Color ink = i == selected ? Theme.OnSelected : Theme.Text;
@@ -1428,6 +1462,7 @@ class FeaturePreview : Control
 static class Pictures
 {
     static Font font, keyFont;
+    public static void ResetFonts() { font = keyFont = null; }   // the interface size changed
     static Font Font { get { return font ?? (font = new Font(Theme.Small.FontFamily, Theme.Small.Size * 0.95f)); } }
     static Font KeyFont { get { return keyFont ?? (keyFont = new Font(Theme.Small.FontFamily, Theme.Small.Size * 0.85f)); } }
 

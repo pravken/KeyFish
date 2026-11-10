@@ -329,7 +329,7 @@ partial class App : ApplicationContext
         DateTime.TryParseExact(GetSetting("HolidayDeclined", 0).ToString(), "yyyyMMdd", null, System.Globalization.DateTimeStyles.None, out Theme.Declined);
         Theme.SkinLogo = GetSetting("SkinLogo", 1) != 0;
         Theme.SkinSound = GetSetting("SkinSound", 1) != 0;
-        Skin.SetCustom(Color.FromArgb(GetSetting("CustomAccent", 0)), Color.FromArgb(GetSetting("CustomFish", 0)));
+        Skin.SetCustom(Color.FromArgb(GetSetting("CustomAccent", 0)), Color.FromArgb(GetSetting("CustomWindow", 0)));
         Theme.Refresh();
         statsBase = GetSetting("StatsTotal", 0);
         if (GetSetting("StatsSince", 0) == 0) SetSetting("StatsSince", int.Parse(DateTime.Today.ToString("yyyyMMdd")));
@@ -573,7 +573,7 @@ partial class App : ApplicationContext
             StatsDaysSince = GetSetting("StatsDaysSince", DayKey(DateTime.Today)), ResetStats = ResetStats,
             OpenAbout = owner => ShowAbout(owner), Updates = Packaged.Yes ? null : updates,
             BackupDir = backupDir, TrayLetters = trayLetters, LayoutColors = new Dictionary<string, Color>(layoutColors, StringComparer.OrdinalIgnoreCase), AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, SoundMap = new Dictionary<string, string>(Sounds.Map), SoundsDir = Sounds.Dir, RecentMenu = watcher.KeepRecent, Typography = watcher.Typography, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
-            CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting, ThemeMode = Theme.Mode, SkinNumber = shownSkin, Holiday = Theme.Holidays, SkinLogo = Theme.SkinLogo, SkinSound = Theme.SkinSound, CustomAccent = Skin.Custom.Accent, CustomFish = Skin.Custom.Latin,
+            CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting, UiScale = GetSetting("UiScale", 0), ThemeMode = Theme.Mode, SkinNumber = shownSkin, Holiday = Theme.Holidays, SkinLogo = Theme.SkinLogo, SkinSound = Theme.SkinSound, CustomAccent = Skin.Custom.Accent, CustomWindow = Skin.Custom.Window,
             Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ignored, Learned = learned,
             AppLayouts = ReadText(appLayoutsPath), InstalledLayouts = new List<LayoutTable>(watcher.Layouts.All)
         };
@@ -616,6 +616,14 @@ partial class App : ApplicationContext
         LoadAppLayouts();
         watcher.ReloadSoon();
         bool themeChanged = ApplyLook(f, shownSkin);
+        if (f.UiScale != GetSetting("UiScale", 0))
+        {
+            SetSetting("UiScale", f.UiScale);
+            // At once: the fonts and the menu are made at the new size, and Settings is built again at it
+            Theme.SetScale(f.UiScale);
+            RebuildMenu();
+            themeChanged = true;
+        }
         if (f.Language == L.Setting) return themeChanged;
         L.Setting = f.Language;
         SetSetting("Language", f.Language);
@@ -647,12 +655,12 @@ partial class App : ApplicationContext
             }
             if (Theme.Refresh()) themeChanged = true;
         }
-        Color accent = f.CustomAccent, fish = f.CustomFish;
-        if (accent.ToArgb() != Skin.Custom.Accent.ToArgb() || fish.ToArgb() != Skin.Custom.Latin.ToArgb())
+        Color accent = f.CustomAccent, window = f.CustomWindow;
+        if (accent.ToArgb() != Skin.Custom.Accent.ToArgb() || window.ToArgb() != Skin.Custom.Window.ToArgb())
         {
             SetSetting("CustomAccent", accent.ToArgb());
-            SetSetting("CustomFish", fish.ToArgb());
-            Skin.SetCustom(accent, fish);
+            SetSetting("CustomWindow", window.ToArgb());
+            Skin.SetCustom(accent, window);
             Theme.Refresh();
             themeChanged = true;
         }

@@ -360,8 +360,8 @@ static class UnitTests
         True("numbers are unique", Skin.All.Select(k => k.Number).Distinct().Count() == Skin.All.Length);
         var custom = Skin.Make(Color.FromArgb(200, 30, 60), Color.FromArgb(20, 160, 90));
         Is("custom accent", custom.Accent.ToArgb(), Color.FromArgb(200, 30, 60).ToArgb());
-        Is("custom fish in the tray", custom.Latin.ToArgb(), Color.FromArgb(20, 160, 90).ToArgb());
-        True("custom dark leans to the accent", custom.Dark.Back.R > Skin.Classic.Dark.Back.R && custom.Dark.Back.B <= Skin.Classic.Dark.Back.B + 2);
+        Is("the custom fish in the tray takes the accent", custom.Latin.ToArgb(), Color.FromArgb(200, 30, 60).ToArgb());
+        True("custom dark leans to the window color", custom.Dark.Back.G > Skin.Classic.Dark.Back.G && custom.Dark.Back.R <= Skin.Classic.Dark.Back.R + 2);
         Is("no colors chosen: the defaults", Skin.Make(Color.Empty, Color.Empty).Accent.ToArgb(), Skin.DefaultAccent.ToArgb());
         Is("the custom look by number", Skin.Find(2), Skin.Custom);
     }

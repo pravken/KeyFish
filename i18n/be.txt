@@ -200,7 +200,7 @@ Sound signals when text is corrected or changed. A sound can be chosen or turned
 Play: {0}	Праслухаць: {0}
 Sounds folder	Папка гукаў
 Appearance	Афармленне
-Window colors, the notification area icon and the correction sound. Changes apply immediately.	Каляровая схема вокнаў, значок у вобласці апавяшчэнняў і гук выпраўлення. Змены ўжываюцца адразу.
+Window colors, the notification area icon and the correction sound.	Каляровая схема вокнаў, значок у вобласці апавяшчэнняў і гук выпраўлення.
 Preview	Папярэдні прагляд
 High contrast mode is on: KeyFish windows use system colors, and the theme does not apply.	Уключаны рэжым высокай кантраснасці: вокны KeyFish выкарыстоўваюць сістэмныя колеры, тэма не ўжываецца.
 Themed icon	Значок у стылі тэмы
@@ -286,3 +286,7 @@ All counters are set to zero, and counting starts again from today.	Усе лі�
 no data	няма даных
 Do not correct in {0}	Не выпраўляць у праграме {0}
 KeyFish's autostart is turned off in Task Manager. Turn it on there: Startup apps, KeyFish, Enable.	Аўтазапуск KeyFish выключаны ў дыспетчары задач. Уключыце яго там: укладка «Аўтазагрузка», KeyFish, «Уключыць».
+As in Windows	Як у Windows
+Interface size	Памер інтэрфейсу
+The size of KeyFish's windows, text and icons.	Памер вокнаў, тэксту і значкоў KeyFish.
+Windows	Вокны

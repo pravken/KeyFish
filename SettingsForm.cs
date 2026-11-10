@@ -17,11 +17,14 @@ class SettingsForm : Form
     public UpdateInfo Updates;               // the update status and how to check or install
     public int QuickKey;                 // 0 — off, 1 — double Shift, 2 — Caps Lock
     public int Language;                 // see L.Choices
+    public int UiScale;                  // the interface size in percent; 0 — as Windows has it (see Theme.Scale)
+    public static readonly int[] ScaleChoices = { 0, 100, 125, 150, 175, 200 };
+    int[] scaleShown = ScaleChoices;
     public int ThemeMode;                // see Theme.Mode
     public int SkinNumber;               // the look chosen (Skin.Number)
     public bool Holiday = true;          // a holiday's own look while the holiday lasts
     public bool SkinLogo = true, SkinSound = true;   // the look changes the fish and the sound too
-    public Color CustomAccent = Skin.DefaultAccent, CustomFish = Skin.DefaultFish;   // the colors of the custom look
+    public Color CustomAccent = Skin.DefaultAccent, CustomWindow = Skin.DefaultWindow;   // the colors of the custom look
     public Dictionary<string, string> SoundMap = new Dictionary<string, string>();   // event → sound (Sounds)
     public string SoundsDir;             // where the user's .wav files are
     public Keys[] Hotkeys;
@@ -55,11 +58,12 @@ class SettingsForm : Form
     // Importing settings: KeyFish keeps a copy of the current ones first, whatever was changed before in the window
     public bool Replacing { get; private set; }
     Size baseSize;         // the window's size in 96-DPI pixels, to build it again
+    float builtScale;      // the interface size the window was laid out at
     NavList nav;
     Panel content;
 
     ToggleSwitch tAuto, tTypos, tQuiet, tCtrlZ, tColor, tAutostart, tUpdates, tBadge, tRecent, tSound, tLetters, tTypography;
-    DropDown cbLanguage, cbTheme, cbQuickKey;
+    DropDown cbLanguage, cbScale, cbTheme, cbQuickKey;
     ToggleSwitch tHoliday, tSkinLogo, tSkinSound;
     SkinGallery gallery;
     DropDown[] soundBoxes;
@@ -101,6 +105,7 @@ class SettingsForm : Form
         Build();
         building = false;
         Theme.ScaleWindow(this);   // built in 96-DPI pixels, now sized for this screen
+        builtScale = Theme.Scale;
         CenterToScreen();
         ResumeLayout();
         Shown += (s, ev) => PlayPictures();   // only now is the window on screen to be seen
@@ -276,20 +281,42 @@ class SettingsForm : Form
         pages.Clear();
         Text = L.T("Настройки KeyFish", "KeyFish settings");
         Theme.Recolor(this);
+        // A new interface size: the window is built at its 96-DPI size again and scaled whole, as when it opened
+        bool resized = Math.Abs(Theme.Scale - builtScale) > 0.001f;
+        float scaleBefore = builtScale;
+        Point center = new Point(Left + Width / 2, Top + Height / 2);
+        if (resized) ClientSize = baseSize;
         building = true;
         Build();
         replKey.Text = texts[0]; replVal.Text = texts[1]; appName.Text = texts[2]; wordInputs[0].Text = texts[3]; wordInputs[1].Text = texts[4];
         appLayout.SelectedIndex = layout;
         appFix.Checked = fix;
         building = false;
-        // Only the new controls are scaled: the window keeps its size and place, no jump to 96-DPI size and back
-        if (Math.Abs(Theme.Scale - 1) > 0.01f)
+        if (resized)
+        {
+            Theme.ScaleWindow(this);
+            builtScale = Theme.Scale;
+            // Around the same middle, and all of it on the screen
+            var area = Screen.FromPoint(center).WorkingArea;
+            Location = new Point(Math.Max(area.Left, Math.Min(center.X - Width / 2, area.Right - Width)),
+                                 Math.Max(area.Top, Math.Min(center.Y - Height / 2, area.Bottom - Height)));
+        }
+        // Otherwise only the new controls are scaled: the window keeps its size and place, no jump to 96-DPI size and back
+        else if (Math.Abs(Theme.Scale - 1) > 0.01f)
             foreach (Control c in Controls) c.Scale(new SizeF(Theme.Scale, Theme.Scale));
         ResumeLayout();
         pages[nav.Selected].AutoScrollPosition = new Point(0, scroll);
         // The window's own active control, not Focus(): it takes effect even while another window is in front
         var again = At(focus);
         if (again != null) ActiveControl = again;
+        // Scaled whole, the page settles its layout afterwards and would stay scrolled wherever that left it:
+        // the same place is set again once it has, in the new size's pixels
+        if (resized)
+        {
+            var shown = pages[nav.Selected];
+            int at = (int)Math.Round(scroll * Theme.Scale / scaleBefore);
+            BeginInvoke(new Action(() => { if (!shown.IsDisposed) shown.AutoScrollPosition = new Point(0, at); }));
+        }
         PlayPictures();
         // Everything in the window is applied now; in another language the files' header comments read
         // differently, which is no change to apply
@@ -324,7 +351,7 @@ class SettingsForm : Form
 
     // All the settings in one string: the same values and files an export has, and autostart. Not the look's: those
     // apply as soon as they are picked
-    static readonly string[] LookValues = { "Theme", "Holiday", "Skin", "SkinLogo", "SkinSound", "CustomAccent", "CustomFish" };
+    static readonly string[] LookValues = { "Theme", "Holiday", "Skin", "SkinLogo", "SkinSound", "CustomAccent", "CustomWindow" };
     string Snapshot()
     {
         var sb = new StringBuilder(Autostart ? "1" : "0");
@@ -493,30 +520,29 @@ class SettingsForm : Form
         }
     }
 
-    // The look: light or dark, the gallery of looks, a big moving picture of the chosen one as it will be, and what it
-    // changes besides the colors. The pictures follow the choices at once, and the sound can be listened to before saving
+    // The look, one card per choice as in Windows Settings: light or dark; the gallery of looks, with the custom
+    // one's colors under it while it is chosen; and what a look changes besides the colors, one switch each. A choice
+    // applies to this window at once, which is the preview
     void LooksCard(Control page, ref int y)
     {
-        const int pad = 18, bigW = 260, bigH = 156;
-        var card = new Card { Location = new Point(16, y), Width = ContentWidth };
+        const int pad = 18;
         cbTheme = new DropDown { Size = new Size(170, 34) };
         cbTheme.Items.AddRange(new[] { L.T("Системный", "System default"), L.T("Светлый", "Light"), L.T("Тёмный", "Dark") });
         cbTheme.SelectedIndex = Math.Max(0, Math.Min(ThemeMode, 2));
-        cbTheme.AccessibleName = L.T("Цветовой режим", "Color mode");
-        cbTheme.Location = new Point(ContentWidth - pad - cbTheme.Width, 16);
+        Row(page, ref y, L.T("Цветовой режим", "Color mode"), null, cbTheme);
+        // The pictures in the light or dark theme as chosen here: as in Windows, light, dark
+        Func<bool> dark = () => cbTheme.SelectedIndex == 0 ? Theme.WindowsDark() : cbTheme.SelectedIndex == 2;
+
+        var card = new Card { Location = new Point(16, y), Width = ContentWidth };
         string title = L.T("Тема", "Theme");
-        int textW = ContentWidth - pad * 3 - cbTheme.Width;
-        var t = Theme.Wrapped(title, textW);
+        var t = Theme.Wrapped(title, ContentWidth - pad * 2);
         t.Location = new Point(pad, 14);
-        var d = Theme.Wrapped(L.T("Цветовая схема окон, значок в области уведомлений и звук исправления. Изменения применяются сразу.",
-                                  "Window colors, the notification area icon and the correction sound. Changes apply immediately."), textW, Theme.Small, Theme.SubText);
+        var d = Theme.Wrapped(L.T("Цвета окон, значок в области уведомлений и звук исправления.",
+                                  "Window colors, the notification area icon and the correction sound."), ContentWidth - pad * 2, Theme.Small, Theme.SubText);
         d.Location = new Point(pad, t.Bottom + 1);
         card.Controls.Add(t);
         card.Controls.Add(d);
-        card.Controls.Add(cbTheme);
-        // The pictures in the light or dark theme as chosen here: as in Windows, light, dark
-        Func<bool> dark = () => cbTheme.SelectedIndex == 0 ? Theme.WindowsDark() : cbTheme.SelectedIndex == 2;
-        int top = Math.Max(d.Bottom, cbTheme.Bottom) + 12;
+        int top = d.Bottom + 12;
         // In high contrast the windows take the system's colors and no look applies: say so instead of offering one
         if (Theme.Contrast)
         {
@@ -527,93 +553,77 @@ class SettingsForm : Form
             top = note.Bottom + 10;
         }
         gallery = new SkinGallery(ContentWidth - pad * 2) { Location = new Point(pad, top), Selected = SkinNumber, Logo = SkinLogo, Dark = dark(), AccessibleName = title };
-        gallery.CustomSkin = Skin.Make(CustomAccent, CustomFish);
+        gallery.CustomSkin = Skin.Make(CustomAccent, CustomWindow);
         card.Controls.Add(gallery);
         top = gallery.Bottom + 12;
 
-        // The colors of "Custom": choosing one shows it in the pictures and picks that look
-        string colorsText = L.T("Цвета своей темы:", "Custom theme colors:");
-        var colorsLabel = Theme.Wrapped(colorsText, TextRenderer.MeasureText(colorsText, Theme.Body).Width + 8);
-        colorsLabel.Location = new Point(pad, top + (34 - colorsLabel.Height) / 2);
-        card.Controls.Add(colorsLabel);
-        int sx = pad + colorsLabel.Width + 12;
+        // The colors of "Custom", only while it is chosen (picking it builds the window again in its colors):
+        // choosing one shows it at once
         var swatches = new List<ColorSwatch>();
-        Action<string, Color, Color> swatch = (name, value, fallback) =>
+        if (SkinNumber == Skin.Custom.Number)
         {
-            var label = Theme.Wrapped(name, TextRenderer.MeasureText(name, Theme.Small).Width + 8, Theme.Small, Theme.SubText);
-            var sw = new ColorSwatch { Letters = "", Color = value, Location = new Point(sx, top), AccessibleName = L.F("{0}: цвет своей темы", "{0}: custom theme color", name) };
-            label.Location = new Point(sx + sw.Width + 6, top + (34 - label.Height) / 2);
-            sw.Click += (s, e) => ColorPicker.Show(sw, sw.Color, c =>
+            string colorsText = L.T("Цвета своей темы:", "Custom theme colors:");
+            var colorsLabel = Theme.Wrapped(colorsText, TextRenderer.MeasureText(colorsText, Theme.Body).Width + 8);
+            colorsLabel.Location = new Point(pad, top + (34 - colorsLabel.Height) / 2);
+            card.Controls.Add(colorsLabel);
+            int sx = pad + colorsLabel.Width + 12;
+            Action<string, Color, Color> swatch = (name, value, fallback) =>
             {
-                sw.Color = c ?? fallback;
-                sw.Invalidate();
-                CustomAccent = swatches[0].Color;
-                CustomFish = swatches[1].Color;
-                gallery.CustomSkin = Skin.Make(CustomAccent, CustomFish);
-                gallery.Selected = Skin.Custom.Number;
-                Invalidate(true);
-                LookChanged();
-            });
-            swatches.Add(sw);
-            card.Controls.Add(sw);
-            card.Controls.Add(label);
-            sx = label.Right + 18;
-        };
-        swatch(L.T("Акцент", "Accent"), CustomAccent, Skin.DefaultAccent);
-        swatch(L.T("Значок", "Icon"), CustomFish, Skin.DefaultFish);
-        top += 34 + 18;
+                var label = Theme.Wrapped(name, TextRenderer.MeasureText(name, Theme.Small).Width + 8, Theme.Small, Theme.SubText);
+                var sw = new ColorSwatch { Letters = "", Color = value, Location = new Point(sx, top), AccessibleName = L.F("{0}: цвет своей темы", "{0}: custom theme color", name) };
+                label.Location = new Point(sx + sw.Width + 6, top + (34 - label.Height) / 2);
+                sw.Click += (s, e) => ColorPicker.Show(sw, sw.Color, c =>
+                {
+                    sw.Color = c ?? fallback;
+                    sw.Invalidate();
+                    CustomWindow = swatches[0].Color;
+                    CustomAccent = swatches[1].Color;
+                    gallery.CustomSkin = Skin.Make(CustomAccent, CustomWindow);
+                    gallery.Selected = Skin.Custom.Number;
+                    Invalidate(true);
+                    LookChanged();
+                });
+                swatches.Add(sw);
+                card.Controls.Add(sw);
+                card.Controls.Add(label);
+                sx = label.Right + 18;
+            };
+            // The windows' color; the accent is the switches, the buttons, the selection and the fish
+            swatch(L.T("Окна", "Windows"), CustomWindow, Skin.DefaultWindow);
+            swatch(L.T("Акцент", "Accent"), CustomAccent, Skin.DefaultAccent);
+            top += 34 + 12;
+        }
+        card.Height = top + 4;
+        page.Controls.Add(card);
+        y += card.Height + 4;
 
         tSkinLogo = Toggle(SkinLogo);
         tSkinSound = Toggle(SkinSound);
         tHoliday = Toggle(Holiday);
-        var big = new FeaturePreview((g, r, ms) =>
-            SkinGallery.Draw(g, new RectangleF(r.X + 2, r.Y + 2, r.Width - 4, r.Height - 4), gallery.SelectedSkin, gallery.Dark, tSkinLogo.Checked,
-                             (float)Math.Sin(ms / 1000.0 * 5) * 0.7f, ms % 3000 / 3000f), 6000)
-        { Size = new Size(bigW, bigH), Location = new Point(pad, top), AccessibleName = L.T("Предварительный просмотр", "Preview") };
-        card.Controls.Add(big);
-        gallery.SelectedChanged += (s, e) => { big.Invalidate(); LookChanged(); };
+        Row(page, ref y, L.T("Значок в стиле темы", "Themed icon"), L.T("Логотип и значок в области уведомлений.", "The logo and the notification area icon."), tSkinLogo);
+        // The sound with a button to hear it, beside its switch
+        var listen = new RoundButton { Glyph = "", Text = "", Size = new Size(40, 32), AccessibleName = L.T("Прослушать", "Play") };
+        listen.Click += (s, e) => Sounds.Play(Sounds.Look, tSkinSound.Checked ? gallery.SelectedSkin : Skin.Classic);
+        var soundHolder = new Panel { BackColor = Color.Transparent, Size = new Size(40 + 16 + tSkinSound.Width, Math.Max(32, tSkinSound.Height)) };
+        listen.Location = new Point(0, (soundHolder.Height - 32) / 2);
+        tSkinSound.Location = new Point(soundHolder.Width - tSkinSound.Width, (soundHolder.Height - tSkinSound.Height) / 2);
+        tSkinSound.AccessibleName = L.T("Звук темы", "Theme sound");
+        soundHolder.Controls.Add(listen);
+        soundHolder.Controls.Add(tSkinSound);
+        Row(page, ref y, L.T("Звук темы", "Theme sound"), L.T("Используется как звук исправления.", "Used as the correction sound."), soundHolder);
+        var seasons = Skin.All.Where(k => k.Season != null).Select(k => k.Name + ": " + k.SeasonText);
+        Row(page, ref y, L.T("Автоматически включать праздничные темы", "Turn on holiday themes automatically"), string.Join("; ", seasons) + ".", tHoliday);
+
+        gallery.SelectedChanged += (s, e) => LookChanged();
         if (Theme.Contrast)
         {
-            gallery.Enabled = tSkinLogo.Enabled = tSkinSound.Enabled = tHoliday.Enabled = false;
+            gallery.Enabled = tSkinLogo.Enabled = tSkinSound.Enabled = tHoliday.Enabled = listen.Enabled = false;
             foreach (var sw in swatches) sw.Enabled = false;
         }
-        cbTheme.SelectedIndexChanged += (s, e) => { gallery.Dark = dark(); big.Invalidate(); LookChanged(); };
-        tSkinLogo.CheckedChanged += (s, e) => { gallery.Logo = tSkinLogo.Checked; big.Invalidate(); LookChanged(); };
+        cbTheme.SelectedIndexChanged += (s, e) => { gallery.Dark = dark(); LookChanged(); };
+        tSkinLogo.CheckedChanged += (s, e) => { gallery.Logo = tSkinLogo.Checked; LookChanged(); };
         tSkinSound.CheckedChanged += (s, e) => LookChanged();
         tHoliday.CheckedChanged += (s, e) => LookChanged();
-
-        // Beside the picture: what the look changes, one switch each
-        int x = pad + bigW + 20, w = ContentWidth - pad - x, cy = top;
-        Action<string, string, ToggleSwitch> line = (name, about, toggle) =>
-        {
-            int lineW = w - toggle.Width - 12;
-            var n = Theme.Wrapped(name, lineW);
-            n.Location = new Point(x, cy);
-            card.Controls.Add(n);
-            int bottom = n.Bottom;
-            if (about != null)
-            {
-                var a = Theme.Wrapped(about, lineW, Theme.Small, Theme.SubText);
-                a.Location = new Point(x, n.Bottom + 1);
-                card.Controls.Add(a);
-                bottom = a.Bottom;
-            }
-            toggle.AccessibleName = name;
-            toggle.Location = new Point(x + w - toggle.Width, cy + 2);
-            card.Controls.Add(toggle);
-            cy = bottom + 12;
-        };
-        line(L.T("Значок в стиле темы", "Themed icon"), L.T("Логотип и значок в области уведомлений.", "The logo and the notification area icon."), tSkinLogo);
-        line(L.T("Звук темы", "Theme sound"), L.T("Используется как звук исправления.", "Used as the correction sound."), tSkinSound);
-        var listen = new RoundButton { Text = L.T("Прослушать", "Play"), Glyph = "\uE768", Size = new Size(130, 30), Location = new Point(x, cy - 6) };
-        listen.Click += (s, e) => Sounds.Play(Sounds.Look, tSkinSound.Checked ? gallery.SelectedSkin : Skin.Classic);
-        card.Controls.Add(listen);
-        cy = listen.Bottom + 12;
-        var seasons = Skin.All.Where(k => k.Season != null).Select(k => k.Name + ": " + k.SeasonText);
-        line(L.T("Автоматически включать праздничные темы", "Turn on holiday themes automatically"), string.Join("; ", seasons) + ".", tHoliday);
-        card.Height = Math.Max(big.Bottom, cy - 12) + 16;
-        page.Controls.Add(card);
-        y += card.Height + 4;
     }
 
     // A heading over a group of settings, like in Windows Settings
@@ -792,8 +802,45 @@ class SettingsForm : Form
 
     static string TagOf(LayoutTable t) { return (t.Name ?? "").Split('-')[0].ToUpperInvariant(); }
 
+    // The interface is in a language written in Latin letters: the pictures then go the other way, to English words
+    // typed in the other layout (руддщ → hello), as the descriptions next to them do
+    static bool LatinInterface { get { return Array.IndexOf(new[] { "en", "de", "pl", "fr", "es" }, L.Code) >= 0; } }
+    bool reversed;
+    // A word typed with a typo and the word it is fixed to; in a Cyrillic interface, two letters of the sample word swapped
+    string typoTyped, typoWord;
+
     // Without a layout of another alphabet (or a word for its language) the pictures keep EN, RU and ghbdtn → привет
     void PickSample()
+    {
+        PickLayoutSample();
+        typoTyped = SampleTypo();
+        typoWord = sampleWord;
+        if (!LatinInterface) return;
+        typoTyped = "recieve";
+        typoWord = "receive";
+        var latin = InstalledLayouts.FirstOrDefault(t => t.Script == "Latin" && TagOf(t).Length > 0);
+        var other = InstalledLayouts.FirstOrDefault(t => t.Script != null && t.Script != "Latin" && TagOf(t).Length > 0);
+        if (latin == null || other == null) return;
+        string typed = TypedIn(latin, other, "hello");
+        if (typed == null) return;
+        reversed = true;
+        sampleWord = rareWord = "hello";
+        sampleTyped = rareTyped = typed;
+        string rare = TypedIn(latin, other, "deadline");
+        if (rare == null) return;
+        rareWord = "deadline";
+        rareTyped = rare;
+    }
+
+    // What the keys of a word in the Latin layout type in the other one; null if that doesn't make a different word
+    static string TypedIn(LayoutTable latin, LayoutTable other, string word)
+    {
+        var keys = latin.Keys(word);
+        string typed = keys == null ? null : other.Type(keys);
+        return typed == null || typed.IndexOf('�') >= 0 || typed == word ? null : typed;
+    }
+
+    void PickLayoutSample()
     {
         var latin = InstalledLayouts.FirstOrDefault(t => t.Script == "Latin" && TagOf(t).Length > 0);
         var other = InstalledLayouts.FirstOrDefault(t => t.Script != null && t.Script != "Latin" && TagOf(t).Length > 0);
@@ -892,7 +939,16 @@ class SettingsForm : Form
 
     // ---------- Statistics ----------
 
-    static readonly Font Big = new Font(Theme.Title.FontFamily, Theme.Title.Size * 1.25f, Theme.Title.Style);
+    // A quarter larger than the title, made again when the interface size changes
+    static Font big, bigOf;
+    static Font Big
+    {
+        get
+        {
+            if (bigOf != Theme.Title) { big = new Font(Theme.Title.FontFamily, Theme.Title.Size * 1.25f, Theme.Title.Style); bigOf = Theme.Title; }
+            return big;
+        }
+    }
 
     // The counts, and how they are made: only numbers are kept, never what was typed
     Panel StatsPage()
@@ -1029,8 +1085,23 @@ class SettingsForm : Form
     {
         int y;
         var page = Page(L.T("Оформление", "Appearance"), out y);
+        ScaleRow(page, ref y);
         LooksCard(page, ref y);
         return End(page, y);
+    }
+
+    void ScaleRow(Panel page, ref int y)
+    {
+        // Only the sizes at which this window still fits the screen (the one chosen before stays on the list)
+        var area = Screen.FromControl(this).WorkingArea;
+        scaleShown = ScaleChoices.Where(p => p == 0 || p == UiScale ||
+                                             (p / 100f * 940 <= area.Width && p / 100f * 700 <= area.Height)).ToArray();
+        cbScale = new DropDown { Size = new Size(170, 34) };
+        foreach (int p in scaleShown)
+            cbScale.Items.Add(p == 0 ? L.T("Как в Windows", "As in Windows") : p + " %");
+        cbScale.SelectedIndex = Math.Max(0, Array.IndexOf(scaleShown, UiScale));
+        Row(page, ref y, L.T("Размер интерфейса", "Interface size"),
+            L.T("Размер окон, текста и значков KeyFish.", "The size of KeyFish's windows, text and icons."), cbScale);
     }
 
     Panel CorrectionPage()
@@ -1044,7 +1115,7 @@ class SettingsForm : Form
         DictionaryRow(page, ref y);
         Row(page, ref y, L.T("Исправлять опечатки", "Fix typos"),
             L.T("Экспериментальная функция. Использует проверку орфографии Windows: пирвет → привет.", "Experimental. Uses Windows spell checking: recieve → receive."), tTypos = Toggle(Typos),
-            Typing(SampleTypo(), sampleWord));
+            Typing(typoTyped, typoWord));
         Row(page, ref y, L.T("Типографика", "Typography"),
             L.T("Дефис между словами заменяется тире, три точки — многоточием, (c) (r) (tm) — символами © ® ™.",
                 "A hyphen between words is replaced with a dash, three dots with an ellipsis, (c) (r) (tm) with © ® ™."), tTypography = Toggle(Typography),
@@ -1069,7 +1140,11 @@ class SettingsForm : Form
         Row(page, ref y, L.T("Показывать раскладку у курсора", "Show the layout at the cursor"),
             L.T("При смене раскладки её код (EN, RU и т. д.) на секунду отображается рядом с текстовым курсором, а если программа не сообщает его положение, — рядом с указателем мыши.",
                 "When the layout changes, its code (EN, RU, etc.) appears next to the text cursor for one second, or next to the mouse pointer if the app does not report the cursor position."), tBadge = Toggle(LayoutBadge),
-            new FeaturePreview((g, r, ms) => Pictures.Badge(g, r, ms, sampleWord, otherTag, ColorOf(otherTag, true), latinTag, ColorOf(latinTag, false)),
+            new FeaturePreview((g, r, ms) =>
+                               {
+                                   if (reversed) Pictures.Badge(g, r, ms, sampleWord, latinTag, ColorOf(latinTag, false), otherTag, ColorOf(otherTag, true));
+                                   else Pictures.Badge(g, r, ms, sampleWord, otherTag, ColorOf(otherTag, true), latinTag, ColorOf(latinTag, false));
+                               },
                                Pictures.BadgeLength, Pictures.BadgeRest));
         Row(page, ref y, L.T("Последние исправления в меню значка", "Recent corrections in the icon menu"),
             L.T("Выбор исправления в меню добавляет слово в список «Не исправлять». Список хранится только в оперативной памяти.",
@@ -1568,9 +1643,9 @@ class SettingsForm : Form
             { "UndoCtrlZ", UndoCtrlZ ? 1 : 0 }, { "LayoutColor", LayoutColor ? 1 : 0 }, { "CheckUpdates", CheckUpdates ? 1 : 0 },
             { "LayoutBadge", LayoutBadge ? 1 : 0 }, { "RecentMenu", RecentMenu ? 1 : 0 }, { "QuickKey", QuickKey }, { "Sound", Sound ? 1 : 0 }, { "Typography", Typography ? 1 : 0 },
             { "TrayLetters", TrayLetters ? 1 : 0 },
-            { "Language", Language }, { "Theme", ThemeMode }, { "Holiday", Holiday ? 1 : 0 },
+            { "Language", Language }, { "UiScale", UiScale }, { "Theme", ThemeMode }, { "Holiday", Holiday ? 1 : 0 },
             { "Skin", SkinNumber }, { "SkinLogo", SkinLogo ? 1 : 0 }, { "SkinSound", SkinSound ? 1 : 0 },
-            { "CustomAccent", CustomAccent.ToArgb() }, { "CustomFish", CustomFish.ToArgb() }
+            { "CustomAccent", CustomAccent.ToArgb() }, { "CustomWindow", CustomWindow.ToArgb() }
         };
         for (int i = 0; i < Hotkeys.Length; i++) v["Hotkey" + (i + 1)] = (int)Hotkeys[i];
         return v;
@@ -1640,13 +1715,14 @@ class SettingsForm : Form
         int n;
         if (values.TryGetValue("QuickKey", out n)) QuickKey = Math.Max(0, Math.Min(n, 2));
         if (values.TryGetValue("Language", out n)) Language = Math.Max(0, n);
+        if (values.TryGetValue("UiScale", out n)) UiScale = Array.IndexOf(ScaleChoices, n) >= 0 ? n : 0;
         if (values.TryGetValue("Theme", out n)) ThemeMode = Math.Max(0, Math.Min(n, 2));
         if (values.TryGetValue("Holiday", out n)) Holiday = n != 0;
         if (values.TryGetValue("Skin", out n)) SkinNumber = Skin.Find(n).Number;
         if (values.TryGetValue("SkinLogo", out n)) SkinLogo = n != 0;
         if (values.TryGetValue("SkinSound", out n)) SkinSound = n != 0;
         if (values.TryGetValue("CustomAccent", out n) && n != 0) CustomAccent = Color.FromArgb(255, Color.FromArgb(n));
-        if (values.TryGetValue("CustomFish", out n) && n != 0) CustomFish = Color.FromArgb(255, Color.FromArgb(n));
+        if (values.TryGetValue("CustomWindow", out n) && n != 0) CustomWindow = Color.FromArgb(255, Color.FromArgb(n));
         for (int i = 0; i < Hotkeys.Length; i++)
             if (values.TryGetValue("Hotkey" + (i + 1), out n) && (n == 0 || HotkeyBox.Allowed((Keys)n))) Hotkeys[i] = (Keys)n;
         Replacing = true;
@@ -1677,6 +1753,7 @@ class SettingsForm : Form
         Typography = tTypography.Checked;
         QuickKey = cbQuickKey.SelectedIndex;
         Language = cbLanguage.SelectedIndex;
+        UiScale = scaleShown[Math.Max(0, cbScale.SelectedIndex)];
         ThemeMode = cbTheme.SelectedIndex;
         Holiday = tHoliday.Checked;
         SkinNumber = gallery.Selected;
@@ -2048,7 +2125,7 @@ static class SettingsArchive
     public static readonly string[] Values =
     {
         "AutoCorrect", "Typos", "QuietFullscreen", "UndoCtrlZ", "LayoutColor", "CheckUpdates", "LayoutBadge", "RecentMenu", "QuickKey", "Sound", "TrayLetters", "Typography",
-        "Language", "Theme", "Holiday", "Skin", "SkinLogo", "SkinSound", "CustomAccent", "CustomFish", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5", "Hotkey6", "Hotkey7", "Hotkey8"
+        "Language", "UiScale", "Theme", "Holiday", "Skin", "SkinLogo", "SkinSound", "CustomAccent", "CustomWindow", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5", "Hotkey6", "Hotkey7", "Hotkey8"
     };
     static readonly string[] FileNames = { "replacements.txt", "exclusions.txt", "ignored-words.txt", "learned-words.txt", "app-layouts.txt", "layout-colors.txt", "sounds.txt" };
 

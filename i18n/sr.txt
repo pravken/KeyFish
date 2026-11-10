@@ -201,7 +201,7 @@ Sound signals when text is corrected or changed. A sound can be chosen or turned
 Play: {0}	Пусти: {0}
 Sounds folder	Фасцикла звукова
 Appearance	Изглед
-Window colors, the notification area icon and the correction sound. Changes apply immediately.	Боје прозора, икона у пољу за обавештења и звук исправке. Измене се примењују одмах.
+Window colors, the notification area icon and the correction sound.	Боје прозора, икона у пољу за обавештења и звук исправке.
 Preview	Преглед
 High contrast mode is on: KeyFish windows use system colors, and the theme does not apply.	Укључен је режим високог контраста: прозори програма KeyFish користе системске боје, тема се не примењује.
 Themed icon	Икона у стилу теме
@@ -286,3 +286,7 @@ All counters are set to zero, and counting starts again from today.	Сви бр�
 no data	нема података
 Do not correct in {0}	Не исправљај у програму {0}
 KeyFish's autostart is turned off in Task Manager. Turn it on there: Startup apps, KeyFish, Enable.	Аутоматско покретање програма KeyFish искључено је у менаџеру задатака. Укључите га тамо: апликације за покретање, KeyFish, Омогући.
+As in Windows	Као у Windows-у
+Interface size	Величина интерфејса
+The size of KeyFish's windows, text and icons.	Величина прозора, текста и иконица програма KeyFish.
+Windows	Прозори
