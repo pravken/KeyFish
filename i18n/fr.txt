@@ -49,7 +49,7 @@ Interface language	Langue de l'interface
 KeyFish is free of charge	KeyFish est gratuit
 Development can be supported with a voluntary donation.	Le développement peut être soutenu par un don volontaire.
 Reset	Réinitialiser
-An abbreviation followed by a space is replaced with the specified text. Abbreviations are recognized in the other layout too: "thx" expands even when typed as «ерч».	Une abréviation suivie d'une espace est remplacée par le texte défini. Les abréviations sont aussi reconnues dans l'autre disposition : « stp » est remplacé même saisi « ыез ».
+An abbreviation followed by a space is replaced with the specified text. Abbreviations are recognized in the other layout too: "thx" expands even when typed as «ерч». The text may contain placeholders: {date} is the date, {time} the time, {clipboard} the text on the clipboard, {cursor} where the caret is left after the replacement.	Une abréviation suivie d'une espace est remplacée par le texte défini. Les abréviations sont aussi reconnues dans l'autre disposition : « stp » est remplacé même saisi « ыез ». Le texte peut contenir des variables : {date} pour la date, {time} pour l'heure, {clipboard} pour le texte du presse-papiers, {cursor} pour la position du curseur après le remplacement.
 Abbreviation	Abréviation
 Text (Enter — new line)	Texte (Entrée — nouvelle ligne)
 thx	stp
@@ -57,7 +57,7 @@ Add	Ajouter
 Delete	Supprimer
 Text	Texte
 Don't change	Ne pas changer
-A layout assigned to an app is turned on when its window becomes active. Auto-correction can also be turned off here for individual apps, such as code editors and terminals.	La disposition attribuée à une application est activée lorsque sa fenêtre devient active. La correction automatique peut aussi être désactivée ici pour certaines applications, comme les éditeurs de code et les terminaux.
+A layout assigned to an app is turned on when its window becomes active. KeyFish's mode in individual apps is also set here: "Hotkeys only" turns auto-correction off and keeps the hotkeys, "Off" turns both off (in terminals, for example).	La disposition attribuée à une application s'active dès que sa fenêtre devient active. Le mode de KeyFish dans chaque application se règle aussi ici : « Raccourcis uniquement » désactive la correction automatique et conserve les raccourcis, « Désactivé » désactive les deux (par exemple dans les terminaux).
 App (process name)	Application (nom du processus)
 Layout	Disposition
 Correct	Corriger
@@ -290,3 +290,16 @@ As in Windows	Comme dans Windows
 Interface size	Taille de l’interface
 The size of KeyFish's windows, text and icons.	La taille des fenêtres, du texte et des icônes de KeyFish.
 Windows	Fenêtres
+Fix while typing	Corriger pendant la saisie
+When the beginning of a word is plainly in the wrong layout, the layout is switched after 4–6 letters, without waiting for a space.	Lorsque le début d’un mot est manifestement saisi dans la mauvaise disposition, celle-ci est changée après 4 à 6 lettres, sans attendre d’espace.
+Mode	Mode
+A rule by window title: "{0} part of the title". * stands for any characters.	Règle par titre de fenêtre : « {0} partie du titre ». * remplace n'importe quels caractères.
+App or title	Application ou titre
+title:	titre :
+On	Activé
+Hotkeys only	Raccourcis uniquement
+Layouts for auto-correction	Dispositions pour la correction automatique
+Layouts KeyFish switches to automatically. Clear a rarely used layout if KeyFish mistakes ordinary words for it; a manual fix into it still works.	Dispositions vers lesquelles KeyFish bascule automatiquement. Décochez une disposition peu utilisée si KeyFish y convertit par erreur des mots ordinaires ; la correction manuelle vers elle fonctionne toujours.
+All layouts	Toutes les dispositions
+All but {0}	Sauf {0}
+The downloaded file's signature could not be verified — update cancelled.	La signature du fichier téléchargé n'a pas pu être vérifiée — mise à jour annulée.

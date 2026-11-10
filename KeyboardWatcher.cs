@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -22,6 +23,7 @@ class KeyboardWatcher
         public IntPtr OriginalLayout;        // the layout the user typed in, restored on undo
         public IntPtr Hwnd;
         public RecentFix Recent;             // its entry in the tray menu list, dropped on undo
+        public string Promote;               // fixed because it was fixed by hand once: kept, it goes to Always correct
     }
 
     // Recent auto-fixes for the tray menu, newest first. Kept only in memory and only while the option is on
@@ -77,8 +79,26 @@ class KeyboardWatcher
 
     // From "Why wasn't it corrected?": take a word out of Never correct, or teach KeyFish to correct it
     public void Unignore(string word) { lock (sync) ignored.Remove(word); }
-    public void LearnWord(string word) { lock (sync) { learned.Add(word); ignored.Remove(word); } }
-    public void Unlearn(string word) { lock (sync) learned.Remove(word.Trim()); }
+    public void LearnWord(string word) { lock (sync) { learned.Add(word); learnedOnce.Remove(WordList.Normalize(word)); ignored.Remove(word); } }
+    public void Unlearn(string word) { lock (sync) { learned.Remove(word.Trim()); learnedOnce.Remove(WordList.Normalize(word)); } }
+
+    // Words fixed by hand once in this session (with Pause, or erased and typed again in the other layout): corrected
+    // for the rest of it, and written to Always correct only when fixed by hand a second time or when the next
+    // automatic fix of it is kept, so that one fix made by accident doesn't stay for good (as xneur does).
+    // Kept as WordList.Normalize gives them; used under sync
+    readonly HashSet<string> learnedOnce = new HashSet<string>();
+
+    void LearnFromFix(string word)
+    {
+        string w = WordList.Normalize(word);
+        if (w.Length == 0) return;
+        ignored.Remove(word);
+        if (learned.Contains(word)) return;
+        if (learnedOnce.Remove(w)) learned.Add(word);
+        else learnedOnce.Add(w);
+    }
+
+    bool IsLearned(string word) { return learned.Contains(word) || learnedOnce.Contains(WordList.Normalize(word)); }
 
     // The user picked a fix in the tray menu: its words are never corrected again
     public void NeverCorrect(RecentFix fix)
@@ -166,6 +186,10 @@ class KeyboardWatcher
         public int Serial;                   // keySerial when the typo job was made
         public bool ReleaseCtrl;             // lift the held Ctrl while typing (undo via Ctrl+Z)
         public int CtrlComboVk;              // not 0: send Ctrl + this key (Ctrl is still held after an undo)
+        public int VerifyFrom;               // not 0: typed only once a check of the focus made after this time finds no password field
+        public bool Expansion;               // a replacement, not a fix: what is counted back if it isn't typed
+        public bool Placeholders;            // a replacement with {date}, {time}, {clipboard} or {cursor}: filled in when typed
+        public int CaretBack;                // Left presses after typing: the caret goes where {cursor} was
     }
 
     public volatile bool Enabled = true;
@@ -293,8 +317,27 @@ class KeyboardWatcher
     int pendingSince;
     int keySerial;                       // counts keys typed; a typo check is applied only if nothing was typed since
 
-    void SetPending() { pending = true; pendingSince = Environment.TickCount; }
+    void SetPending() { pending = true; pendingSince = Environment.TickCount; noJobs = false; }
     readonly List<HeldKey> heldDuringPending = new List<HeldKey>();
+    // Held keys are replayed while pending stays on: a key pressed meanwhile would otherwise get in ahead of them
+    // ("привте"). pending ends once the hook has seen the last of them; keys pressed meanwhile are held and replayed
+    // next. All under sync
+    int replayLeft;                      // replayed key presses the hook hasn't seen yet
+    int replayInsertAt;                  // replayed keys held again (a correction came first) go here, before newer ones
+    bool noJobs = true;                  // no correction is queued or being typed
+
+    // Replays what was held, or ends pending if nothing was
+    void StartReplay()
+    {
+        if (heldDuringPending.Count == 0) { pending = false; replayLeft = 0; return; }
+        var keys = heldDuringPending.ToArray();
+        heldDuringPending.Clear();
+        pending = true;
+        pendingSince = Environment.TickCount;
+        replayLeft = keys.Length;
+        replayInsertAt = 0;
+        ThreadPool.QueueUserWorkItem(_ => { try { W.SendHeld(keys); } catch { } });
+    }
     readonly BlockingCollection<Job> jobs = new BlockingCollection<Job>();
 
     // The files below are re-read on the file thread (see FileQueue), never in the keyboard hook
@@ -303,7 +346,7 @@ class KeyboardWatcher
     DateTime replacementsStamp;
 
     readonly string exclusionsPath;
-    volatile HashSet<string> excluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    volatile AppRules excluded = new AppRules();
     DateTime exclusionsStamp;
     readonly System.Threading.Timer reloadTimer;
 
@@ -318,6 +361,7 @@ class KeyboardWatcher
         exclusionsPath = exclusionsFile;
         replacementsPath = replacementsFile;
         diagnosePath = Path.Combine(Path.GetDirectoryName(exclusionsFile), "debug-log.txt");
+        noAutoPath = Path.Combine(Path.GetDirectoryName(exclusionsFile), "no-auto-layouts.txt");
         ignored = new WordList(ignoredFile);
         learned = new WordList(learnedFile);
         ReloadFiles();
@@ -445,7 +489,7 @@ class KeyboardWatcher
             if (down && k.dwExtraInfo != W.Marker)
             {
                 bool swallow;
-                try { swallow = OnKey((int)k.vkCode, (int)k.scanCode, (k.flags & 1) != 0); }   // LLKHF_EXTENDED
+                try { swallow = OnKey((int)k.vkCode, (int)k.scanCode, (k.flags & 1) != 0, k.dwExtraInfo == W.ReplayMarker); }   // LLKHF_EXTENDED
                 catch { swallow = false; }
                 if (swallow) return true;
             }
@@ -461,7 +505,33 @@ class KeyboardWatcher
     static bool Down(int vk) { return (W.GetAsyncKeyState(vk) & 0x8000) != 0; }
 
     // extended: an extended key (the arrows and Insert/Delete/Home/End beside the letters, not on the numpad)
-    bool OnKey(int vk, int scan, bool extended = false)
+    // replay: a key held back during a correction, replayed now
+    bool OnKey(int vk, int scan, bool extended = false, bool replay = false)
+    {
+        lock (sync)
+        {
+            if (!replay || replayLeft == 0 || vk == 0x13 || IsModifier(vk)) return OnKeyCore(vk, scan, extended, false);
+            replayLeft--;
+            bool swallow;
+            if (noJobs) swallow = OnKeyCore(vk, scan, extended, true);
+            else
+            {
+                // A correction was queued after it was held (a replayed space ended a word): back in the queue, in its place
+                keySerial++;
+                heldDuringPending.Insert(Math.Min(replayInsertAt++, heldDuringPending.Count), Held(vk, scan, extended));
+                swallow = true;
+            }
+            if (replayLeft == 0 && noJobs) StartReplay();
+            return swallow;
+        }
+    }
+
+    HeldKey Held(int vk, int scan, bool extended)
+    {
+        return new HeldKey { Vk = vk, Scan = scan, Extended = extended, Shift = Down(0x10), Ctrl = Down(0x11), Alt = Down(0x12), Win = Down(0x5B) || Down(0x5C) };
+    }
+
+    bool OnKeyCore(int vk, int scan, bool extended, bool replayed)
     {
         lock (sync)
         {
@@ -473,6 +543,8 @@ class KeyboardWatcher
             if (pending && Environment.TickCount - pendingSince > 3000)
             {
                 pending = false;
+                replayLeft = 0;
+                noJobs = true;
                 var stuck = heldDuringPending.ToArray();
                 heldDuringPending.Clear();
                 if (stuck.Length > 0) ThreadPool.QueueUserWorkItem(_ => { try { W.SendHeld(stuck); } catch { } });
@@ -489,11 +561,11 @@ class KeyboardWatcher
                 return true;
             }
 
-            if (pending)
+            if (pending && !replayed)
             {
                 // While a correction is being typed, hold keystrokes back and replay them afterwards,
                 // with the modifiers held right now: by the replay the user may have let go of Shift
-                heldDuringPending.Add(new HeldKey { Vk = vk, Scan = scan, Extended = extended, Shift = Down(0x10), Ctrl = Down(0x11), Alt = Down(0x12), Win = Down(0x5B) || Down(0x5C) });
+                heldDuringPending.Add(Held(vk, scan, extended));
                 return true;
             }
 
@@ -520,6 +592,8 @@ class KeyboardWatcher
                 ctrlLifted = true;
                 return true;
             }
+            // Typing goes on after a fix: it is kept
+            if (last != null && last.Promote != null) LearnFromFix(last.Promote);
             last = null;
 
             IntPtr hwnd = W.GetForegroundWindow();
@@ -546,7 +620,8 @@ class KeyboardWatcher
                     // The whole word may be on its way out: remember it as it was
                     if (eraseSnapshot == null) { eraseSnapshot = new List<KeyStroke>(word); eraseSnapshotLayouts = new List<LayoutTable>(wordLayouts); }
                     RemoveLastKey();
-                    if (word.Count == 0) Erased(eraseSnapshot, eraseSnapshotLayouts);
+                    if (word.Count == 0 && switchedEarly) EarlyErased(hwnd);
+                    else if (word.Count == 0) Erased(eraseSnapshot, eraseSnapshotLayouts);
                 }
                 else
                 {
@@ -574,7 +649,10 @@ class KeyboardWatcher
                 eraseRec = null;
                 if (word.Count < 40) { word.Add(new KeyStroke(scan, shift, caps, altGr)); wordLayouts.Add(layout); }
                 else overflow = true;
-                RequestFocusCheck();
+                RequestWordCheck();
+                // From the 4th to the 6th letter: a beginning plainly in the wrong layout is fixed now. The key is
+                // swallowed and typed with the rest, in the right order
+                if (SwitchWhileTyping && !switchedEarly && word.Count >= 4 && word.Count <= (earlyWaited ? 8 : 6) && SwitchEarly(hwnd, layout)) return true;
                 return false;
             }
 
@@ -605,6 +683,77 @@ class KeyboardWatcher
         word.Clear();
         overflow = false;
         wordLayouts.Clear();
+        eraseSnapshot = null;
+        switchedEarly = false;
+        earlyWaited = false;
+    }
+
+    // Switching the layout while a word is typed (Settings → Correction): its beginning is retyped in the other layout,
+    // which stays on for the rest of it. The word as a whole is checked when it ends, as any other: a beginning switched
+    // by mistake is switched back then. Erased right away, it is switched back and not switched again this session
+    public volatile bool SwitchWhileTyping = true;
+    bool switchedEarly;   // done once per word
+    LayoutTable earlyFrom;   // the layout the word was begun in
+    int earlyLength;   // how many keys it was switched after
+    bool earlyWaited;   // the password check hadn't answered yet: tried up to the 8th letter
+    readonly List<string> rejectedEarly = new List<string>();   // beginnings switched and erased at once, lower case
+
+    // true: the key just added is swallowed, the job types it
+    bool SwitchEarly(IntPtr hwnd, LayoutTable current)
+    {
+        if (partial || overflow || current == null || Layouts.All.Count < 2) return false;
+        foreach (var l in wordLayouts) if (l != current) return false;   // already switched by hand in this word
+        var T = Detector.Loaded(current.Lang);
+        if (T == null || guard == null) return false;
+        bool password; int checkedAt;
+        guard.Read(out password, out checkedAt);
+        if (password) return false;
+        if (checkedAt == 0 || checkedAt - wordStartedAt < 0) { earlyWaited = true; return false; }
+        var lastKey = word[word.Count - 1];
+        if (current.IsDead(lastKey)) return false;
+        string typed = Shown(word, wordLayouts, current);
+        if (Detector.LooksLikeCode(typed) || ignored.AnyStartsWith(typed)) return false;   // a word in Never correct may be on its way
+        foreach (char c in typed) if (char.IsDigit(c) || c == '@' || c == '_') return false;
+        string lower = typed.ToLowerInvariant();
+        foreach (string r in rejectedEarly) if (lower.StartsWith(r) || r.StartsWith(lower)) return false;
+        // The model first: the window checks cost system calls, and most beginnings go no further
+        var fits = new List<LayoutTable>();
+        foreach (var t in Layouts.All)
+        {
+            if (t.Script == current.Script || t.IsDead(lastKey) || !AutoTarget(t)) continue;
+            var A = Detector.Loaded(t.Lang);
+            if (A != null && Detector.ShouldSwitchEarly(typed, Build(word, t), T, A, context)) fits.Add(t);
+        }
+        if (fits.Count == 0) return false;
+        if (IsOwnWindow(hwnd) || IsExcluded(hwnd) || W.HasMoreRights(hwnd) || IsPasswordField(hwnd) || (QuietFullscreen && IsFullscreen(hwnd))) return false;
+        // Russian or Ukrainian: the one used last, as at the end of a word
+        var to = fits[Math.Max(0, MostRecent(fits))];
+        string alt = Build(word, to);
+        int onScreen = Shown(word.GetRange(0, word.Count - 1), wordLayouts.GetRange(0, word.Count - 1), current).Length;   // the swallowed key isn't there
+        switchedEarly = true;
+        earlyFrom = current;
+        earlyLength = word.Count;
+        for (int i = 0; i < wordLayouts.Count; i++) wordLayouts[i] = to;   // the screen now shows the word in it
+        UsedLayout(to.Hkl);
+        Diagnose(hwnd, "switched while typing");
+        SetPending();
+        jobs.Add(new Job { Backspaces = onScreen, Text = alt, Layout = to.Hkl, Hwnd = hwnd });
+        return true;
+    }
+
+    // A beginning switched while typing was erased at once: it was not meant. The layout goes back
+    void EarlyErased(IntPtr hwnd)
+    {
+        switchedEarly = false;
+        if (eraseSnapshot != null && earlyFrom != null)
+        {
+            string begun = Build(eraseSnapshot.GetRange(0, Math.Min(earlyLength, eraseSnapshot.Count)), earlyFrom).ToLowerInvariant();
+            if (begun.Length >= 4 && !rejectedEarly.Contains(begun)) rejectedEarly.Add(begun);
+            if (rejectedEarly.Count > 100) rejectedEarly.RemoveAt(0);
+            Diagnose(hwnd, "switch while typing erased: switched back");
+            SetPending();
+            jobs.Add(new Job { Text = "", Layout = earlyFrom.Hkl, Hwnd = hwnd });
+        }
         eraseSnapshot = null;
     }
 
@@ -677,16 +826,20 @@ class KeyboardWatcher
             if (stamp != exclusionsStamp)
             {
                 exclusionsStamp = stamp;
-                var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                if (File.Exists(exclusionsPath))
-                    foreach (string line in File.ReadAllLines(exclusionsPath, Encoding.UTF8))
+                excluded = AppRules.Parse(File.Exists(exclusionsPath) ? File.ReadAllLines(exclusionsPath, Encoding.UTF8) : new string[0]);
+            }
+            stamp = File.Exists(noAutoPath) ? File.GetLastWriteTimeUtc(noAutoPath) : DateTime.MinValue;
+            if (stamp != noAutoStamp)
+            {
+                noAutoStamp = stamp;
+                var ids = new HashSet<long>();
+                if (File.Exists(noAutoPath))
+                    foreach (string line in File.ReadAllLines(noAutoPath, Encoding.UTF8))
                     {
-                        string s = line.Trim();
-                        if (s.Length == 0 || s.StartsWith("#")) continue;
-                        if (s.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) s = s.Substring(0, s.Length - 4);
-                        set.Add(s);
+                        long id;
+                        if (long.TryParse(line.Trim(), NumberStyles.HexNumber, null, out id)) ids.Add(id);
                     }
-                excluded = set;
+                NoAutoLayouts = ids;
             }
         }
         catch { }
@@ -727,6 +880,7 @@ class KeyboardWatcher
     {
         ignored.Add(s);
         learned.Remove(s);
+        learnedOnce.Remove(WordList.Normalize(s));
     }
 
     // Selected text retyped in a layout of another alphabet: the same keys, as if pressed there.
@@ -814,11 +968,7 @@ class KeyboardWatcher
         string core = Detector.Core(result.Trim());
         var model = Detector.Loaded(resultLang);
         if (string.IsNullOrEmpty(core) || model == null || model.Count(core) == 0) return;
-        lock (sync)
-        {
-            learned.Add(w);
-            ignored.Remove(w);
-        }
+        lock (sync) LearnFromFix(w);
     }
 
     // The user erased a correction: remember the words and switch the layout back. Erasing only the last word rejects
@@ -841,6 +991,17 @@ class KeyboardWatcher
         if (history.Count > 5) history.RemoveAt(0);
     }
 
+    // "ghbdtn," → "приветб": the key after the word was meant as the comma it typed, not as a letter of the other
+    // layout. Decided by the dictionary: the word with that letter is unknown, without it known ("нож" from "yj;" stays)
+    static string KeepPunctuation(string result, LangModel model, string lang, char typedLast)
+    {
+        if (result.Length < 3 || !char.IsLetter(result[result.Length - 1]) || char.IsLetterOrDigit(typedLast) || char.IsWhiteSpace(typedLast) || model == null)
+            return result;
+        string full = Detector.Core(result, lang), head = Detector.Core(result.Substring(0, result.Length - 1), lang);
+        if (string.IsNullOrEmpty(full) || string.IsNullOrEmpty(head) || head.Length < 2 || model.Count(full) > 0 || model.Count(head) == 0) return result;
+        return result.Substring(0, result.Length - 1) + typedLast;
+    }
+
     // A confidently corrected word: long enough and in the dictionary
     static bool IsStrong(string text, LangModel model)
     {
@@ -848,7 +1009,19 @@ class KeyboardWatcher
         return core != null && core.Length >= 3 && model != null && model.Count(core) > 0;
     }
 
+    // The word's time when the focus hasn't been checked since it began: its fix waits for the check (Job.VerifyFrom)
+    int verifyFrom;
+
     bool OnWordEnd(int terminatorVk, IntPtr hwnd)
+    {
+        bool swallow = OnWordEndCore(terminatorVk, hwnd);
+        // Left as typed before the check came: nothing of it is kept, as it may yet turn out to be a password
+        if (!swallow && verifyFrom != 0) history.Clear();
+        verifyFrom = 0;
+        return swallow;
+    }
+
+    bool OnWordEndCore(int terminatorVk, IntPtr hwnd)
     {
         bool wasPartial = partial;
         partial = false;
@@ -862,7 +1035,7 @@ class KeyboardWatcher
             verified = checkedAt != 0 && checkedAt - wordStartedAt >= 0;
         }
         string skip = wasPartial ? "edited mid-word" : word.Count >= 40 || overflow ? "too long" : password ? "password field" :
-                      !verified ? "focus not checked yet" : IsOwnWindow(hwnd) ? "KeyFish window" : IsExcluded(hwnd) ? "excluded app" :
+                      !verified && (guard == null || !guard.Answering) ? "focus not checked yet" : IsOwnWindow(hwnd) ? "KeyFish window" : IsExcluded(hwnd) ? "excluded app" :
                       W.HasMoreRights(hwnd) ? "app run as administrator" :
                       IsPasswordField(hwnd) ? "password field (Win32)" : QuietFullscreen && IsFullscreen(hwnd) ? "full screen" : null;
         if (skip != null)
@@ -875,6 +1048,9 @@ class KeyboardWatcher
             history.Clear();
             return false;
         }
+        // Not checked yet (under a heavy load a check can take a second): the word is decided now, and a fix of it is
+        // held, with the keys typed after it, until the check comes. Without a fix nothing waits
+        verifyFrom = verified ? 0 : wordStartedAt | 1;
 
         var current = Layouts.Get(W.LayoutHkl(hwnd));
         var T = current == null ? null : Detector.Loaded(current.Lang);
@@ -885,6 +1061,26 @@ class KeyboardWatcher
         // The layout was switched in the middle of the word ("ghиветик"): the keys were meant for the layout now on
         bool mixed = false;
         foreach (var t in wordLayouts) if (t != null && t.Script != current.Script) mixed = true;
+        // Switched while typing, but the app kept the old layout: the rest came out in it. The whole word goes to the
+        // layout it was switched to
+        if (mixed && switchedEarly && current == earlyFrom && wordLayouts[0] != null)
+        {
+            var to = wordLayouts[0];
+            string shown = Shown(word, wordLayouts, current), meant = Build(word, to);
+            Diagnose(hwnd, "corrected: layout, the switch while typing didn't take");
+            PushHistory(new WordRec { Keys = new List<KeyStroke>(word), Layouts = word.ConvertAll(k => to), Shown = meant, Layout = to, Changed = true, TerminatorVk = terminatorVk });
+            string begun = Build(word, earlyFrom);
+            var begunWords = new List<string> { begun };
+            last = new Correction
+            {
+                Original = begun, Replaced = meant, OriginalWords = begunWords, LastWordLength = meant.Length, TerminatorVk = terminatorVk,
+                OriginalLayout = earlyFrom.Hkl, Hwnd = hwnd, Recent = Remember(begun, meant, begunWords)
+            };
+            SetPending();
+            Interlocked.Increment(ref correctionCount);
+            jobs.Add(new Job { Backspaces = shown.Length, Text = meant, TerminatorVk = terminatorVk, Layout = to.Hkl, Hwnd = hwnd, VerifyFrom = verifyFrom });
+            return true;
+        }
         if (mixed)
         {
             string shown = Shown(word, wordLayouts, current);
@@ -905,13 +1101,13 @@ class KeyboardWatcher
             };
             SetPending();
             Interlocked.Increment(ref correctionCount);
-            jobs.Add(new Job { Backspaces = shown.Length, Text = typed, TerminatorVk = terminatorVk, Hwnd = hwnd });
+            jobs.Add(new Job { Backspaces = shown.Length, Text = typed, TerminatorVk = terminatorVk, Hwnd = hwnd, VerifyFrom = verifyFrom });
             return true;
         }
 
         // The user erased a word KeyFish had left alone, switched to a layout of another alphabet and typed the same keys:
         // a fix by hand. Next time KeyFish makes it by itself, as after a fix with Pause
-        if (erasedKeys != null && Environment.TickCount - erasedAt < 30000 && word.Count >= 2 && SameKeys(erasedKeys, word) &&
+        if (verifyFrom == 0 && erasedKeys != null && Environment.TickCount - erasedAt < 30000 && word.Count >= 2 && SameKeys(erasedKeys, word) &&
             erasedLayouts != null && erasedLayouts.Count > 0 && erasedLayouts[0] != null && erasedLayouts[0].Script != current.Script &&
             erasedLayouts.TrueForAll(t => t == erasedLayouts[0]))
         {
@@ -921,8 +1117,7 @@ class KeyboardWatcher
             bool wrongIsWord = !string.IsNullOrEmpty(wrongCore) && beforeModel != null && beforeModel.Count(wrongCore) > 0;
             if (!wrongIsWord && !string.IsNullOrEmpty(right) && T.Count(right) > 0 && wrong.Length <= 40)
             {
-                learned.Add(wrong);
-                ignored.Remove(wrong);
+                LearnFromFix(wrong);
                 Diagnose(hwnd, "learned from a word typed again in another layout");
             }
         }
@@ -969,7 +1164,8 @@ class KeyboardWatcher
             jobs.Add(new Job
             {
                 Backspaces = typed.Length, Text = expansion, TerminatorVk = terminatorVk,
-                Layout = via != null ? via.Hkl : IntPtr.Zero, Hwnd = hwnd
+                Layout = via != null ? via.Hkl : IntPtr.Zero, Hwnd = hwnd, VerifyFrom = verifyFrom, Expansion = true,
+                Placeholders = Placeholder.Has(expansion)
             });
             return true;
         }
@@ -981,18 +1177,24 @@ class KeyboardWatcher
 
         // Which layout did the user mean? A word they taught KeyFish goes to their usual other layout
         int chosen = -1;
+        // A layout KeyFish doesn't switch to by itself takes no part in the choice
+        var choiceModels = new List<LangModel>(altModels);
+        for (int i = 0; i < others.Count; i++) if (!AutoTarget(others[i])) choiceModels[i] = null;
+        int autoPreferred = preferred >= 0 && choiceModels[preferred] != null ? preferred : -1;
         if (!IsIgnored(typed) && others.Count > 0)
-            chosen = learned.Contains(typed) ? (preferred >= 0 ? preferred : 0)
-                                             : Detector.Choose(typed, T, alts, altModels, context, preferred);
+            chosen = IsLearned(typed) ? (autoPreferred >= 0 ? autoPreferred : choiceModels.FindIndex(m => m != null))
+                                             : Detector.Choose(typed, T, alts, choiceModels, context, autoPreferred);
         if (chosen >= 0 && Detector.NeedsDictionary(typed))
         {
             string altCore = Detector.Core(alts[chosen]);
             if (string.IsNullOrEmpty(altCore) || altModels[chosen].Count(altCore) == 0) { Diagnose(hwnd, "may be code, and the other layout gives no known word"); chosen = -1; }
         }
         bool convert = chosen >= 0;
+        string promote = convert && !learned.Contains(typed) && learnedOnce.Contains(WordList.Normalize(typed)) ? typed : null;
         var target = convert ? others[chosen] : current;
         var targetModel = convert ? altModels[chosen] : T;
         string result = convert ? alts[chosen] : typed;
+        if (convert) result = KeepPunctuation(result, targetModel, target.Lang, typed[typed.Length - 1]);
 
         bool capsMistake;
         string fixedCase = FixCase(result, out capsMistake);
@@ -1025,11 +1227,63 @@ class KeyboardWatcher
             }
         }
 
+        if (!convert && fixedCase == result && switchedEarly && earlyFrom != null)
+        {
+            // Switched while typing, and right as a whole: undone like any fix (Pause, Ctrl+Z, erasing it), which also
+            // puts it in Never correct. Short words before it typed in the old layout are fixed now, as after any fix
+            string begun = Build(word, earlyFrom);
+            string final = KeepPunctuation(typed, T, current.Lang, begun[begun.Length - 1]);
+            var fromModel = Detector.Loaded(earlyFrom.Lang);
+            var earlier = new List<WordRec>();
+            if (fromModel != null && IsStrong(final, T))
+                for (int i = history.Count - 1; i >= 0 && earlier.Count < 3; i--)
+                {
+                    var p = history[i];
+                    if (p.TerminatorVk != 0x20 || p.Changed || p.Layout != earlyFrom || IsIgnored(p.Shown)) break;
+                    if (!Detector.ShouldConvert(p.Shown, Build(p.Keys, current), fromModel, T, current.Lang)) break;
+                    earlier.Insert(0, p);
+                }
+            var from = new StringBuilder();
+            var to = new StringBuilder();
+            var words = new List<string>();
+            int erase = 0;
+            foreach (var p in earlier)
+            {
+                string pAlt = Build(p.Keys, current);
+                from.Append(p.Shown).Append(' ');
+                to.Append(pAlt).Append(' ');
+                words.Add(p.Shown);
+                erase += p.Shown.Length + 1;
+                p.Shown = pAlt;
+                p.Changed = true;
+            }
+            from.Append(begun);
+            to.Append(final);
+            words.Add(begun);
+            rec.Shown = final;
+            rec.Changed = true;
+            PushHistory(rec);
+            context = current.Lang;
+            Diagnose(hwnd, "corrected: layout, while typing");
+            last = new Correction
+            {
+                Original = from.ToString(), Replaced = to.ToString(), OriginalWords = words, LastWordLength = final.Length, TerminatorVk = terminatorVk,
+                OriginalLayout = earlyFrom.Hkl, Hwnd = hwnd, Recent = Remember(from.ToString(), to.ToString(), words)
+            };
+            Interlocked.Increment(ref correctionCount);
+            if (earlier.Count == 0 && final == typed) return false;
+            SetPending();
+            // The word itself is on screen already; the words before it (or its last character) are retyped with it
+            jobs.Add(new Job { Backspaces = erase + typed.Length, Text = to.ToString(), TerminatorVk = terminatorVk, Hwnd = hwnd, VerifyFrom = verifyFrom });
+            return true;
+        }
+
         if (!convert && fixedCase == result)
         {
             Diagnose(hwnd, IsIgnored(typed) ? "in Never correct" : "looks right as typed");
             string typedCore = Detector.Core(typed, current.Lang);
-            if (IsIgnored(typed)) Explain(hwnd, "ignored", typed);
+            if (verifyFrom != 0) { }   // not checked yet: no word goes into the explanations
+            else if (IsIgnored(typed)) Explain(hwnd, "ignored", typed);
             else if (!string.IsNullOrEmpty(typedCore) && T.Count(typedCore) == 0 && others.Count > 0)
             {
                 // Not a word KeyFish knows. The word itself is kept only when another layout makes a real word of it:
@@ -1047,7 +1301,7 @@ class KeyboardWatcher
             // Typos are checked after the space without holding it; Enter may already have sent a message
             // The spell check can take a while (Windows loads the dictionary on first use), so typing isn't held
             // for it; the fix is applied only if nothing was typed after the space
-            if (fixTypos && terminatorVk == 0x20 && TypoCandidate(typed))
+            if (fixTypos && verifyFrom == 0 && terminatorVk == 0x20 && TypoCandidate(typed))
                 jobs.Add(new Job { TypoRec = rec, TerminatorVk = terminatorVk, Hwnd = hwnd, Serial = keySerial });
             return false;
         }
@@ -1079,7 +1333,7 @@ class KeyboardWatcher
             // Undoing an ellipsis doesn't teach KeyFish to leave the word alone
             Original = original.ToString(), Replaced = replaced.ToString(), OriginalWords = onlyTypography ? new List<string>() : originalWords,
             LastWordLength = fixedCase.Length, TerminatorVk = terminatorVk, OriginalLayout = current.Hkl, Hwnd = hwnd,
-            Recent = onlyTypography ? null : Remember(original.ToString(), replaced.ToString(), originalWords)
+            Recent = onlyTypography ? null : Remember(original.ToString(), replaced.ToString(), originalWords), Promote = promote
         };
         SetPending();
         if (onlyTypography) Interlocked.Increment(ref expansionCount);
@@ -1091,7 +1345,9 @@ class KeyboardWatcher
             TerminatorVk = terminatorVk,
             ToggleCaps = capsMistake && (W.GetKeyState(0x14) & 1) != 0,
             Layout = convert ? target.Hkl : IntPtr.Zero,
-            Hwnd = hwnd
+            Hwnd = hwnd,
+            VerifyFrom = verifyFrom,
+            Expansion = onlyTypography
         });
         return true;
     }
@@ -1178,21 +1434,71 @@ class KeyboardWatcher
             try
             {
                 if (job.TypoRec != null) ProcessTypo(job);
-                else Execute(job);
+                else if (job.VerifyFrom != 0 && !AwaitCheck(job.VerifyFrom)) Withdraw(job);
+                else
+                {
+                    if (job.Placeholders) FillPlaceholders(job);
+                    Execute(job);
+                }
             }
             catch { }
-            HeldKey[] held;
             lock (sync)
             {
                 // More jobs queued: keep holding keystrokes so they replay after those jobs, in typing order
                 if (jobs.Count > 0) continue;
-                pending = false;
-                held = heldDuringPending.ToArray();
-                heldDuringPending.Clear();
+                noJobs = true;
+                // Replay the keystrokes held back during typing, now as normal input; if some replayed ones are still on
+                // their way, the last of them starts it
+                if (replayLeft == 0) StartReplay();
             }
-            // Replay the keystrokes held back during typing, now as normal input
-            if (held.Length > 0) try { W.SendHeld(held); } catch { }
         }
+    }
+
+    // {date} and the rest are filled in on this thread, not on the hook's: the clipboard can take a while to answer.
+    // The fix as remembered for undo becomes what is typed; with {cursor} the caret moves back, so there is no undo
+    void FillPlaceholders(Job job)
+    {
+        int back;
+        string text = Placeholder.Fill(job.Text, out back);
+        lock (sync)
+        {
+            if (last != null && last.Replaced == job.Text) { last.Replaced = text; last.LastWordLength = text.Length; }
+            if (history.Count > 0 && history[history.Count - 1].Shown == job.Text) history[history.Count - 1].Shown = text;
+            if (back > 0) { last = null; history.Clear(); }
+        }
+        job.Text = text;
+        job.CaretBack = back;
+    }
+
+    // Waits up to 1.5 seconds for a check of the focus made after the given time; true if it found no password field
+    bool AwaitCheck(int from)
+    {
+        if (guard == null) return false;
+        for (int i = 0; i < 150; i++)
+        {
+            bool password; int at;
+            guard.Read(out password, out at);
+            if (at != 0 && at - from >= 0) return !password;
+            if (i % 20 == 0) guard.RequestCheck();
+            Thread.Sleep(10);
+        }
+        return false;
+    }
+
+    // A fix that waited for the check of the focus and didn't get a clear answer: not typed, and nothing of the word is
+    // kept. Only the key that ended it, held back for the fix, goes to the app
+    void Withdraw(Job job)
+    {
+        lock (sync)
+        {
+            history.Clear();
+            if (last != null) { recent.Remove(last.Recent); last = null; }
+            if (job.Expansion) Interlocked.Decrement(ref expansionCount);
+            else Interlocked.Decrement(ref correctionCount);
+        }
+        Diagnose(job.Hwnd, "fix withdrawn: the focus wasn't checked in time");
+        Explain(job.Hwnd, "not-checked");
+        Execute(new Job { Text = "", TerminatorVk = job.TerminatorVk, Hwnd = job.Hwnd });
     }
 
     void Execute(Job job)
@@ -1221,8 +1527,15 @@ class KeyboardWatcher
             else if (c != '\r') W.AddUnicode(inputs, c);
         }
         if (job.TerminatorVk != 0) W.AddKey(inputs, job.TerminatorVk);
-        W.Send(inputs);
-        if (job.Layout != IntPtr.Zero) W.SwitchLayout(job.Hwnd, job.Layout);
+        for (int i = 0; i < job.CaretBack + (job.CaretBack > 0 && job.TerminatorVk != 0 ? 1 : 0); i++) W.AddKey(inputs, 0x25, true);   // Left
+        if (inputs.Count > 0) W.Send(inputs);
+        if (job.Layout != IntPtr.Zero)
+        {
+            W.SwitchLayout(job.Hwnd, job.Layout);
+            // Keys held meanwhile replay after this: in the old layout they would type the wrong letters. The switch
+            // usually lands within a few milliseconds; the fallback in SwitchLayout comes after 100
+            for (int i = 0; i < 40 && W.LayoutHkl(job.Hwnd) != job.Layout; i++) Thread.Sleep(5);
+        }
     }
 
     // The word these keys type in the given layout
@@ -1260,6 +1573,13 @@ class KeyboardWatcher
 
     public volatile bool QuietFullscreen = true;
 
+    // Layouts KeyFish never switches to by itself (no-auto-layouts.txt): a rarely used third layout that took ordinary
+    // words for its own. A fix by hand (Pause, hotkeys) still goes there
+    volatile HashSet<long> NoAutoLayouts = new HashSet<long>();
+    readonly string noAutoPath;
+    DateTime noAutoStamp;
+    bool AutoTarget(LayoutTable t) { return !NoAutoLayouts.Contains(t.Hkl.ToInt64()); }
+
     // Focus is in a password field (any app, browsers included): then nothing is corrected or remembered.
     // The check itself runs in a separate guard process, see PasswordGuard.cs
     PasswordGuardClient guard;
@@ -1271,6 +1591,22 @@ class KeyboardWatcher
     public bool GuardAnswering { get { return guard != null && guard.Answering; } }   // no check at all is never "answering"
 
     void RequestFocusCheck() { if (guard != null) guard.RequestCheck(); }
+
+    int lastWordCheck;
+
+    // A letter asks for a check of the focus until one made after the word began has found the text field itself;
+    // after that only every 300 ms. Asked for on every letter, the checks queued behind each other, ten a second, and
+    // under load the last letter's check ended long after the word did
+    void RequestWordCheck()
+    {
+        if (guard == null) return;
+        bool password, definite; int at;
+        guard.Read(out password, out at, out definite);
+        int now = Environment.TickCount;
+        if (definite && at != 0 && at - wordStartedAt >= 0 && now - lastWordCheck < 300) return;
+        lastWordCheck = now;
+        guard.RequestCheck();
+    }
 
     // A full-screen game, presentation or video: typing there isn't text, so don't correct
     static bool IsFullscreen(IntPtr hwnd)
@@ -1389,13 +1725,14 @@ class KeyboardWatcher
         }
     }
 
-    bool IsExcluded(IntPtr hwnd) { return excluded.Contains(W.ProcessName(hwnd)); }
+    // No automatic fixes here: the app is off or set to hotkeys only
+    bool IsExcluded(IntPtr hwnd) { return excluded.Mode(hwnd) != AppMode.Full; }
 
     // Hotkeys on text work through Ctrl+C and Ctrl+V. Not in an excluded app (in a terminal Ctrl+C stops the running
     // command) and never in a password field: a fresh check of the focus is asked for and waited for, up to half a second
     public bool HotkeyAllowed(IntPtr hwnd)
     {
-        if (hwnd == IntPtr.Zero || IsOwnWindow(hwnd) || IsExcluded(hwnd) || IsPasswordField(hwnd) || guard == null) return false;
+        if (hwnd == IntPtr.Zero || IsOwnWindow(hwnd) || excluded.Mode(hwnd) == AppMode.Off || IsPasswordField(hwnd) || guard == null) return false;
         int asked = Environment.TickCount;
         guard.RequestCheck();
         for (int i = 0; i < 50; i++)
@@ -1424,9 +1761,143 @@ class KeyboardWatcher
 // stays an arrow for apps that read those (games, remote desktops), not a numpad key
 struct HeldKey { public int Vk, Scan; public bool Extended, Shift, Ctrl, Alt, Win; }
 
+public enum AppMode { Full, HotkeysOnly, Off }
+
+// Values filled into a replacement when it is typed: {date}, {time}, {clipboard} (its text, up to 2000 characters), and
+// {cursor}, where the caret is left
+static class Placeholder
+{
+    static readonly string[] Names = { "{date}", "{time}", "{clipboard}", "{cursor}" };
+
+    public static bool Has(string text)
+    {
+        foreach (string n in Names) if (text.IndexOf(n, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+        return false;
+    }
+
+    // back: how many characters after {cursor} (the first one; the others are dropped)
+    public static string Fill(string text, out int back)
+    {
+        // Split at {cursor} first: the clipboard may hold "{cursor}" too, and that one is just text
+        string before = text, after = null;
+        int at = text.IndexOf("{cursor}", StringComparison.OrdinalIgnoreCase);
+        if (at >= 0) { before = text.Substring(0, at); after = Replace(text.Substring(at + 8), "{cursor}", () => ""); }
+        string clip = null;
+        Func<string> clipboard = () => clip ?? (clip = ClipboardText() ?? "");
+        string head = Fill(before, clipboard), tail = after == null ? "" : Fill(after, clipboard);
+        // Characters after the caret, as typed: a line break is one (Shift+Enter), "\r" is never typed
+        back = after == null ? 0 : tail.Replace("\r", "").Length;
+        return head + tail;
+    }
+
+    static string Fill(string s, Func<string> clipboard)
+    {
+        var now = DateTime.Now;
+        s = Replace(s, "{date}", () => now.ToString("d", CultureInfo.CurrentCulture));
+        s = Replace(s, "{time}", () => now.ToString("t", CultureInfo.CurrentCulture));
+        return Replace(s, "{clipboard}", clipboard);
+    }
+
+    static string Replace(string s, string name, Func<string> value)
+    {
+        int at = s.IndexOf(name, StringComparison.OrdinalIgnoreCase);
+        if (at < 0) return s;
+        string v = value() ?? "";
+        var sb = new StringBuilder();
+        int from = 0;
+        for (; at >= 0; at = s.IndexOf(name, from, StringComparison.OrdinalIgnoreCase))
+        {
+            sb.Append(s, from, at - from).Append(v);
+            from = at + name.Length;
+        }
+        return sb.Append(s, from, s.Length - from).ToString();
+    }
+
+    // The clipboard is read on a thread of its own (it must be single-threaded) and given half a second: an app that
+    // holds the clipboard open can't hold the typing up
+    static string ClipboardText()
+    {
+        string text = null;
+        var t = new Thread(() => { try { if (Clipboard.ContainsText()) text = Clipboard.GetText(); } catch { } }) { IsBackground = true };
+        t.SetApartmentState(ApartmentState.STA);
+        t.Start();
+        if (!t.Join(500)) return "";
+        if (text != null && text.Length > 2000) text = text.Substring(0, 2000);
+        return text;
+    }
+}
+
+// exclusions.txt: what KeyFish does in an app. One rule a line:
+//   code                    off: no automatic fixes, no hotkeys on text (in a terminal Ctrl+C stops the running command)
+//   code = hotkeys          hotkeys only: nothing is fixed by itself, the hotkeys work
+//   title: KeePass          by the window title: the title contains the text; * stands for any characters
+//   title: * - ssh = hotkeys
+// A title is read only to be matched, when a word ends or a hotkey is pressed, and is kept nowhere
+public class AppRules
+{
+    public const string TitlePrefix = "title:";
+    readonly Dictionary<string, AppMode> apps = new Dictionary<string, AppMode>(StringComparer.OrdinalIgnoreCase);
+    readonly List<KeyValuePair<Regex, AppMode>> titles = new List<KeyValuePair<Regex, AppMode>>();
+
+    // "name = hotkeys" → name, true; "name" → name, false
+    public static string Split(string line, out bool hotkeysOnly)
+    {
+        string s = line.Trim();
+        hotkeysOnly = false;
+        int eq = s.LastIndexOf('=');
+        if (eq > 0 && s.Substring(eq + 1).Trim().Equals("hotkeys", StringComparison.OrdinalIgnoreCase))
+        {
+            hotkeysOnly = true;
+            s = s.Substring(0, eq).Trim();
+        }
+        return s;
+    }
+
+    public static bool IsTitleRule(string rule) { return rule.StartsWith(TitlePrefix, StringComparison.OrdinalIgnoreCase); }
+
+    public static AppRules Parse(IEnumerable<string> lines)
+    {
+        var r = new AppRules();
+        foreach (string line in lines)
+        {
+            if (line.Trim().Length == 0 || line.TrimStart().StartsWith("#")) continue;
+            bool hotkeys;
+            string s = Split(line, out hotkeys);
+            var mode = hotkeys ? AppMode.HotkeysOnly : AppMode.Off;
+            if (IsTitleRule(s))
+            {
+                string pattern = s.Substring(TitlePrefix.Length).Trim();
+                if (pattern.Trim('*').Length == 0) continue;   // "*" alone would turn KeyFish off everywhere
+                string re = Regex.Escape(pattern).Replace(@"\*", ".*").Replace(@"\?", ".");
+                r.titles.Add(new KeyValuePair<Regex, AppMode>(new Regex(pattern.Contains("*") || pattern.Contains("?") ? "^" + re + "$" : re,
+                    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Singleline), mode));
+                continue;
+            }
+            if (s.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) s = s.Substring(0, s.Length - 4);
+            AppMode was;
+            if (s.Length > 0 && (!r.apps.TryGetValue(s, out was) || was < mode)) r.apps[s] = mode;
+        }
+        return r;
+    }
+
+    // The strictest rule that fits the window: off over hotkeys only over full
+    public AppMode Mode(IntPtr hwnd)
+    {
+        AppMode mode;
+        if (!apps.TryGetValue(W.ProcessName(hwnd), out mode)) mode = AppMode.Full;
+        if (mode == AppMode.Off || titles.Count == 0) return mode;
+        string title = W.WindowTitle(hwnd);
+        if (title.Length == 0) return mode;
+        foreach (var t in titles)
+            if (t.Value > mode && t.Key.IsMatch(title)) mode = t.Value;
+        return mode;
+    }
+}
+
 static class W
 {
     public static readonly UIntPtr Marker = (UIntPtr)0x4C464958; // marks our own input so the hook skips it
+    public static readonly UIntPtr ReplayMarker = (UIntPtr)0x4C465250; // a held key replayed: the hook handles it as typed
     public const int WH_KEYBOARD_LL = 13, WH_MOUSE_LL = 14;
 
     public delegate IntPtr HookProc(int code, IntPtr wParam, IntPtr lParam);
@@ -1576,6 +2047,17 @@ static class W
     [DllImport("user32.dll")] public static extern bool GetGUIThreadInfo(uint threadId, ref GUITHREADINFO info);
     [DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr hwnd, int index);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr hwnd, StringBuilder sb, int max);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int InternalGetWindowText(IntPtr hwnd, StringBuilder sb, int max);
+
+    // The title of the window's top-level window. Read from Windows' own copy: no message goes to the app, so a hung
+    // app can't hold KeyFish up
+    public static string WindowTitle(IntPtr hwnd)
+    {
+        IntPtr top = GetAncestor(hwnd, 2);   // GA_ROOT
+        var sb = new StringBuilder(512);
+        InternalGetWindowText(top != IntPtr.Zero ? top : hwnd, sb, sb.Capacity);
+        return sb.ToString();
+    }
     [DllImport("user32.dll")] static extern uint SendInput(uint n, INPUT[] inputs, int size);
     [DllImport("user32.dll")] public static extern uint MapVirtualKeyEx(uint code, uint mapType, IntPtr hkl);
     [DllImport("user32.dll")] static extern bool PostMessage(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
@@ -1622,6 +2104,14 @@ static class W
         list.Add(Key((ushort)vk, 0, 2));
     }
 
+    // An arrow or another key beside the letters: marked extended, or with Num Lock on it would be the numpad key
+    public static void AddKey(List<INPUT> list, int vk, bool extended)
+    {
+        uint e = extended ? 1u : 0u;
+        list.Add(Key((ushort)vk, 0, e));
+        list.Add(Key((ushort)vk, 0, e | 2));
+    }
+
     public static void AddUnicode(List<INPUT> list, char c)
     {
         list.Add(Key(0, c, 4));     // KEYEVENTF_UNICODE
@@ -1650,7 +2140,7 @@ static class W
             uint ext = k.Extended ? 1u : 0;   // KEYEVENTF_EXTENDEDKEY
             var down = Key((ushort)k.Vk, (ushort)k.Scan, ext);
             var up = Key((ushort)k.Vk, (ushort)k.Scan, ext | 2);
-            down.u.ki.dwExtraInfo = up.u.ki.dwExtraInfo = UIntPtr.Zero;
+            down.u.ki.dwExtraInfo = up.u.ki.dwExtraInfo = ReplayMarker;
             list.Add(down);
             list.Add(up);
             undo.Reverse();
@@ -1732,6 +2222,15 @@ class WordList
     }
 
     public bool Contains(string word) { string w = Normalize(word); lock (gate) return w.Length > 0 && words.Contains(w); }
+
+    // A word of the list begins with these letters (the beginning of a word still being typed)
+    public bool AnyStartsWith(string prefix)
+    {
+        string p = Normalize(prefix);
+        if (p.Length == 0) return false;
+        lock (gate) foreach (string w in words) if (w.StartsWith(p, StringComparison.Ordinal)) return true;
+        return false;
+    }
 
     public void Add(string word)
     {

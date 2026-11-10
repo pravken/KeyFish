@@ -2,6 +2,8 @@
 # With -Extended it builds the extended dictionaries instead: dist/dictionaries/<language>.txt.gz with the words of the
 # full lists that data/ doesn't have and that occur at least -MinCount times, and dictionaries.sha256. They are published
 # as a release (tag dictionaries-N, see .github/workflows/dictionaries.yml) that KeyFish downloads when asked to.
+# Words that are a common word of another language typed in the wrong layout ("yj" for "но") are left out: see
+# tools/WrongLayoutWords.cs, built here with the .NET Framework compiler.
 # -Languages limits either mode to some languages (for a quick local run).
 # Sources (both CC BY-SA 4.0, so data/ is distributed under the same terms):
 #   FrequencyWords by Hermit Dave — https://github.com/hermitdave/FrequencyWords (every language except be)
@@ -86,6 +88,11 @@ if ($Extended) {
     New-Item -ItemType Directory -Force $dist | Out-Null
     $sums = New-Object Collections.Generic.List[string]
 
+    $wrongLayout = Join-Path $tmp 'WrongLayoutWords.exe'
+    & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /codepage:65001 /optimize "/out:$wrongLayout" `
+        (Join-Path $PSScriptRoot 'WrongLayoutWords.cs') (Join-Path $root 'Layouts.cs') (Join-Path $root 'Detector.cs')
+    if ($LASTEXITCODE -ne 0) { throw 'WrongLayoutWords.cs did not build' }
+
     # Languages with a small corpus: their built-in list already has every word seen 20 times, so rarer ones are taken
     $smallCorpus = @{ uk = 3; mk = 3; ka = 3 }
 
@@ -107,11 +114,24 @@ if ($Extended) {
         $re = New-Object Text.RegularExpressions.Regex ('^[' + $alphabets[$name] + ']+$')
         $have = New-Object Collections.Generic.HashSet[string]
         foreach ($line in [IO.File]::ReadLines((Join-Path $data "$name.txt"), $utf8)) { [void]$have.Add($line.Substring(0, $line.IndexOf(' '))) }
-        $text = New-Object Text.StringBuilder
-        $n = 0
+        $new = New-Object Collections.Generic.List[string]
         foreach ($p in $pairs) {
             $w = $p[0].ToLowerInvariant()
-            if ($re.IsMatch($w) -and $have.Add($w)) { [void]$text.Append($w).Append(' ').Append($p[1]).Append("`n"); $n++ }
+            if ($re.IsMatch($w) -and $have.Add($w)) { $new.Add("$w $($p[1])") }
+        }
+        # Words typed in the wrong layout, left out
+        $newFile = Join-Path $tmp "$name.new.txt"
+        $wrongFile = Join-Path $tmp "$name.wrong-layout.txt"
+        [IO.File]::WriteAllLines($newFile, $new, $utf8)
+        & $wrongLayout (Join-Path $root 'data') (Join-Path $root 'tests\layouts') $name $newFile $wrongFile
+        if ($LASTEXITCODE -ne 0) { throw "WrongLayoutWords failed for $name" }
+        $wrong = New-Object Collections.Generic.HashSet[string]
+        foreach ($line in [IO.File]::ReadLines($wrongFile, $utf8)) { [void]$wrong.Add($line.Substring(0, $line.IndexOf(' '))) }
+        $text = New-Object Text.StringBuilder
+        $n = 0
+        foreach ($line in $new) {
+            if ($wrong.Contains($line.Substring(0, $line.IndexOf(' ')))) { continue }
+            [void]$text.Append($line).Append("`n"); $n++
         }
         if ($n -eq 0) { "{0,-8} nothing to add" -f $name; return }   # Georgian: the full list has no more words than the built-in one
         $bytes = $utf8.GetBytes($text.ToString())
@@ -121,7 +141,7 @@ if ($Extended) {
         $gz.Write($bytes, 0, $bytes.Length)
         $gz.Close()
         $sums.Add((Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant() + "  $name.txt.gz")
-        "{0,-8} +{1} words, {2:N0} KB" -f $name, $n, ((Get-Item $path).Length / 1KB)
+        "{0,-8} +{1} words, {2:N0} KB, {3} typed in the wrong layout left out" -f $name, $n, ((Get-Item $path).Length / 1KB), $wrong.Count
     }
 
     foreach ($lang in $frequencyLanguages) { if (Wanted $lang) { Save-Extended $lang (Read-Full $lang) } }

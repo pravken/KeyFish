@@ -150,7 +150,7 @@ static class Preview
                 Replacements = "спс = спасибо\nсув = С уважением,\\nМаксим\nthx = thank you\n",
                 Exclusions = Array.IndexOf(args, "long") >= 0   // "long": enough apps for the list to scroll
                     ? "Code\ndevenv\ncmd\npowershell\npwsh\nWindowsTerminal\nidea64\npycharm64\nrider64\nKeePass\nKeePassXC\n1Password\nmstsc\n"
-                    : "Code\ncmd\nWindowsTerminal\n", AppLayouts = "Telegram = " + hkl[hkl.Length - 1].ToInt64().ToString("X") + "\nCode = " + hkl[0].ToInt64().ToString("X") + "\n",
+                    : "Code = hotkeys\ncmd\nWindowsTerminal\ntitle: KeePass\n", AppLayouts = "Telegram = " + hkl[hkl.Length - 1].ToInt64().ToString("X") + "\nCode = " + hkl[0].ToInt64().ToString("X") + "\n",
                 Ignored = "lol\nкек\n", Learned = "ghbdtn\n", InstalledLayouts = layouts,
                 Updates = FakeUpdates(args),
                 // "partial": the count by day began this week

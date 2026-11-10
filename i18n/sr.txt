@@ -49,7 +49,7 @@ Interface language	Језик интерфејса
 KeyFish is free of charge	KeyFish је бесплатан
 Development can be supported with a voluntary donation.	Развој се може подржати добровољним прилогом.
 Reset	Врати
-An abbreviation followed by a space is replaced with the specified text. Abbreviations are recognized in the other layout too: "thx" expands even when typed as «ерч».	Скраћеница праћена размаком замењује се задатим текстом. Скраћенице се препознају и у другом распореду: „хвл“ се замењује чак и ако је откуцано „hvl“.
+An abbreviation followed by a space is replaced with the specified text. Abbreviations are recognized in the other layout too: "thx" expands even when typed as «ерч». The text may contain placeholders: {date} is the date, {time} the time, {clipboard} the text on the clipboard, {cursor} where the caret is left after the replacement.	Скраћеница праћена размаком замењује се задатим текстом. Скраћенице се препознају и у другом распореду: „хвл“ се замењује чак и ако је откуцано „hvl“. У тексту се могу користити замене: {date} — датум, {time} — време, {clipboard} — текст из оставе, {cursor} — место курсора после замене.
 Abbreviation	Скраћеница
 thx	хвл
 Text (Enter — new line)	Текст (Enter — нови ред)
@@ -57,7 +57,7 @@ Add	Додај
 Delete	Обриши
 Text	Текст
 Don't change	Не мењај
-A layout assigned to an app is turned on when its window becomes active. Auto-correction can also be turned off here for individual apps, such as code editors and terminals.	Распоред додељен апликацији укључује се када њен прозор постане активан. Овде се може искључити и аутоматска исправка за поједине апликације, на пример уређиваче кода и терминале.
+A layout assigned to an app is turned on when its window becomes active. KeyFish's mode in individual apps is also set here: "Hotkeys only" turns auto-correction off and keeps the hotkeys, "Off" turns both off (in terminals, for example).	Распоред додељен програму укључује се при преласку у његов прозор. Овде се подешава и режим рада KeyFish-а у појединим програмима: „Само пречице“ искључује аутоматско исправљање и задржава пречице, „Искључено“ искључује и једно и друго (на пример, у терминалима).
 App (process name)	Програм (име процеса)
 Layout	Распоред
 Correct	Исправљај
@@ -290,3 +290,16 @@ As in Windows	Као у Windows-у
 Interface size	Величина интерфејса
 The size of KeyFish's windows, text and icons.	Величина прозора, текста и иконица програма KeyFish.
 Windows	Прозори
+Fix while typing	Исправљај већ током куцања
+When the beginning of a word is plainly in the wrong layout, the layout is switched after 4–6 letters, without waiting for a space.	Ако је почетак речи очигледно откуцан у погрешном распореду, распоред се мења после 4–6 слова, без чекања размака.
+Mode	Режим
+A rule by window title: "{0} part of the title". * stands for any characters.	Правило по наслову прозора: „{0} део наслова“. Знак * замењује било које знакове.
+App or title	Програм или наслов
+title:	наслов:
+On	Укључено
+Hotkeys only	Само пречице
+Layouts for auto-correction	Распореди за аутоматско исправљање
+Layouts KeyFish switches to automatically. Clear a rarely used layout if KeyFish mistakes ordinary words for it; a manual fix into it still works.	Распореди на које KeyFish аутоматски прелази. Уклоните ознаку са ретко коришћеног распореда ако KeyFish у њега погрешно претвара обичне речи; ручно исправљање у њега и даље ради.
+All layouts	Сви распореди
+All but {0}	Осим {0}
+The downloaded file's signature could not be verified — update cancelled.	Потпис преузете датотеке није потврђен — ажурирање је отказано.

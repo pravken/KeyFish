@@ -14,11 +14,16 @@ static class Updater
     public const string ReleasesPage = "https://github.com/" + Repo + "/releases/latest";
     const string DownloadPrefix = "https://github.com/" + Repo + "/releases/download/";
 
+    // The public half of the key releases are signed with (ECDSA P-256, Windows' ECCPUBLICBLOB, base64). The private
+    // half never leaves the maintainer's computer (tools/sign-release.ps1), so whoever takes over the repository or
+    // the build can't publish an update KeyFish would install. Empty: no signature is asked for, only the checksum
+    const string UpdateKey = "";
+
     public class Release
     {
         public Version Version;
-        public string Tag, Url, ExeUrl, ShaUrl;
-        public bool CanInstall { get { return ExeUrl != null && ShaUrl != null; } }
+        public string Tag, Url, ExeUrl, ShaUrl, SigUrl;
+        public bool CanInstall { get { return ExeUrl != null && ShaUrl != null && (UpdateKey.Length == 0 || SigUrl != null); } }
     }
 
     public static Version Current
@@ -57,6 +62,7 @@ static class Updater
                 if (!u.StartsWith(DownloadPrefix, StringComparison.Ordinal)) continue;
                 if (u.EndsWith("/KeyFish.exe", StringComparison.Ordinal)) release.ExeUrl = u;
                 else if (u.EndsWith("/KeyFish.exe.sha256", StringComparison.Ordinal)) release.ShaUrl = u;
+                else if (u.EndsWith("/KeyFish.exe.sig", StringComparison.Ordinal)) release.SigUrl = u;
             }
             return release;
         }
@@ -75,9 +81,11 @@ static class Updater
         {
             if (File.Exists(NewPath)) File.Delete(NewPath);
             string expected;
+            byte[] signature = null;
             using (var web = Client())
             {
                 expected = web.DownloadString(r.ShaUrl).Trim().Split(' ', '\t')[0].ToLowerInvariant();
+                if (UpdateKey.Length > 0) signature = web.DownloadData(r.SigUrl);
                 web.DownloadFile(r.ExeUrl, NewPath);
             }
 
@@ -90,6 +98,13 @@ static class Updater
                 File.Delete(NewPath);
                 return L.T("Скачанный файл не совпал с контрольной суммой релиза — обновление отменено.",
                            "The downloaded file doesn't match the release checksum — update cancelled.");
+            }
+
+            if (UpdateKey.Length > 0 && !SignedByMaintainer(NewPath, signature))
+            {
+                File.Delete(NewPath);
+                return L.T("Подпись скачанного файла не подтверждена — обновление отменено.",
+                           "The downloaded file's signature could not be verified — update cancelled.");
             }
 
             string version = FileVersionInfo.GetVersionInfo(NewPath).ProductVersion;
@@ -118,6 +133,19 @@ static class Updater
         }
     }
 
+    // The file's ECDSA signature (64 bytes: r and s) checked against UpdateKey
+    static bool SignedByMaintainer(string path, byte[] signature)
+    {
+        try
+        {
+            if (signature == null || signature.Length != 64) return false;
+            using (var key = CngKey.Import(Convert.FromBase64String(UpdateKey), CngKeyBlobFormat.EccPublicBlob))
+            using (var ecdsa = new ECDsaCng(key) { HashAlgorithm = CngAlgorithm.Sha256 })
+                return ecdsa.VerifyData(File.ReadAllBytes(path), signature);
+        }
+        catch { return false; }
+    }
+
     // Remove the old copy left behind by an update
     public static void CleanUp()
     {
@@ -130,7 +158,7 @@ static class Updater
 // checksums published with it. They live next to the settings, in the "dictionaries" folder
 static class Dictionaries
 {
-    public const string Tag = "dictionaries-1";
+    public const string Tag = "dictionaries-2";
     const string Prefix = "https://github.com/" + Updater.Repo + "/releases/download/" + Tag + "/";
     const long MaxSize = 16 * 1024 * 1024;
 

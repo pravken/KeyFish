@@ -1,9 +1,10 @@
 ﻿# End-to-end typing tests for KeyFish. They press real keys, so don't touch the keyboard or mouse while they run.
 # Your replacements, word lists and settings are backed up to tests\backup first and restored at the end (or on the next run, if this one is cut short).
-# Usage: powershell -ExecutionPolicy Bypass -File tests\run-tests.ps1 [-Only <name pattern>] [-Perf]   (-Only 'menu*': those alone, no browser tests)
+# Usage: powershell -ExecutionPolicy Bypass -File tests\run-tests.ps1 [-Only <name pattern>] [-Perf] [-Big]   (-Only 'menu*': those alone, no browser tests)
+# -Big: the extended set too (about 45 more scenarios: layouts, switching while typing, replacements, typography, hotkeys, the menu)
 # -Perf: KeyFish writes its diagnostics log during the run, a longer text is typed at the end, and the timings of the
 # keyboard hook, the memory and the processor time of both KeyFish processes are shown
-param([string]$Only, [switch]$Perf)
+param([string]$Only, [switch]$Perf, [switch]$Big)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 # The tests run the build in tests\bin (build.bat with OUT=tests\bin\KeyFish.exe), which keeps its own lists next to it.
@@ -21,8 +22,8 @@ Copy-Item "$PSScriptRoot\pw.html", "$PSScriptRoot\tx.html" $bin -Force
 # The user's files and settings are backed up to tests\backup before the tests change them. The copy is on disk,
 # so a run that was cut short (window closed, power lost) is undone by the next run before it starts.
 # "complete" is written last: without it the copy is unfinished, and the user's own files were never touched
-$files = 'replacements.txt', 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt'
-$regNames = 'Typos', 'StatsTotal', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect', 'QuickKey', 'CorrectionTips', 'Typography', 'Hotkey6', 'IntroShown', 'StatsDays'
+$files = 'replacements.txt', 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt', 'exclusions.txt', 'no-auto-layouts.txt'
+$regNames = 'Typos', 'StatsTotal', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect', 'QuickKey', 'CorrectionTips', 'Typography', 'Hotkey6', 'IntroShown', 'StatsDays', 'SwitchWhileTyping'
 $backupDir = Join-Path $PSScriptRoot 'backup'
 
 # KeyFish's settings in the registry go through reg.exe in a .cmd started by Explorer: when this script runs inside a
@@ -75,10 +76,12 @@ foreach ($f in $files) { $p = Join-Path $data $f; if (Test-Path $p) { Copy-Item 
 Get-Real $regNames | Set-Content (Join-Path $backupDir 'registry.txt') -Encoding ascii
 Set-Content (Join-Path $backupDir 'complete') 'ok' -Encoding ascii
 
-[IO.File]::WriteAllText((Join-Path $data 'replacements.txt'), "спс = спасибо`r`nсув = С уважением,\nТест`r`nln2 = C:\\new`r`n", (New-Object Text.UTF8Encoding $false))
-foreach ($f in 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt') { $p = Join-Path $data $f; if (Test-Path $p) { Remove-Item $p } }
+[IO.File]::WriteAllText((Join-Path $data 'replacements.txt'), "спс = спасибо`r`nсув = С уважением,\nТест`r`nln2 = C:\\new`r`nxdt = {date}`r`nxcur = (a{cursor}b)`r`nxclip = {clipboard}`r`n", (New-Object Text.UTF8Encoding $false))
+foreach ($f in 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt', 'no-auto-layouts.txt') { $p = Join-Path $data $f; if (Test-Path $p) { Remove-Item $p } }
+# Rules by the test window's title (Typer.exe title=…)
+[IO.File]::WriteAllText((Join-Path $data 'exclusions.txt'), "title: KF-off`r`ntitle: KF-hot* = hotkeys`r`n", (New-Object Text.UTF8Encoding $false))
 # QuickKey 1: double Shift; CorrectionTips 2: no first-fix tips over the test windows
-Set-Real ([ordered]@{ Typos = 1; UndoCtrlZ = 1; QuietFullscreen = 1; AutoCorrect = 1; QuickKey = 1; Typography = 1; CorrectionTips = 2; Hotkey6 = 196689; IntroShown = 1 })   # Hotkey6: Ctrl+Shift+Q converts the clipboard
+Set-Real ([ordered]@{ Typos = 1; SwitchWhileTyping = 1; UndoCtrlZ = 1; QuietFullscreen = 1; AutoCorrect = 1; QuickKey = 1; Typography = 1; CorrectionTips = 2; Hotkey6 = 196689; IntroShown = 1 })   # Hotkey6: Ctrl+Shift+Q converts the clipboard
 Get-Process KeyFish -ErrorAction SilentlyContinue | Stop-Process; Start-Sleep -Milliseconds 800
 $debugLog = Join-Path $data 'debug-log.txt'
 if ($Perf) { Set-Content $debugLog '' -Encoding utf8 }
@@ -90,6 +93,8 @@ $w = '~' * 30
 $tests = @(
   @('layout',                 'ghbdtn vbh ~~hello ~~~~',                  'привет мир hello ', ''),
   @('short words fixed back', 'hello ~~f vj;yj ~~ghbdtn ~~~~',            'hello а можно привет ', ''),
+  @('switch while typing',    'hello ~~ghbdtnbr~~~~~~',                   'hello приветик', ''),   # no space: switched at the 4th–6th letter
+  @('switch erased, back',    'hello ~~ghbdtnbr~~~~<<<<<<<<~~~~a1 ~~~~',  'hello a1 ', ''),   # erased at once: the layout goes back
   @('CapsLock',               '#^ghbdtn ~~vbh ~~~~',                      'Привет мир ', ''),
   @('undo with Pause',        'hello ~~ckjdj ~~~~|~~~~~~',                'hello ckjdj ', ''),
   @('erase and retype',       'hello ~~rjirf ~~~~<<<<<<~~~~rjirf ~~~~',   'hello rjirf ', ''),
@@ -106,10 +111,10 @@ $tests = @(
   @('undo with Ctrl+Z',       'hello ~~cjkywt ~~~~%z~~~~~~',              'hello cjkywt ', ''),
   @('Ctrl+Z then a letter',   'hello ~~ljvf ~~~~%z~~~~b~~~~',             'hello ljvf b', ''),
   @('hold Ctrl, Z, release',  'hello ~~dtxth ~~~~[z~~~~]~~b~~~~',         'hello dtxth b', ''),
-  @('double Shift fixes word', "hello ~~ghjcnj~~!~!$w",                   'hello просто', ''),
+  @('double Shift fixes word', "hello ~~jyf~~!~!$w",                      'hello она', ''),   # three letters: not switched while typing
   @('double Shift undoes fix', "hello ~~rfrfz ~~~~!~!$w",               'hello rfrfz ', ''),   # a word no earlier test sends to Never correct
   @('typography',             'one ~~- ~~two... ~~^9c^0 ~~~~',            'one — two… © ', ''),
-  @('clipboard',              'ghbdtn~~%a~~%c~~~~%^q~~~~~~%v~~~~',        'привет', ''),
+  @('clipboard',              'ytn~~%a~~%c~~~~%^q~~~~~~%v~~~~',           'нет', ''),   # three letters: not switched while typing
   # Ctrl+Shift+F2: the text actions menu. Nothing selected: the line before the cursor; the first item is picked with Enter
   @('menu: calculate',        "2^=3^84~~%^@$('_' * 15)`$~~~~~~~~~~",       '14', ''),
   @('menu: uppercase',        "hello world~~%a~~%^@$('_' * 15)`$~~~~~~~~~~", 'HELLO WORLD', ''),
@@ -117,11 +122,90 @@ $tests = @(
   @('paste without formatting', "abc~~%a~~%c~~<~~%^v~~~~%^v$('~' * 25)%v~~~~", 'abcabcabc', ''),
   @('menu: closed, no change', "hello~~%^@$('_' * 15)``~~~~~~~~ ~~x~~~~",   'hello x', '')
 )
+# The extended set (-Big). Words undone here go to Never correct, so each such word is used once and after the tests
+# that need it fixed
+$m = '%^@' + ('_' * 15)   # the text actions menu, waited for
+$e = '~' * 10
+$bigTests = @(
+  # Layouts
+  @('x: phrase',              'z k.,k. ghjuhfvvbhjdfnm ~~~~',             'я люблю программировать ', ''),
+  @('x: Russian goes on',     'ghbdtn ~~rfr ltkf ~~~~',                   'привет как дела ', ''),
+  @('x: English in ru',       'ghbdtn ~~computer ~~~~',                   'привет computer ', ''),
+  @('x: , and . as letters',  'j,sxyj ~~k.,jdm ~~~~',                     'обычно любовь ', ''),
+  @('x: ; as a letter',       'kj;m ~~~~',                                'ложь ', ''),
+  @('x: comma after word',    'ghbdtn, ~~vbh ~~~~',                       'привет, мир ', ''),
+  @('x: ru comma key',        'rfr ltkf^/ ~~~~',                          'как дела, ', ''),   # Shift+/ is the comma in Russian
+  # Modes by the window title (exclusions.txt above)
+  @('x: title, off',          'hello ~~ghbdtn ~~~~',                      'hello ghbdtn ', 'title=KF-off'),
+  @('x: title, off: hotkeys', 'hello~~%a~~%^ ~~~~~~',                     'hello', 'title=KF-off'),
+  @('x: title, hotkeys only', 'hello ~~ghbdtn ~~~~',                      'hello ghbdtn ', 'title=KF-hotkeys'),
+  @('x: hotkeys only: hotkey','hello~~%a~~%^ ~~~~~~',                     'руддщ', 'title=KF-hotkeys'),
+  # Russian taken out of automatic fixes (no-auto-layouts.txt, written for this test only); the hotkey still converts
+  @('x: no auto into ru',     'hello ~~ghbdtn ~~~~',                      'hello ghbdtn ', 'noauto'),
+  @('x: no auto, hotkey',     'ghbdtn~~%a~~%^ ~~~~~~',                    'привет', 'noauto'),
+  # Placeholders in replacements
+  @('x: {date}',              'hello ~~xdt ~~~~',                         "hello $((Get-Date).ToString('d')) ", ''),
+  @('x: {cursor}',            'hello ~~xcur ~~z~~~~',                     'hello (azb) ', ''),
+  @('x: {clipboard}',         'qwe~~%a~~%c~~xclip ~~~~',                  'qwe ', ''),
+  @('x: ; at the end is ж',   'a1 ~~yj; ~~~~',                            'a1 нож ', ''),   # a1: a warm-up word that sets no language
+  @('x: ж after English',     'hello ~~yj; ~~~~',                         'hello нож ', ''),   # "yj" is not in the extended dictionary
+  @('x: capital',             '^ghbdtn ~~~~',                             'Привет ', ''),
+  @('x: all capitals',        '^g^h^b^d^t^n ~~~~',                        'ПРИВЕТ ', ''),
+  @('x: Shift held long, ru', 'hello ~~^g^hbdtn ~~~~',                    'hello Привет ', ''),
+  @('x: Shift held long, en', '^h^ello ~~~~',                             'Hello ', ''),
+  @('x: CapsLock, English',   '#^hello ~~~~',                             'Hello ', ''),
+  @('x: short words first',   'f ns ult ~~~~',                            'а ты где ', ''),
+  @('x: year in a sentence',  'd 2026 ujle ~~~~',                         'в 2026 году ', ''),
+  @('x: Backspace in word',   'ghbdtx<n ~~~~',                            'привет ', ''),
+  @('x: Enter ends a word',   'ghbdtn$~~~~',                              "привет`r`n", ''),
+  # Left alone
+  @('x: English sentence',    'the quick brown fox ~~~~',                 'the quick brown fox ', ''),
+  @('x: tech words',          'git push nginx mysql ~~~~',                'git push nginx mysql ', ''),
+  @('x: link',                'www.google.com ~~~~',                      'www.google.com ', ''),
+  @('x: digits',              'abc123 x86 ~~~~',                          'abc123 x86 ', ''),
+  # Switching while typing
+  @('x: switch, long word',   'hello ~~ghjuhfvvf ~~~~',                   'hello программа ', ''),
+  @('x: switch, sentence',    'ghjuhfvvf hf,jnftn ~~~~',                  'программа работает ', ''),
+  @('x: switch to English',   'ghbdtn ~~keyboard ~~~~',                   'привет keyboard ', ''),
+  @('x: switch, Pause',       'hello ~~ghjuhfvvf ~~~~|~~~~~~',            'hello ghjuhfvvf ', ''),
+  @('x: switch, Ctrl+Z',      'hello ~~rjvgm.nth ~~~~%z~~~~~~',           'hello rjvgm.nth ', ''),
+  # Undo and learning
+  @('x: undone stays',        'hello ~~ckjdjv ~~~~|~~~~~~ckjdjv ~~~~',    'hello ckjdjv ckjdjv ', ''),
+  @('x: fix erased, retyped', 'hello ~~gjxnf ~~~~<<<<<<~~~~gjxnf ~~~~',   'hello gjxnf ', ''),
+  # Replacements
+  @('x: replacement in ru',   'ghbdtn ~~cgc ~~~~',                        'привет спасибо ', ''),
+  @('x: replacement CAPS',    'hello ~~^c^g^c ~~~~',                      'hello Спасибо ', ''),
+  @('x: replacement, Enter',  'hello ~~cgc$~~~~',                         "hello спасибо`r`n", ''),
+  @('x: replacement, Pause',  'hello ~~cgc ~~~~|~~~~~~',                  'hello cgc ', ''),
+  # Typography and typos
+  @('x: (tm) and (r)',        'one ~~^9tm^0 ~~^9r^0 ~~~~',                'one ™ ® ', ''),
+  @('x: double hyphen',       'one ~~-- ~~two ~~~~',                      'one — two ', ''),
+  @('x: hyphen first',        '- ~~one ~~~~',                             '- one ', ''),
+  @('x: ellipsis',            'wait... ~~~~',                             'wait… ', ''),
+  @('x: typo',                'hello ~~becuase ~~~~',                     'hello because ', ''),
+  @('x: transliteration',     "hello ~~spasibo~~^|$w",                    'hello спасибо', ''),
+  # Hotkeys on selected text
+  @('x: selection layout',    'hello~~%a~~%^ ~~~~~~',                     'руддщ', ''),
+  @('x: selection case',      'hello~~%a~~^&~~~~~~',                      'Hello', ''),
+  @('x: selection case x2',   'hello~~%a~~^&~~~~~~^&~~~~~~',              'HELLO', ''),
+  @('x: line before cursor',  'hello world~~*|~~~~~~',                    'руддщ цщкдв', ''),
+  # The text actions menu
+  @('x: menu append result',  ('2^=3^84~~' + $m + '}$' + $e),             '2+3*4 = 14', ''),
+  @('x: menu lowercase',      ('^hello ^world~~%a~~' + $m + '}$' + $e),   'hello world', ''),
+  @('x: menu sentence case',  ('hello world~~%a~~' + $m + '}}$' + $e),    'Hello world', ''),
+  @('x: menu each word',      ('hello world~~%a~~' + $m + '}}}$' + $e),   'Hello World', ''),
+  @('x: menu layout',         ('hello~~%a~~' + $m + '}}}}$' + $e),        'руддщ', ''),
+  @('x: menu transliterate',  ('privet~~%a~~' + $m + '}}}}}$' + $e),      'привет', '')
+)
+if ($Big) { $tests += $bigTests }
 $pass = 0; $total = 0
 foreach ($t in $tests) {
   if ($Only -and $t[0] -notlike $Only) { continue }
   $total++
-  Start-Process "$bin\Typer.exe" -ArgumentList "`"$bin\out.txt`" `"$($t[1])`" $($t[3])" -Wait
+  $noAuto = Join-Path $data 'no-auto-layouts.txt'
+  if ($t[3] -eq 'noauto') { [IO.File]::WriteAllText($noAuto, "4190419`r`n"); Start-Sleep -Milliseconds 2500 }   # KeyFish reads it within 2 s
+  Start-Process "$bin\Typer.exe" -ArgumentList "`"$bin\out.txt`" `"$($t[1])`" $(if ($t[3] -ne 'noauto') { $t[3] })" -Wait
+  if ($t[3] -eq 'noauto') { Remove-Item $noAuto; Start-Sleep -Milliseconds 2500 }
   $r = Get-Content "$bin\out.txt" -Encoding utf8 -Raw
   $ok = $r -eq $t[2]; if ($ok) { $pass++ }
   "{0} {1,-24} [{2}]" -f $(if ($ok) { 'OK  ' } else { 'FAIL' }), $t[0], ($r -replace "`r`n", '⏎')

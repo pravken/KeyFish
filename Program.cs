@@ -227,7 +227,10 @@ partial class App : ApplicationContext
         return found;
     }
 
-    void LoadAppLayouts() { appLayouts = SettingsForm.ParseAppLayouts(ReadText(appLayoutsPath)); }
+    void LoadAppLayouts()
+    {
+        appLayouts = SettingsForm.ParseAppLayouts(ReadText(appLayoutsPath));
+    }
 
     IntPtr lastHkl;
     string currentCulture;   // the layout's culture name, "ru-RU", for the tray menu
@@ -284,7 +287,7 @@ partial class App : ApplicationContext
         }
     }
 
-    readonly string exclusionsPath, ignoredPath, replacementsPath, learnedPath, appLayoutsPath, backupDir;
+    readonly string exclusionsPath, ignoredPath, replacementsPath, learnedPath, appLayoutsPath, noAutoPath, backupDir;
     ToolStripMenuItem autoItem;
     SettingsForm settingsForm;
 
@@ -343,6 +346,7 @@ partial class App : ApplicationContext
         learnedPath = Path.Combine(dir, "learned-words.txt");
         replacementsPath = Path.Combine(dir, "replacements.txt");
         appLayoutsPath = Path.Combine(dir, "app-layouts.txt");
+        noAutoPath = Path.Combine(dir, "no-auto-layouts.txt");
         backupDir = Path.Combine(dir, "backups");
         try
         {
@@ -360,6 +364,7 @@ partial class App : ApplicationContext
         {
             FixTypos = GetSetting("Typos", 0) != 0,
             QuietFullscreen = GetSetting("QuietFullscreen", 1) != 0,
+            SwitchWhileTyping = GetSetting("SwitchWhileTyping", 1) != 0,
             UndoWithCtrlZ = GetSetting("UndoCtrlZ", 1) != 0,
             KeepRecent = GetSetting("RecentMenu", 1) != 0,
             Typography = GetSetting("Typography", 0) != 0,
@@ -572,10 +577,10 @@ partial class App : ApplicationContext
             StatsTotal = total, StatsSince = StatsSince(), StatsRecent = RecentStats(total), StatsDays = new Dictionary<int, int>(Daily()),
             StatsDaysSince = GetSetting("StatsDaysSince", DayKey(DateTime.Today)), ResetStats = ResetStats,
             OpenAbout = owner => ShowAbout(owner), Updates = Packaged.Yes ? null : updates,
-            BackupDir = backupDir, TrayLetters = trayLetters, LayoutColors = new Dictionary<string, Color>(layoutColors, StringComparer.OrdinalIgnoreCase), AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, SoundMap = new Dictionary<string, string>(Sounds.Map), SoundsDir = Sounds.Dir, RecentMenu = watcher.KeepRecent, Typography = watcher.Typography, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
+            BackupDir = backupDir, TrayLetters = trayLetters, LayoutColors = new Dictionary<string, Color>(layoutColors, StringComparer.OrdinalIgnoreCase), AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, SoundMap = new Dictionary<string, string>(Sounds.Map), SoundsDir = Sounds.Dir, RecentMenu = watcher.KeepRecent, Typography = watcher.Typography, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, SwitchWhileTyping = watcher.SwitchWhileTyping, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
             CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting, UiScale = GetSetting("UiScale", 0), ThemeMode = Theme.Mode, SkinNumber = shownSkin, Holiday = Theme.Holidays, SkinLogo = Theme.SkinLogo, SkinSound = Theme.SkinSound, CustomAccent = Skin.Custom.Accent, CustomWindow = Skin.Custom.Window,
             Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ignored, Learned = learned,
-            AppLayouts = ReadText(appLayoutsPath), InstalledLayouts = new List<LayoutTable>(watcher.Layouts.All)
+            AppLayouts = ReadText(appLayoutsPath), NoAutoLayouts = ReadText(noAutoPath), InstalledLayouts = new List<LayoutTable>(watcher.Layouts.All)
         };
         form.Icon = iconEn;
         return form;
@@ -599,6 +604,7 @@ partial class App : ApplicationContext
         watcher.QuickKey = f.QuickKey; SetSetting("QuickKey", f.QuickKey);
         watcher.FixTypos = f.Typos; SetSetting("Typos", f.Typos ? 1 : 0);
         watcher.QuietFullscreen = f.QuietFullscreen; SetSetting("QuietFullscreen", f.QuietFullscreen ? 1 : 0);
+        watcher.SwitchWhileTyping = f.SwitchWhileTyping; SetSetting("SwitchWhileTyping", f.SwitchWhileTyping ? 1 : 0);
         watcher.UndoWithCtrlZ = f.UndoCtrlZ; SetSetting("UndoCtrlZ", f.UndoCtrlZ ? 1 : 0);
         showLayout = f.LayoutColor; SetSetting("LayoutColor", f.LayoutColor ? 1 : 0);
         SetSetting("CheckUpdates", f.CheckUpdates ? 1 : 0);
@@ -613,6 +619,7 @@ partial class App : ApplicationContext
         if (f.Ignored != ignoredBefore) WriteIfChanged(ignoredPath, MergeWords(f.Ignored, ignoredBefore, ReadText(ignoredPath)));
         if (f.Learned != learnedBefore) WriteIfChanged(learnedPath, MergeWords(f.Learned, learnedBefore, ReadText(learnedPath)));
         WriteIfChanged(appLayoutsPath, f.AppLayouts);
+        WriteIfChanged(noAutoPath, f.NoAutoLayouts);
         LoadAppLayouts();
         watcher.ReloadSoon();
         bool themeChanged = ApplyLook(f, shownSkin);
@@ -689,7 +696,7 @@ partial class App : ApplicationContext
             {
                 { "replacements.txt", ReadText(replacementsPath) }, { "exclusions.txt", ReadText(exclusionsPath) },
                 { "ignored-words.txt", ignoredBefore }, { "learned-words.txt", learnedBefore }, { "app-layouts.txt", ReadText(appLayoutsPath) },
-                { "layout-colors.txt", GetText("LayoutColors") }, { "sounds.txt", GetText("Sounds") }
+                { "no-auto-layouts.txt", ReadText(noAutoPath) }, { "layout-colors.txt", GetText("LayoutColors") }, { "sounds.txt", GetText("Sounds") }
             };
             var values = new Dictionary<string, int>();
             using (var k = Registry.CurrentUser.OpenSubKey(SettingsKey))

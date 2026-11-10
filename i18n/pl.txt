@@ -49,7 +49,7 @@ Interface language	Język interfejsu
 KeyFish is free of charge	KeyFish jest bezpłatny
 Development can be supported with a voluntary donation.	Rozwój można wesprzeć dobrowolną darowizną.
 Reset	Przywróć
-An abbreviation followed by a space is replaced with the specified text. Abbreviations are recognized in the other layout too: "thx" expands even when typed as «ерч».	Skrót, po którym następuje spacja, jest zastępowany określonym tekstem. Skróty są rozpoznawane także w innym układzie: „dzk” zostanie zamienione, nawet jeśli wpisano „вял”.
+An abbreviation followed by a space is replaced with the specified text. Abbreviations are recognized in the other layout too: "thx" expands even when typed as «ерч». The text may contain placeholders: {date} is the date, {time} the time, {clipboard} the text on the clipboard, {cursor} where the caret is left after the replacement.	Skrót, po którym następuje spacja, jest zastępowany określonym tekstem. Skróty są rozpoznawane także w innym układzie: „dzk” zostanie zamienione, nawet jeśli wpisano „вял”. W tekście można używać symboli zastępczych: {date} — data, {time} — godzina, {clipboard} — tekst ze schowka, {cursor} — miejsce kursora po zamianie.
 Abbreviation	Skrót
 Text (Enter — new line)	Tekst (Enter — nowy wiersz)
 thx	dzk
@@ -57,7 +57,7 @@ Add	Dodaj
 Delete	Usuń
 Text	Tekst
 Don't change	Nie zmieniaj
-A layout assigned to an app is turned on when its window becomes active. Auto-correction can also be turned off here for individual apps, such as code editors and terminals.	Układ przypisany aplikacji jest włączany, gdy jej okno staje się aktywne. Tutaj można też wyłączyć autokorektę dla wybranych aplikacji, np. edytorów kodu i terminali.
+A layout assigned to an app is turned on when its window becomes active. KeyFish's mode in individual apps is also set here: "Hotkeys only" turns auto-correction off and keeps the hotkeys, "Off" turns both off (in terminals, for example).	Układ przypisany do programu włącza się po przejściu do jego okna. Tutaj ustawia się też tryb pracy KeyFish w poszczególnych programach: „Tylko skróty klawiszowe” wyłącza autokorektę i pozostawia skróty, „Wyłączone” wyłącza jedno i drugie (na przykład w terminalach).
 App (process name)	Program (nazwa procesu)
 Layout	Układ
 Correct	Poprawiaj
@@ -290,3 +290,16 @@ As in Windows	Jak w Windows
 Interface size	Rozmiar interfejsu
 The size of KeyFish's windows, text and icons.	Rozmiar okien, tekstu i ikon KeyFish.
 Windows	Okna
+Fix while typing	Poprawiaj już podczas pisania
+When the beginning of a word is plainly in the wrong layout, the layout is switched after 4–6 letters, without waiting for a space.	Jeśli początek słowa jest wyraźnie wpisany w niewłaściwym układzie, układ zostaje przełączony po 4–6 literach, bez czekania na spację.
+Mode	Tryb
+A rule by window title: "{0} part of the title". * stands for any characters.	Reguła według tytułu okna: „{0} część tytułu”. Znak * zastępuje dowolne znaki.
+App or title	Program lub tytuł
+title:	tytuł:
+On	Włączone
+Hotkeys only	Tylko skróty klawiszowe
+Layouts for auto-correction	Układy dla autokorekty
+Layouts KeyFish switches to automatically. Clear a rarely used layout if KeyFish mistakes ordinary words for it; a manual fix into it still works.	Układy, na które KeyFish przełącza automatycznie. Odznacz rzadko używany układ, jeśli KeyFish błędnie zamienia na niego zwykłe słowa; ręczna korekta na ten układ nadal działa.
+All layouts	Wszystkie układy
+All but {0}	Oprócz {0}
+The downloaded file's signature could not be verified — update cancelled.	Nie udało się potwierdzić podpisu pobranego pliku — aktualizacja anulowana.

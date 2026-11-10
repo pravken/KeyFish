@@ -49,14 +49,14 @@ Interface language	Мова інтэрфейсу
 KeyFish is free of charge	KeyFish распаўсюджваецца бясплатна
 Development can be supported with a voluntary donation.	Падтрымаць распрацоўку можна добраахвотным ахвяраваннем.
 Reset	Скінуць
-An abbreviation followed by a space is replaced with the specified text. Abbreviations are recognized in the other layout too: "thx" expands even when typed as «ерч».	Скарачэнне, за якім ідзе прабел, замяняецца зададзеным тэкстам. Скарачэнне распазнаецца і ў іншай раскладцы: «thx» замяняецца, нават калі набрана «ерч».
+An abbreviation followed by a space is replaced with the specified text. Abbreviations are recognized in the other layout too: "thx" expands even when typed as «ерч». The text may contain placeholders: {date} is the date, {time} the time, {clipboard} the text on the clipboard, {cursor} where the caret is left after the replacement.	Скарачэнне, за якім ідзе прабел, замяняецца зададзеным тэкстам. Скарачэнне распазнаецца і ў іншай раскладцы: «thx» замяняецца, нават калі набрана «ерч». У тэксце можна выкарыстоўваць падстаноўкі: {date} — дата, {time} — час, {clipboard} — тэкст з буфера абмену, {cursor} — месца курсора пасля замены.
 Abbreviation	Скарачэнне
 Text (Enter — new line)	Замена (Enter — новы радок)
 Add	Дадаць
 Delete	Выдаліць
 Text	Замена
 Don't change	Не мяняць
-A layout assigned to an app is turned on when its window becomes active. Auto-correction can also be turned off here for individual apps, such as code editors and terminals.	Раскладка, прызначаная праграме, уключаецца пры пераходзе ў яе акно. Тут жа можна выключыць аўтавыпраўленне для асобных праграм, напрыклад рэдактараў кода і тэрміналаў.
+A layout assigned to an app is turned on when its window becomes active. KeyFish's mode in individual apps is also set here: "Hotkeys only" turns auto-correction off and keeps the hotkeys, "Off" turns both off (in terminals, for example).	Раскладка, прызначаная праграме, уключаецца пры пераходзе ў яе акно. Тут жа задаецца рэжым працы KeyFish у асобных праграмах: «Толькі гарачыя клавішы» адключае аўтавыпраўленне і пакідае гарачыя клавішы, «Выключана» адключае і тое і другое (напрыклад, у тэрміналах).
 App (process name)	Праграма (імя працэсу)
 Layout	Раскладка
 Correct	Выпраўляць
@@ -290,3 +290,16 @@ As in Windows	Як у Windows
 Interface size	Памер інтэрфейсу
 The size of KeyFish's windows, text and icons.	Памер вокнаў, тэксту і значкоў KeyFish.
 Windows	Вокны
+Fix while typing	Выпраўляць ужо падчас набору
+When the beginning of a word is plainly in the wrong layout, the layout is switched after 4–6 letters, without waiting for a space.	Калі пачатак слова відавочна набраны не ў той раскладцы, раскладка пераключаецца пасля 4–6 літар, не чакаючы прабелу.
+Mode	Рэжым
+A rule by window title: "{0} part of the title". * stands for any characters.	Правіла па загалоўку акна: «{0} частка загалоўка». Знак * замяняе любыя сімвалы.
+App or title	Праграма або загаловак
+title:	загаловак:
+On	Уключана
+Hotkeys only	Толькі гарачыя клавішы
+Layouts for auto-correction	Раскладкі для аўтавыпраўлення
+Layouts KeyFish switches to automatically. Clear a rarely used layout if KeyFish mistakes ordinary words for it; a manual fix into it still works.	Раскладкі, у якія KeyFish пераключае аўтаматычна. Зніміце адзнаку з рэдка ўжыванай раскладкі, калі KeyFish памылкова пераводзіць у яе звычайныя словы; выпраўленне ўручную ў яе па-ранейшаму працуе.
+All layouts	Усе раскладкі
+All but {0}	Акрамя {0}
+The downloaded file's signature could not be verified — update cancelled.	Подпіс спампаванага файла не пацверджаны — абнаўленне скасавана.

@@ -84,12 +84,26 @@ class PasswordGuardClient
     // the time 0 too: it vouches for nothing, the same as no check at all
     public void Read(out bool password, out int checkedAt)
     {
+        bool definite;
+        Read(out password, out checkedAt, out definite);
+    }
+
+    // definite: the check found a text field or a password field itself, not a window or a page around it (a browser
+    // reports the page first and the field a moment later), so the verdict needn't be asked for again in this word
+    public void Read(out bool password, out int checkedAt, out bool definite)
+    {
         bool unsure;
-        Read(out password, out unsure, out checkedAt);
+        Read(out password, out unsure, out checkedAt, out definite);
         if (unsure) checkedAt = 0;
     }
 
     void Read(out bool password, out bool unsure, out int checkedAt)
+    {
+        bool definite;
+        Read(out password, out unsure, out checkedAt, out definite);
+    }
+
+    void Read(out bool password, out bool unsure, out int checkedAt, out bool definite)
     {
         // One 8-byte read is atomic in a 64-bit process; a 32-bit one reads it in two halves, so it reads until two
         // reads agree, and a verdict is never paired with another check's time
@@ -98,6 +112,7 @@ class PasswordGuardClient
             for (long again = view.ReadInt64(0); again != v; again = view.ReadInt64(0)) v = again;
         password = (v & 1) != 0;
         unsure = (v & 2) != 0;
+        definite = (v & 4) != 0;
         checkedAt = (int)(v >> 32);
     }
 
@@ -258,7 +273,9 @@ static class PasswordGuardProcess
         }) { IsBackground = true }.Start();
 
         // The focus is read on a thread of its own, in the multithreaded apartment UI Automation clients are meant to use
-        var checks = new Thread(() => CheckFocus(view, signal)) { IsBackground = true };
+        // Above normal: under a heavy load (a render, a build) a check at normal priority waited its turn for a second
+        // and more, and the words typed meanwhile went uncorrected
+        var checks = new Thread(() => CheckFocus(view, signal)) { IsBackground = true, Priority = ThreadPriority.AboveNormal };
         checks.SetApartmentState(ApartmentState.MTA);
         checks.Start();
 
@@ -302,7 +319,7 @@ static class PasswordGuardProcess
             bool password = passwordFocused && foreground == passwordWindow;
             // The focus couldn't be read (the app failed or didn't answer): this check vouches for nothing, so the
             // word isn't corrected, as if no check had been made. Never taken for "not a password"
-            bool unsure = true;
+            bool unsure = true, definite = false;
             try
             {
                 System.Windows.Automation.AutomationElement element;
@@ -314,16 +331,16 @@ static class PasswordGuardProcess
                     // Only a text field can change the decision. Browser popups ("suggest a strong password",
                     // autofill) take focus for a moment, and at first the browser reports the whole page
                     // (Document) as focused; neither means the password field was left
-                    if (info.IsPassword) password = true;
+                    if (info.IsPassword) password = definite = true;
                     else if (type == System.Windows.Automation.ControlType.Edit ||
-                             type == System.Windows.Automation.ControlType.ComboBox) password = false;
+                             type == System.Windows.Automation.ControlType.ComboBox) { password = false; definite = true; }
                     unsure = false;
                 }
             }
             catch { }
             if (password) passwordWindow = foreground;
             passwordFocused = password;
-            view.Write(0, ((long)stamp << 32) | (password ? 1L : 0L) | (unsure ? 2L : 0L));
+            view.Write(0, ((long)stamp << 32) | (password ? 1L : 0L) | (unsure ? 2L : 0L) | (definite ? 4L : 0L));
             micros += (Stopwatch.GetTimestamp() - started) * 1000000 / Stopwatch.Frequency;
             view.Write(40, ++count);
             view.Write(48, micros);

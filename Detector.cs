@@ -52,6 +52,9 @@ public class LangModel
                 Add(tri, Pack(p, i - 2, 3), weight);
                 Add(ctx, Pack(p, i - 2, 2), weight);
             }
+            // Pairs for HasImpossible: one-letter entries ("ь", "ы" in Russian lists) are left out, they are not words
+            if (w.Length >= 2)
+                for (int i = 1; i < p.Length - 1; i++) pairs.Add(Pack(p, i, 2));
         }
         HasFrequencies = !allSame;
 
@@ -73,6 +76,56 @@ public class LangModel
         starts[sorted.Length] = length;
         ToArrays(tri, out triKeys, out triWeights);
         ToArrays(ctx, out ctxKeys, out ctxWeights);
+
+        // The letters its words are made of, and how often a word must be to count as common: the 20,000th most frequent
+        var seen = new HashSet<char>(text);
+        seen.Remove('-');
+        letters = new char[seen.Count];
+        seen.CopyTo(letters);
+        var byCount = (long[])counts.Clone();
+        Array.Sort(byCount);
+        common = byCount.Length == 0 ? long.MaxValue : byCount[Math.Max(0, byCount.Length - 20000)];
+        Rare = byCount.Length <= 50000 ? 0 : byCount[byCount.Length - 50000];
+    }
+
+    // Rarer than the 50,000 most frequent words: past the built-in list, so only in the extended dictionary, whose
+    // subtitles also hold words typed in the wrong layout ("yj" for "но"). 0 without an extended dictionary
+    public readonly long Rare;
+    public long Common { get { return common; } }
+
+    readonly char[] letters;
+    readonly long common;
+    readonly HashSet<long> pairs = new HashSet<long>();   // every pair of letters side by side (or "^" and a first letter) in a word of two letters or more
+
+    // A word of the language is one letter away from this one (one letter changed, added, dropped, or two side by side
+    // swapped): the word is likely that word with a typo. commonOnly: only a common word counts, and only in a
+    // dictionary with frequencies
+    public bool NearWord(string word, bool commonOnly)
+    {
+        if (word.Length < 3 || (commonOnly && !HasFrequencies)) return false;
+        long common = commonOnly ? this.common : 1;
+        var chars = word.ToCharArray();
+        for (int i = 0; i < chars.Length; i++)
+        {
+            char keep = chars[i];
+            foreach (char c in letters)
+            {
+                if (c == keep) continue;
+                chars[i] = c;
+                if (Count(new string(chars)) >= common) { chars[i] = keep; return true; }
+            }
+            chars[i] = keep;
+            if (i + 1 < chars.Length && chars[i] != chars[i + 1])
+            {
+                string swapped = word.Substring(0, i) + word[i + 1] + word[i] + word.Substring(i + 2);
+                if (Count(swapped) >= common) return true;
+            }
+            if (Count(word.Remove(i, 1)) >= common) return true;
+        }
+        for (int i = 0; i <= word.Length; i++)
+            foreach (char c in letters)
+                if (Count(word.Insert(i, c.ToString())) >= common) return true;
+        return false;
     }
 
     // Up to three characters in one number; the length goes first, so "ab" and "\0ab" differ
@@ -127,6 +180,56 @@ public class LangModel
             if (c < 0) hi = mid - 1; else lo = mid + 1;
         }
         return 0;
+    }
+
+    // The word has two letters side by side (or a first letter) that no word of the language has: "ъь", or "ь" at the
+    // start in Russian. Such a word is not of this language, however natural the rest of it reads. The parts of a
+    // hyphenated word are checked each on its own
+    public bool HasImpossible(string word)
+    {
+        foreach (string part in word.Split('-'))
+        {
+            if (part.Length == 0) continue;
+            string p = "^" + part;
+            for (int i = 0; i + 1 < p.Length; i++)
+                if (!pairs.Contains(Pack(p, i, 2))) return true;
+        }
+        return false;
+    }
+
+    // The first of the words that are not less than this prefix: words starting with it begin here, if there are any
+    int LowerBound(string prefix)
+    {
+        int lo = 0, hi = counts.Length;
+        while (lo < hi)
+        {
+            int mid = (lo + hi) >> 1;
+            if (Compare(prefix, mid) > 0) lo = mid + 1; else hi = mid;
+        }
+        return lo;
+    }
+
+    bool StartsWith(int i, string prefix)
+    {
+        int s = starts[i];
+        if (starts[i + 1] - s < prefix.Length) return false;
+        for (int k = 0; k < prefix.Length; k++) if (text[s + k] != prefix[k]) return false;
+        return true;
+    }
+
+    // Some word of the language starts with these letters
+    public bool HasPrefix(string prefix)
+    {
+        int i = LowerBound(prefix);
+        return i < counts.Length && StartsWith(i, prefix);
+    }
+
+    // A common word of the language starts with these letters (any word, in a dictionary without frequencies)
+    public bool HasCommonPrefix(string prefix)
+    {
+        for (int i = LowerBound(prefix), seen = 0; i < counts.Length && seen < 5000 && StartsWith(i, prefix); i++, seen++)
+            if (!HasFrequencies || counts[i] >= common) return true;
+        return false;
     }
 
     // Average log probability per character: the higher, the more natural the word is for the language
@@ -370,17 +473,59 @@ public static class Detector
         if (t == null) return ca > 0 || (!strict && A.Score(a) > -3.2);
 
         if (ct > 0 && ca > 0)
-            return ctxAlt ? ca > ct : (!ctxSame && ca > ct * FrequencyRatio);
+        {
+            if (ctxAlt ? ca > ct : (!ctxSame && ca > ct * FrequencyRatio)) return true;
+            // A word known only from the extended dictionary against a common word of the other language: such a
+            // "word" is most often that word typed in the wrong layout. Right after a word in the typed language, only
+            // if the other one is a thousand times as frequent
+            // ("шею" is not "ше" + a dot: letters the other layout turns into punctuation must not be cut off for it)
+            return ct < T.Rare && ca >= A.Common && ca > ct * (ctxSame ? 1000 : 20) && t == Core(typed, T.Lang);
+        }
         if (ct > 0) return false;
         // In strict mode an unknown typed word must also look clearly less natural than the alternative:
         // a rare real word can transliterate into a dictionary word of the other language
         if (ca > 0) return strict ? A.Score(a) > T.Score(t) + (ctxAlt ? 0 : 0.5) && !ctxSame
                                   : !ctxSame || A.Score(a) > T.Score(t) + 1;
 
-        // Neither is a known word: letter statistics decide, but not for words this short (wfh is not "царб")
+        // Neither is a known word. A pair of letters the typed word's language never has, while the other layout's word
+        // has none such, settles it whichever way, short words too (xneur's rule); the other way round, the other
+        // layout's word can't be a word at all
+        bool impossibleT = T.HasImpossible(t), impossibleA = A.HasImpossible(a);
+        if (impossibleA && !impossibleT) return false;
+        // A typo makes such pairs too (привте): a typed word one letter from a word of its own language is that word
+        // mistyped, not another layout
+        // Three letters are often an abbreviation (мфц): only if a common word of the other language starts so, and not
+        // right after a word in the typed language
+        int nearT = -1;   // T.NearWord(t, false), worked out once: 1 or 0
+        if (impossibleT && !impossibleA && !strict && (a.Length >= 4 || (a.Length == 3 && !ctxSame && A.HasCommonPrefix(a)))
+            && (nearT = T.NearWord(t, false) ? 1 : 0) == 0)
+            return A.Score(a) - T.Score(t) > (ctxSame ? 1.5 : 0.75);
+        // Typed in the wrong layout and with a typo too: the other layout's word is one letter from a common word,
+        // the typed one is near no word of its language at all, not even a rare one, and the letters agree. The layout is fixed, the typo stays
+        if (!strict && !impossibleA && a.Length >= 4 && !ctxSame && A.Score(a) > T.Score(t) && A.NearWord(a, true)
+            && (nearT >= 0 ? nearT == 0 : !T.NearWord(t, false)))
+            return true;
+        // Otherwise letter statistics decide, but not for words this short (wfh is not "царб")
         if (a.Length < 4 || strict) return false;
         double th = ctxAlt ? Threshold - 0.5 : ctxSame ? Threshold + 0.5 : Threshold;
         return A.Score(a) - T.Score(t) > th;
+    }
+
+    // The beginning of a word still being typed (four letters or more): is it so clearly in the wrong layout that the
+    // layout is switched now, before the rest is typed in it too? Only on strong evidence: no word of the typed
+    // language starts so, a common word of the other one starts with the same keys there, and the typed letters have
+    // a pair their language never has or read far less naturally (right after a word in the typed language, far less
+    // still). Never for phonetic layouts. The whole word is checked again when it ends
+    public static bool ShouldSwitchEarly(string typed, string alt, LangModel T, LangModel A, string context)
+    {
+        string t = Core(typed, T.Lang), a = Core(alt, A.Lang);
+        if (string.IsNullOrEmpty(t) || string.IsNullOrEmpty(a) || t.Length < 4 || t.Length != a.Length) return false;
+        if (Phonetic.Contains(T.Lang) || Phonetic.Contains(A.Lang)) return false;
+        // Capitals after the first letter: an abbreviation or code, not a word
+        for (int i = 1; i < typed.Length; i++) if (char.IsUpper(typed[i])) return false;
+        if (T.HasPrefix(t) || !A.HasCommonPrefix(a) || A.HasImpossible(a)) return false;
+        // Right after a word in the typed language the letters must read twice as unnaturally
+        return T.HasImpossible(t) || A.Score(a) - T.Score(t) > (context == T.Lang ? 2 * Threshold : Threshold);
     }
 
     // Among the other installed layouts, which one did the user mean? Returns its index or -1 to leave the word alone.

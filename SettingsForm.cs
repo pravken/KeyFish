@@ -11,6 +11,7 @@ using System.Windows.Forms;
 // that used to be plain text files (replacements, apps, words)
 class SettingsForm : Form
 {
+    public bool SwitchWhileTyping = true;
     public bool AutoCorrect, Typos, QuietFullscreen, UndoCtrlZ, LayoutColor, Autostart, CheckUpdates, LayoutBadge, RecentMenu, Sound, TrayLetters, Typography;
     public string BackupDir;             // where KeyFish keeps copies of the settings made before each save
     public Action<IWin32Window> OpenAbout;   // the About window, which otherwise opens only from the tray menu
@@ -28,7 +29,7 @@ class SettingsForm : Form
     public Dictionary<string, string> SoundMap = new Dictionary<string, string>();   // event → sound (Sounds)
     public string SoundsDir;             // where the user's .wav files are
     public Keys[] Hotkeys;
-    public string Replacements, Exclusions, Ignored, Learned, AppLayouts;
+    public string Replacements, Exclusions, Ignored, Learned, AppLayouts, NoAutoLayouts;
     public IList<LayoutTable> InstalledLayouts = new List<LayoutTable>();
     public Dictionary<string, Color> LayoutColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);   // "EN" → color
     public int StartPage { get; set; }   // the section to open with (tests\Preview opens any)
@@ -52,8 +53,7 @@ class SettingsForm : Form
     Action updatesRefresh;  // the Updates card of the window as built now (a check may end after a rebuild)
     // The fields for a new item, kept over a rebuild: abbreviation and text, app, layout, correct, and the new words
     TextBox replKey, replVal;
-    DropDown appName, appLayout;
-    ToggleSwitch appFix;
+    DropDown appName, appLayout, appMode;
     readonly List<TextBox> wordInputs = new List<TextBox>();
     // Importing settings: KeyFish keeps a copy of the current ones first, whatever was changed before in the window
     public bool Replacing { get; private set; }
@@ -62,7 +62,7 @@ class SettingsForm : Form
     NavList nav;
     Panel content;
 
-    ToggleSwitch tAuto, tTypos, tQuiet, tCtrlZ, tColor, tAutostart, tUpdates, tBadge, tRecent, tSound, tLetters, tTypography;
+    ToggleSwitch tAuto, tEarly, tTypos, tQuiet, tCtrlZ, tColor, tAutostart, tUpdates, tBadge, tRecent, tSound, tLetters, tTypography;
     DropDown cbLanguage, cbScale, cbTheme, cbQuickKey;
     ToggleSwitch tHoliday, tSkinLogo, tSkinSound;
     SkinGallery gallery;
@@ -120,8 +120,7 @@ class SettingsForm : Form
     void Build()
     {
         replKey = replVal = null;
-        appName = appLayout = null;
-        appFix = null;
+        appName = appLayout = appMode = null;
         wordInputs.Clear();
         // Sidebar: the fish, the name and the sections
         var side = new Panel { Location = new Point(0, 0), Size = new Size(SideWidth, baseSize.Height), BackColor = Theme.Back };
@@ -273,7 +272,7 @@ class SettingsForm : Form
         var focus = PathOf(ActiveControl);
         string[] texts = { replKey.Text, replVal.Text, appName.Text, wordInputs[0].Text, wordInputs[1].Text };
         int layout = appLayout.SelectedIndex;
-        bool fix = appFix.Checked;
+        int mode = appMode.SelectedIndex;
         SuspendLayout();
         var old = Controls.Cast<Control>().ToList();
         Controls.Clear();
@@ -290,7 +289,7 @@ class SettingsForm : Form
         Build();
         replKey.Text = texts[0]; replVal.Text = texts[1]; appName.Text = texts[2]; wordInputs[0].Text = texts[3]; wordInputs[1].Text = texts[4];
         appLayout.SelectedIndex = layout;
-        appFix.Checked = fix;
+        appMode.SelectedIndex = mode;
         building = false;
         if (resized)
         {
@@ -1112,6 +1111,11 @@ class SettingsForm : Form
             L.T("Пример: ghbdtn → привет, руддщ → hello. Автозамены работают только при включённом параметре.",
                 "Example: ghbdtn → привет, руддщ → hello. Replacements work only while this is on."), tAuto = Toggle(AutoCorrect),
             Typing(sampleTyped, sampleWord));
+        Row(page, ref y, L.T("Исправлять уже во время набора", "Fix while typing"),
+            L.T("Если начало слова явно набрано не в той раскладке, раскладка переключается после 4–6 букв, не дожидаясь пробела.",
+                "When the beginning of a word is plainly in the wrong layout, the layout is switched after 4–6 letters, without waiting for a space."),
+            tEarly = Toggle(SwitchWhileTyping));
+        AutoLayoutsRow(page, ref y);
         DictionaryRow(page, ref y);
         Row(page, ref y, L.T("Исправлять опечатки", "Fix typos"),
             L.T("Экспериментальная функция. Использует проверку орфографии Windows: пирвет → привет.", "Experimental. Uses Windows spell checking: recieve → receive."), tTypos = Toggle(Typos),
@@ -1126,6 +1130,62 @@ class SettingsForm : Form
             Typing(sampleTyped, sampleWord, true));
         Row(page, ref y, L.T("Не исправлять в играх и полноэкранных программах", "Don't correct in games and full-screen apps"), null, tQuiet = Toggle(QuietFullscreen));
         return End(page, y);
+    }
+
+    // Layouts KeyFish switches to by itself: all by default; one can be left to hand fixes only
+    void AutoLayoutsRow(Control page, ref int y)
+    {
+        var ids = ParseLayoutIds(NoAutoLayouts);
+        var button = new RoundButton { Size = new Size(190, 32) };
+        Action label = () =>
+        {
+            int off = InstalledLayouts.Count(t => ids.Contains(t.Hkl.ToInt64()));
+            button.Text = off == 0 ? L.T("Все раскладки", "All layouts") : L.F("Кроме {0}", "All but {0}", off);
+        };
+        label();
+        button.Click += (s, e) =>
+        {
+            var menu = new ContextMenuStrip { ShowImageMargin = false, ShowCheckMargin = true };
+            ThemedMenuRenderer.Apply(menu);
+            foreach (var t in InstalledLayouts)
+            {
+                long id = t.Hkl.ToInt64();
+                var item = new ToolStripMenuItem(LayoutName(t)) { Checked = !ids.Contains(id), CheckOnClick = true };
+                item.CheckedChanged += (s2, e2) =>
+                {
+                    if (item.Checked) ids.Remove(id); else ids.Add(id);
+                    NoAutoLayouts = FormatLayoutIds(ids);
+                    label();
+                };
+                menu.Items.Add(item);
+            }
+            menu.Closed += (s2, e2) => BeginInvoke(new Action(menu.Dispose));
+            menu.Show(button, new Point(0, button.Height + 2));
+        };
+        Row(page, ref y, L.T("Раскладки для автоисправления", "Layouts for auto-correction"),
+            L.T("Раскладки, в которые KeyFish переключает автоматически. Снимите отметку с редко используемой раскладки, если KeyFish ошибочно переводит в неё обычные слова; исправление вручную в неё по-прежнему работает.",
+                "Layouts KeyFish switches to automatically. Clear a rarely used layout if KeyFish mistakes ordinary words for it; a manual fix into it still works."),
+            button);
+    }
+
+    // "layout id in hex", one per line
+    public static HashSet<long> ParseLayoutIds(string text)
+    {
+        var ids = new HashSet<long>();
+        foreach (string s in Lines(text))
+        {
+            long id;
+            if (long.TryParse(s.Trim(), NumberStyles.HexNumber, null, out id)) ids.Add(id);
+        }
+        return ids;
+    }
+
+    static string FormatLayoutIds(HashSet<long> ids)
+    {
+        var sb = new StringBuilder(L.T("# Раскладки, в которые KeyFish не переключает автоматически (код раскладки). Удобнее править в настройках.\r\n",
+                                       "# Layouts KeyFish doesn't switch to automatically (layout id). Easier to edit in Settings.\r\n"));
+        foreach (long id in ids) sb.Append(id.ToString("X")).Append("\r\n");
+        return sb.ToString();
     }
 
     Panel CuesPage()
@@ -1255,8 +1315,8 @@ class SettingsForm : Form
     {
         int y;
         var page = Page(L.T("Автозамены", "Replacements"), out y);
-        Intro(page, ref y, L.T("Сокращение, за которым следует пробел, заменяется заданным текстом. Сокращение распознаётся и в другой раскладке: «спс» заменяется, даже если набрано «cgc».",
-                              "An abbreviation followed by a space is replaced with the specified text. Abbreviations are recognized in the other layout too: \"thx\" expands even when typed as «ерч»."));
+        Intro(page, ref y, L.T("Сокращение, за которым следует пробел, заменяется заданным текстом. Сокращение распознаётся и в другой раскладке: «спс» заменяется, даже если набрано «cgc». В тексте можно использовать подстановки: {date} — дата, {time} — время, {clipboard} — текст из буфера обмена, {cursor} — место курсора после замены.",
+                              "An abbreviation followed by a space is replaced with the specified text. Abbreviations are recognized in the other layout too: \"thx\" expands even when typed as «ерч». The text may contain placeholders: {date} is the date, {time} the time, {clipboard} the text on the clipboard, {cursor} where the caret is left after the replacement."));
 
         // The editor: abbreviation → text, then Add (or Save when the abbreviation is already in the table)
         var editor = new Card { Location = new Point(16, y), Size = new Size(ContentWidth, 132) };
@@ -1373,8 +1433,9 @@ class SettingsForm : Form
     {
         int y;
         var page = Page(L.T("Программы", "Apps"), out y);
-        Intro(page, ref y, L.T("Раскладка, назначенная программе, включается при переходе в её окно. Здесь же можно отключить автоисправление для отдельных программ, например редакторов кода и терминалов.",
-                              "A layout assigned to an app is turned on when its window becomes active. Auto-correction can also be turned off here for individual apps, such as code editors and terminals."));
+        Intro(page, ref y, L.T("Раскладка, назначенная программе, включается при переходе в её окно. Здесь же задаётся режим работы KeyFish в отдельных программах: «Только горячие клавиши» отключает автоисправление и оставляет горячие клавиши, «Выключено» отключает и то и другое (например, в терминалах).",
+                              "A layout assigned to an app is turned on when its window becomes active. KeyFish's mode in individual apps is also set here: \"Hotkeys only\" turns auto-correction off and keeps the hotkeys, \"Off\" turns both off (in terminals, for example)."));
+        var modeNames = new List<string> { ModeName(AppMode.Full), ModeName(AppMode.HotkeysOnly), ModeName(AppMode.Off) };
 
         var layoutNames = new List<string> { NoLayout };
         var byName = new Dictionary<string, long>();
@@ -1386,12 +1447,17 @@ class SettingsForm : Form
             layoutNames.Add(n);
         }
 
-        var editor = new Card { Location = new Point(16, y), Size = new Size(ContentWidth, 92) };
+        var editor = new Card { Location = new Point(16, y), Size = new Size(ContentWidth, 112) };
         var lApp = Theme.Label(L.T("Программа (имя процесса)", "App (process name)"), Theme.Small, Theme.SubText); lApp.Location = new Point(16, 10);
-        var lLay = Theme.Label(L.T("Раскладка", "Layout"), Theme.Small, Theme.SubText); lLay.Location = new Point(236, 10);
-        var lFix = Theme.Label(L.T("Исправлять", "Correct"), Theme.Small, Theme.SubText); lFix.Location = new Point(424, 10);
+        var lLay = Theme.Label(L.T("Раскладка", "Layout"), Theme.Small, Theme.SubText); lLay.Location = new Point(228, 10);
+        var lFix = Theme.Label(L.T("Режим", "Mode"), Theme.Small, Theme.SubText); lFix.Location = new Point(410, 10);
+        var lTitle = Theme.Label(L.F("Правило по заголовку окна: «{0} часть заголовка». Знак * заменяет любые символы.",
+                                     "A rule by window title: \"{0} part of the title\". * stands for any characters.", TitlePrefixShown),
+                                 Theme.Small, Theme.SubText);
+        lTitle.Location = new Point(16, 70);
+        lTitle.MaximumSize = new Size(460, 0);   // two lines beside the Add button
         var app = appName = new DropDown(true, L.T("Выберите или введите", "Pick or type"));
-        app.Location = new Point(16, 30); app.Width = 204;
+        app.Location = new Point(16, 30); app.Width = 200;
         // Going through every process takes a moment on a busy computer: the list fills in after the window is shown
         System.Threading.ThreadPool.QueueUserWorkItem(_ =>
         {
@@ -1400,39 +1466,55 @@ class SettingsForm : Form
             catch (InvalidOperationException) { }   // Settings was closed meanwhile
         });
         var lay = appLayout = new DropDown();
-        lay.Location = new Point(236, 30); lay.Width = 172;
+        lay.Location = new Point(228, 30); lay.Width = 170;
         lay.Items.AddRange(layoutNames);
         lay.SelectedIndex = 0;
-        var fix = appFix = new ToggleSwitch { Checked = true, Location = new Point(428, 35) };
-        var add = new RoundButton { Text = L.T("Добавить", "Add"), AccentStyle = true, Location = new Point(490, 30), Size = new Size(134, 32) };
-        editor.Controls.AddRange(new Control[] { lApp, lLay, lFix, app, lay, fix, add });
+        var fix = appMode = new DropDown();
+        fix.Location = new Point(410, 30); fix.Width = 214;
+        fix.Items.AddRange(modeNames);
+        fix.SelectedIndex = 0;
+        var add = new RoundButton { Text = L.T("Добавить", "Add"), AccentStyle = true, Location = new Point(490, 70), Size = new Size(134, 32) };
+        editor.Controls.AddRange(new Control[] { lApp, lLay, lFix, lTitle, app, lay, fix, add });
         page.Controls.Add(editor);
         y += editor.Height + 10;
 
         var grid = gridApps = Theme.Grid();
-        grid.Columns.Add(TextColumn(L.T("Программа", "App"), 40));
+        grid.Columns.Add(TextColumn(L.T("Программа или заголовок", "App or title"), 35));
         // Layout cells are picked from a themed menu, not the classic combo box (see the CellClick handler below)
         var layCol = new DataGridViewComboBoxColumn
         {
-            HeaderText = L.T("Раскладка", "Layout"), FillWeight = 40, FlatStyle = FlatStyle.Flat, ReadOnly = true,
+            HeaderText = L.T("Раскладка", "Layout"), FillWeight = 31, FlatStyle = FlatStyle.Flat, ReadOnly = true,
             DisplayStyle = DataGridViewComboBoxDisplayStyle.Nothing
         };
         layCol.Items.AddRange(layoutNames.ToArray());
         grid.Columns.Add(layCol);
-        grid.Columns.Add(new DataGridViewCheckBoxColumn { HeaderText = L.T("Исправлять", "Correct"), FillWeight = 20, FlatStyle = FlatStyle.Flat });
+        var modeCol = new DataGridViewComboBoxColumn
+        {
+            HeaderText = L.T("Режим", "Mode"), FillWeight = 34, FlatStyle = FlatStyle.Flat, ReadOnly = true,
+            DisplayStyle = DataGridViewComboBoxDisplayStyle.Nothing
+        };
+        modeCol.Items.AddRange(modeNames.ToArray());
+        grid.Columns.Add(modeCol);
         RoundButton del, import;
         page.Controls.Add(ListCard(grid, y, false, out del, out import));
 
-        // Rows from both files: exclusions.txt (correction off) and app-layouts.txt (process = layout)
-        var excluded = new HashSet<string>(Lines(Exclusions).Select(StripExe), StringComparer.OrdinalIgnoreCase);
+        // Rows from both files: exclusions.txt (the mode, see AppRules) and app-layouts.txt (process = layout)
+        var modes = new Dictionary<string, AppMode>(StringComparer.OrdinalIgnoreCase);
+        foreach (string line in Lines(Exclusions))
+        {
+            bool hotkeys;
+            string n = ShownRule(StripExe(AppRules.Split(line, out hotkeys)));
+            if (n.Length > 0) modes[n] = hotkeys ? AppMode.HotkeysOnly : AppMode.Off;
+        }
         var layouts = ParseAppLayouts(AppLayouts);
         var names = new List<string>();
-        foreach (string n in excluded.Concat(layouts.Keys)) if (!names.Contains(n, StringComparer.OrdinalIgnoreCase)) names.Add(n);
+        foreach (string n in modes.Keys.Concat(layouts.Keys)) if (!names.Contains(n, StringComparer.OrdinalIgnoreCase)) names.Add(n);
         foreach (string n in names)
         {
             long hkl;
+            AppMode m;
             string layName = layouts.TryGetValue(n, out hkl) ? byName.FirstOrDefault(kv => kv.Value == hkl).Key : null;
-            grid.Rows.Add(n, layName ?? NoLayout, !excluded.Contains(n));
+            grid.Rows.Add(n, layName ?? NoLayout, ModeName(modes.TryGetValue(n, out m) ? m : AppMode.Full));
         }
 
         Action refresh = () => { add.Enabled = StripExe(app.Text.Trim()).Length > 0; del.Enabled = grid.SelectedRows.Count > 0; };
@@ -1440,16 +1522,18 @@ class SettingsForm : Form
         grid.SelectionChanged += (s, e) => refresh();
         add.Click += (s, e) =>
         {
-            string n = StripExe(app.Text.Trim());
-            if (n.Length == 0) return;
+            string n = ShownRule(StripExe(app.Text.Trim()));
+            if (n.Length == 0 || (IsTitleRow(n) && RuleText(n).Trim('*', '?', ' ').Length == 0)) return;
+            // A layout is set by the app only: a window title can't have one
+            string layName = IsTitleRow(n) ? NoLayout : (string)lay.SelectedItem ?? NoLayout;
             var row = grid.Rows.Cast<DataGridViewRow>().FirstOrDefault(r => string.Equals((string)r.Cells[0].Value, n, StringComparison.OrdinalIgnoreCase));
-            if (row == null) { grid.Rows.Add(n, lay.SelectedItem ?? NoLayout, fix.Checked); row = grid.Rows[grid.Rows.Count - 1]; }
-            else { row.Cells[1].Value = lay.SelectedItem ?? NoLayout; row.Cells[2].Value = fix.Checked; }
+            if (row == null) { grid.Rows.Add(n, layName, fix.SelectedItem ?? modeNames[0]); row = grid.Rows[grid.Rows.Count - 1]; }
+            else { row.Cells[1].Value = layName; row.Cells[2].Value = fix.SelectedItem ?? modeNames[0]; }
             grid.ClearSelection();
             row.Selected = true;
             app.Text = "";
             lay.SelectedIndex = 0;
-            fix.Checked = true;
+            fix.SelectedIndex = 0;
         };
         del.Click += (s, e) => { DeleteSelected(grid); refresh(); };
         DeleteWithKey(grid);
@@ -1458,18 +1542,19 @@ class SettingsForm : Form
         grid.DataError += (s, e) => e.ThrowException = false;
         grid.CellClick += (s, e) =>
         {
-            if (e.RowIndex < 0 || e.ColumnIndex != 1) return;
+            if (e.RowIndex < 0 || (e.ColumnIndex != 1 && e.ColumnIndex != 2)) return;
+            if (e.ColumnIndex == 1 && IsTitleRow((string)grid[0, e.RowIndex].Value)) return;
             var menu = new ContextMenuStrip { ShowImageMargin = false, ShowCheckMargin = true };
             ThemedMenuRenderer.Apply(menu);
-            var cell = grid[1, e.RowIndex];
-            foreach (string n in layoutNames)
+            var cell = grid[e.ColumnIndex, e.RowIndex];
+            foreach (string n in e.ColumnIndex == 1 ? layoutNames : modeNames)
             {
                 string value = n;
                 var item = new ToolStripMenuItem(n) { Checked = (string)cell.Value == n };
                 item.Click += (s2, e2) => cell.Value = value;
                 menu.Items.Add(item);
             }
-            var r = grid.GetCellDisplayRectangle(1, e.RowIndex, false);
+            var r = grid.GetCellDisplayRectangle(e.ColumnIndex, e.RowIndex, false);
             menu.MinimumSize = new Size(r.Width, 0);
             menu.Closed += (s2, e2) => BeginInvoke(new Action(menu.Dispose));
             menu.Show(grid, new Point(r.X, r.Bottom + 2));
@@ -1481,6 +1566,32 @@ class SettingsForm : Form
     }
 
     Dictionary<string, long> appLayoutIds;
+
+    static string ModeName(AppMode m)
+    {
+        return m == AppMode.Full ? L.T("Включено", "On") : m == AppMode.HotkeysOnly ? L.T("Только горячие клавиши", "Hotkeys only") : L.T("Выключено", "Off");
+    }
+
+    static AppMode ModeOf(object shown)
+    {
+        foreach (AppMode m in new[] { AppMode.HotkeysOnly, AppMode.Off }) if (ModeName(m) == shown as string) return m;
+        return AppMode.Full;
+    }
+
+    // A title rule is "title: …" in the file and in the interface language here ("заголовок: …")
+    static string TitlePrefixShown { get { return L.T("заголовок:", AppRules.TitlePrefix); } }
+
+    static bool IsTitleRow(string rule)
+    {
+        return rule != null && (AppRules.IsTitleRule(rule) || rule.StartsWith(TitlePrefixShown, StringComparison.OrdinalIgnoreCase) ||
+                                rule.StartsWith("заголовок:", StringComparison.OrdinalIgnoreCase));
+    }
+
+    static string RuleText(string rule) { return rule.Substring(rule.IndexOf(':') + 1).Trim(); }
+
+    // As the row shows it, and as the file keeps it
+    static string ShownRule(string rule) { return IsTitleRow(rule) ? TitlePrefixShown + " " + RuleText(rule) : rule; }
+    static string FileRule(string rule) { return IsTitleRow(rule) ? AppRules.TitlePrefix + " " + RuleText(rule) : rule; }
 
     public static string StripExe(string s) { return s.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? s.Substring(0, s.Length - 4) : s; }
 
@@ -1639,7 +1750,7 @@ class SettingsForm : Form
     {
         var v = new Dictionary<string, int>
         {
-            { "AutoCorrect", AutoCorrect ? 1 : 0 }, { "Typos", Typos ? 1 : 0 }, { "QuietFullscreen", QuietFullscreen ? 1 : 0 },
+            { "AutoCorrect", AutoCorrect ? 1 : 0 }, { "Typos", Typos ? 1 : 0 }, { "QuietFullscreen", QuietFullscreen ? 1 : 0 }, { "SwitchWhileTyping", SwitchWhileTyping ? 1 : 0 },
             { "UndoCtrlZ", UndoCtrlZ ? 1 : 0 }, { "LayoutColor", LayoutColor ? 1 : 0 }, { "CheckUpdates", CheckUpdates ? 1 : 0 },
             { "LayoutBadge", LayoutBadge ? 1 : 0 }, { "RecentMenu", RecentMenu ? 1 : 0 }, { "QuickKey", QuickKey }, { "Sound", Sound ? 1 : 0 }, { "Typography", Typography ? 1 : 0 },
             { "TrayLetters", TrayLetters ? 1 : 0 },
@@ -1656,7 +1767,7 @@ class SettingsForm : Form
         return new Dictionary<string, string>
         {
             { "replacements.txt", Replacements }, { "exclusions.txt", Exclusions }, { "ignored-words.txt", Ignored },
-            { "learned-words.txt", Learned }, { "app-layouts.txt", AppLayouts },
+            { "learned-words.txt", Learned }, { "app-layouts.txt", AppLayouts }, { "no-auto-layouts.txt", NoAutoLayouts },
             { "layout-colors.txt", global::LayoutColors.Format(LayoutColors) }, { "sounds.txt", Sounds.Format(SoundMap) }
         };
     }
@@ -1705,10 +1816,11 @@ class SettingsForm : Form
         if (files.TryGetValue("ignored-words.txt", out text)) Ignored = text;
         if (files.TryGetValue("learned-words.txt", out text)) Learned = text;
         if (files.TryGetValue("app-layouts.txt", out text)) AppLayouts = text;
+        if (files.TryGetValue("no-auto-layouts.txt", out text)) NoAutoLayouts = text;
         if (files.TryGetValue("layout-colors.txt", out text)) LayoutColors = global::LayoutColors.Parse(text.Trim());
         if (files.TryGetValue("sounds.txt", out text)) SoundMap = Sounds.Parse(text);
         Func<string, bool, bool> flag = (name, current) => { int v; return values.TryGetValue(name, out v) ? v != 0 : current; };
-        AutoCorrect = flag("AutoCorrect", AutoCorrect); Typos = flag("Typos", Typos); QuietFullscreen = flag("QuietFullscreen", QuietFullscreen);
+        AutoCorrect = flag("AutoCorrect", AutoCorrect); Typos = flag("Typos", Typos); QuietFullscreen = flag("QuietFullscreen", QuietFullscreen); SwitchWhileTyping = flag("SwitchWhileTyping", SwitchWhileTyping);
         UndoCtrlZ = flag("UndoCtrlZ", UndoCtrlZ); LayoutColor = flag("LayoutColor", LayoutColor); CheckUpdates = flag("CheckUpdates", CheckUpdates);
         LayoutBadge = flag("LayoutBadge", LayoutBadge); RecentMenu = flag("RecentMenu", RecentMenu); Sound = flag("Sound", Sound); Typography = flag("Typography", Typography);
         TrayLetters = flag("TrayLetters", TrayLetters);
@@ -1739,6 +1851,7 @@ class SettingsForm : Form
         AutoCorrect = tAuto.Checked;
         Typos = tTypos.Checked;
         QuietFullscreen = tQuiet.Checked;
+        SwitchWhileTyping = tEarly.Checked;
         UndoCtrlZ = tCtrlZ.Checked;
         LayoutColor = tColor.Checked;
         TrayLetters = tLetters.Checked;
@@ -1768,16 +1881,17 @@ class SettingsForm : Form
             sb.Append((string)r.Cells[0].Value).Append(" = ").Append(ReplacementFile.Escape((string)r.Tag)).Append("\r\n");
         Replacements = sb.ToString();
 
-        var ex = new StringBuilder(L.T("# Программы, где автоисправление выключено (имя процесса). Удобнее править в настройках.\r\n",
-                                       "# Apps where auto-correction is off (process name). Easier to edit in Settings.\r\n"));
+        var ex = new StringBuilder(L.T("# Режим KeyFish в программах: имя процесса — выключено; «имя = hotkeys» — только горячие клавиши; «title: часть заголовка окна» — правило по заголовку. Удобнее править в настройках.\r\n",
+                                       "# KeyFish's mode in apps: a process name is off; \"name = hotkeys\" is hotkeys only; \"title: part of the window title\" is a rule by title. Easier to edit in Settings.\r\n"));
         var lay = new StringBuilder(L.T("# Раскладка для программы: процесс = код раскладки. Удобнее править в настройках.\r\n",
                                         "# Layout per app: process = layout id. Easier to edit in Settings.\r\n"));
         foreach (DataGridViewRow r in gridApps.Rows)
         {
             string n = (string)r.Cells[0].Value;
-            if (!(r.Cells[2].Value is bool && (bool)r.Cells[2].Value)) ex.Append(n).Append("\r\n");
+            var mode = ModeOf(r.Cells[2].Value);
+            if (mode != AppMode.Full) ex.Append(FileRule(n)).Append(mode == AppMode.HotkeysOnly ? " = hotkeys" : "").Append("\r\n");
             long hkl;
-            if (r.Cells[1].Value is string && appLayoutIds.TryGetValue((string)r.Cells[1].Value, out hkl))
+            if (!IsTitleRow(n) && r.Cells[1].Value is string && appLayoutIds.TryGetValue((string)r.Cells[1].Value, out hkl))
                 lay.Append(n).Append(" = ").Append(hkl.ToString("X")).Append("\r\n");
         }
         Exclusions = ex.ToString();
@@ -2124,10 +2238,10 @@ static class SettingsArchive
 {
     public static readonly string[] Values =
     {
-        "AutoCorrect", "Typos", "QuietFullscreen", "UndoCtrlZ", "LayoutColor", "CheckUpdates", "LayoutBadge", "RecentMenu", "QuickKey", "Sound", "TrayLetters", "Typography",
+        "AutoCorrect", "Typos", "QuietFullscreen", "SwitchWhileTyping", "UndoCtrlZ", "LayoutColor", "CheckUpdates", "LayoutBadge", "RecentMenu", "QuickKey", "Sound", "TrayLetters", "Typography",
         "Language", "UiScale", "Theme", "Holiday", "Skin", "SkinLogo", "SkinSound", "CustomAccent", "CustomWindow", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5", "Hotkey6", "Hotkey7", "Hotkey8"
     };
-    static readonly string[] FileNames = { "replacements.txt", "exclusions.txt", "ignored-words.txt", "learned-words.txt", "app-layouts.txt", "layout-colors.txt", "sounds.txt" };
+    static readonly string[] FileNames = { "replacements.txt", "exclusions.txt", "ignored-words.txt", "learned-words.txt", "app-layouts.txt", "no-auto-layouts.txt", "layout-colors.txt", "sounds.txt" };
 
     public static void Save(string path, Dictionary<string, string> files, Dictionary<string, int> values)
     {
