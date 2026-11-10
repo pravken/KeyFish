@@ -1,3 +1,21 @@
+2.5.0 2026-11-10
+New:
+• Correction while typing: a word begun plainly in the wrong layout is switched after 4–6 letters
+• Interface size in Settings → Appearance, from 100 to 200 %
+• A window color for the custom theme
+• A mode for each app: on, hotkeys only or off
+• App rules by window title
+• A choice of layouts for automatic correction
+• Placeholders in replacements: {date}, {time}, {clipboard}, {cursor}
+Improved:
+• More accurate detection of short words, words with a typo and words followed by punctuation
+• A word fixed by hand is added to "Always correct" only after a second fix
+• Appearance settings are arranged in cards
+• The layout is read and switched in the window with the keyboard focus, including dialogs and Store apps
+• Extended dictionaries no longer contain words typed in the wrong layout
+Fixed:
+• Words were left uncorrected on a heavily loaded computer
+
 2.4.1 2026-11-10
 New:
 • Support for installation from the Microsoft Store
