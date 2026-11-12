@@ -42,11 +42,15 @@ Serbian is written in both alphabets, so KeyFish treats a correct Serbian Latin 
 
 ## Install
 
-Download `KeyFish.exe` from [Releases](../../releases/latest) and run it — no installation needed. Turn on autostart in Settings.
+<a href="https://apps.microsoft.com/detail/9P8BDBQM7G22?mode=direct"><img src="https://get.microsoft.com/images/en-us%20dark.svg" alt="Get it from Microsoft" width="200"></a>
 
-Windows may show "Windows protected your PC" on first run because the app isn't signed. Click "More info" → "Run anyway".
+**From the Microsoft Store** — the recommended way. This version is signed by Microsoft, so neither Windows nor an antivirus warns about it, and the Store keeps it up to date. KeyFish starts with Windows; you can turn that off in Settings or in Task Manager → Startup apps.
 
-**If an antivirus flags KeyFish.** To fix your typing, KeyFish has to do what a keylogger does too: watch the keyboard in every app, type for you, use the clipboard and start with Windows. An antivirus that judges by behavior alone (Microsoft Defender may call it something like `Trojan:Win32/Bearfoos.A!ml`; the `!ml` means a machine-learning guess, not a known virus) can take it for one. KeyFish has no hidden behavior: the source code is here, every release is built from it by GitHub Actions, and its only network request is the update check (see [Privacy](#privacy)). To be sure you have the genuine file:
+**From GitHub:** download `KeyFish.exe` from [Releases](../../releases/latest) and run it — no installation needed. Turn on autostart in Settings. This file isn't signed, so Windows may show "Windows protected your PC" on first run: click "More info" → "Run anyway".
+
+Moving from the GitHub version to the Store one: close the old KeyFish first. On its first start the Store version takes over your settings and word lists, and the old copy turns its own autostart off once it sees the Store version.
+
+**If an antivirus flags the GitHub version.** To fix your typing, KeyFish has to do what a keylogger does too: watch the keyboard in every app, type for you, use the clipboard and start with Windows. An antivirus that judges by behavior alone (Microsoft Defender may call it something like `Trojan:Win32/Bearfoos.A!ml`; the `!ml` means a machine-learning guess, not a known virus) can take it for one. KeyFish has no hidden behavior: the source code is here, every release is built from it by GitHub Actions, and its only network request is the update check (see [Privacy](#privacy)). To be sure you have the genuine file:
 
 - compare its SHA-256 with `KeyFish.exe.sha256` in the release (`Get-FileHash KeyFish.exe` in PowerShell), or run `gh attestation verify KeyFish.exe --repo pravken/KeyFish`;
 - if it matches, you can restore the file from quarantine (Windows Security → Protection history) and report the false positive to Microsoft at https://www.microsoft.com/wdsi/filesubmission — that helps every user.
@@ -65,6 +69,7 @@ KeyFish has to see your keystrokes to fix them, so here is exactly what it does 
 - **The clipboard is put back.** Hotkeys on selected text go through the clipboard; KeyFish restores what was there and keeps its own text out of clipboard history (Win+V) and cloud sync. The copy of the selection itself is made by the app you're in, so Windows may still keep that one in the history.
 - **Updates are verified.** One-click update downloads only from this repository's releases and checks the SHA-256 checksum published by the release build before replacing the app, so a damaged or swapped download is refused. Releases are built by GitHub Actions straight from the source code in this repository, and each one comes with a signed build attestation: `gh attestation verify KeyFish.exe --repo pravken/KeyFish` shows which commit and workflow built your file. The checksum and the attestation can't protect against someone taking over the repository itself; the open source code and the build log are there so anyone can check.
 - **Keep KeyFish in a folder of its own** (or with your other programs), not among random downloads: KeyFish loads Windows libraries only from the system folder, but the .NET runtime starts a moment earlier and may pick a few up from the program's folder.
+- **The Store version** works the same way, with three differences: it doesn't ask GitHub about updates, the Store updates it; its files, `crash.log` included, are in `%LOCALAPPDATA%\Packages\MaximPravko.KeyFish_q2dp1ns3fa4wr\LocalState` instead of next to `KeyFish.exe`; and it starts with Windows through its package, not the `Run` registry key.
 
 ## If KeyFish crashes
 

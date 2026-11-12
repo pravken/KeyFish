@@ -10,7 +10,7 @@ What goes into Partner Center for each submission. Product: KeyFish, Store ID 9P
 - **Support contact info:** https://github.com/pravken/KeyFish/issues
 - **Product declarations:** no in-app purchases; may be installed to alternate drives; data may be included in OneDrive backups; record and broadcast off (games only).
 - **Device families:** Windows 10/11 Desktop only; "Let Microsoft decide future device families" off.
-- **Listing languages:** all nine interface languages: en-us, ru-ru, uk-ua, be-by, de-de, pl-pl, sr-cyrl-rs, fr-fr, es-es. Screenshots: `obj\store\{1..5}-<lang>.png`.
+- **Listing languages:** all nine interface languages: en-us, ru-ru, uk-ua, be-by, de-de, pl-pl, sr-cyrl-rs, fr-fr, es-es. Screenshots: `obj\store\{1..5}-<lang>.png`, made by `msix\store-screenshots.ps1` with the captions below.
 - **System requirements:** Keyboard (required). Memory: 2 GB minimum.
 
 ## Pricing and availability
@@ -92,6 +92,14 @@ Fixes text typed in the wrong keyboard layout as you type, in any app. Private: 
 
 © 2026 Maxim Pravko. MIT License.
 
+**Screenshot captions**
+
+1. Fixes the keyboard layout as you type / руддщ becomes hello, ghbdtn becomes привет — in any app
+2. Actions on the selected text / Case, layout, transliteration, typos and more — Ctrl+Shift+F2
+3. Statistics without a typing log / Only counters are stored. Nothing you type is recorded or sent
+4. A layout and a mode for each app / KeyFish switches the layout when you go to the app. Where you need, it keeps only the hotkeys or stays off
+5. Light and dark themes / Your own colors for the window and the tray icon
+
 ## Store listing: Russian (ru-ru)
 
 **Описание**
@@ -136,6 +144,14 @@ KeyFish бесплатна, исходный код открыт.
 **Авторские права**
 
 © 2026 Maxim Pravko. Лицензия MIT.
+
+**Подписи к скриншотам**
+
+1. Исправляет раскладку прямо при наборе / ghbdtn превращается в «привет», руддщ — в hello, в любой программе
+2. Действия с выделенным текстом / Регистр, раскладка, транслитерация, опечатки и другое — Ctrl+Shift+F2
+3. Статистика без журнала набора / Хранятся только счётчики. Набранный текст не записывается и не передаётся
+4. Раскладка и режим для каждой программы / KeyFish переключает раскладку при переходе в программу. Где нужно, оставляет только горячие клавиши или не работает
+5. Светлая и тёмная темы / Собственные цвета для окна и значка в области уведомлений
 
 ## Store listing: Ukrainian (uk-ua)
 
