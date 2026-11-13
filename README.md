@@ -12,6 +12,8 @@ A tiny Windows tray app that fixes text typed in the wrong keyboard layout — f
 
 - **Auto-correction as you type:** `ghbdtn vbh` → «привет мир», `руддщ` → "hello", `f vj;yj` → «а можно»
 - **Case fixing:** "hELLO" (accidental CapsLock) → "Hello", "HEllo" → "Hello"
+- **Whole phrases:** when a word is fixed, the short words typed before it in the same wrong layout are fixed with it: `f tckb` → «а если»
+- **Hints** (optional, Settings → Correction): a word KeyFish isn't sure about is left as typed, and its version in the other layout is shown at the cursor; Pause takes it
 - **Text replacements:** `thx` + space → "thank you" — your own list in Settings
 - **Pause** or **Ctrl+Shift+Space** — switch the layout of selected text; Pause or Ctrl+Z right after an auto-fix undoes it
 - **Shift+F3** — cycle the case of selected text, like in Word
@@ -34,7 +36,7 @@ KeyFish is free. If it saves you time, you can [buy me a coffee on Ko-fi](https:
 
 ## Languages: how it decides
 
-KeyFish fixes a word only when it is typed in a layout of *another alphabet*: say, Latin ⇄ Cyrillic or Latin ⇄ Greek. It doesn't switch between, say, English and German — both are Latin, and the same keys type nearly the same letters there.
+KeyFish fixes a word typed in a layout of *another alphabet*: say, Latin ⇄ Cyrillic or Latin ⇄ Greek. Between layouts of the same alphabet — English and German, Russian and Ukrainian — the same keys type nearly the same letters, so there it goes by the dictionaries alone: a word is fixed only when what you typed is no word of its language and the other layout gives a common word (`t;ten` → "töten", `ныяк` → «ніяк»).
 
 For every word KeyFish compares what you typed with what the same keys give in your other installed layouts, using word lists and letter statistics of each language. Words it isn't sure about are left alone.
 
@@ -81,7 +83,7 @@ Hotkeys don't work in the excluded apps either (Settings → Apps), not only aut
 
 Apps run as administrator (and Task Manager, which always is) are off-limits to programs with fewer rights: Windows doesn't let KeyFish see what you type there or type into them. The fish turns grey in such an app, and a hotkey there explains why nothing happens. To make KeyFish work in them too, run KeyFish as administrator as well.
 
-Create an empty file `debug-log.txt` next to `KeyFish.exe` (or in `%APPDATA%\KeyFish`, if the settings files are there). Within a couple of seconds KeyFish starts writing a line for every word you finish: the app, what it decided and why (for example "excluded app" or "looks right as typed") and the word's length. The words themselves are never written. Delete the file to turn this off.
+Create an empty file `debug-log.txt` next to `KeyFish.exe` (or in `%APPDATA%\KeyFish`, if the settings files are there). Within a couple of seconds KeyFish starts writing a line for every word you finish: the app, what it decided and why (for example "excluded app" or "looks right as typed") and the word's length; why a word being typed was dropped (a click, another window, a shortcut); whether each fix came out in the app as typed; and the keyboard hook's timings. The words themselves are never written. Delete the file to turn this off.
 
 ## Build
 

@@ -303,3 +303,6 @@ Layouts KeyFish switches to automatically. Clear a rarely used layout if KeyFish
 All layouts	Усе раскладкі
 All but {0}	Акрамя {0}
 The downloaded file's signature could not be verified — update cancelled.	Подпіс спампаванага файла не пацверджаны — абнаўленне скасавана.
+The new version could not be started. The previous version of KeyFish has been restored.	Не ўдалося запусціць новую версію. Адноўлена папярэдняя версія KeyFish.
+Suggest fixes	Падказваць выпраўленне
+When KeyFish is not sure a word was typed in the wrong layout, the word is left as it is and the other layout's version is shown at the cursor. The layout fix key replaces the word with it.	Калі KeyFish не ўпэўнены, што слова набрана не ў той раскладцы, слова застаецца як ёсць, а каля курсора паказваецца варыянт у іншай раскладцы. Клавіша выпраўлення раскладкі замяняе слова гэтым варыянтам.

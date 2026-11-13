@@ -136,7 +136,8 @@ public static class Transliterator
         {
             char c = char.ToLowerInvariant(ch);
             if (c >= 'a' && c <= 'z') { lat++; continue; }
-            if (c >= 'α' && c <= 'ώ') { other++; el = true; continue; }
+            // ά έ ή ί come before α in Unicode, ΐ before them
+            if ((c >= 'ά' && c <= 'ώ') || c == 'ΐ') { other++; el = true; continue; }
             if (c < 'а' || c > 'ӿ') continue;
             other++;
             if ("ґєї".IndexOf(c) >= 0) uk = true;
@@ -153,15 +154,29 @@ public static class Transliterator
     {
         var table = lang == "uk" ? UkToLat : lang == "be" ? BeToLat : lang == "sr-cyrl" ? SrToLat : lang == "el" ? ElToLat : RuToLat;
         var sb = new StringBuilder(text.Length * 2);
+        int wordEnd = 0;
+        bool wordUpper = false;
         for (int i = 0; i < text.Length; i++)
         {
             char c = text[i];
             char low = char.ToLowerInvariant(c);
             string lat;
             bool wordStart = i == 0 || !char.IsLetter(text[i - 1]);
-            if (!(lang == "uk" && wordStart && UkWordStart.TryGetValue(low, out lat)) && !table.TryGetValue(low, out lat)) { sb.Append(c); continue; }
+            // Greek ου is one sound, ou (ELOT 743), not o + y
+            if (lang == "el" && low == 'ο' && i + 1 < text.Length && "υύ".IndexOf(char.ToLowerInvariant(text[i + 1])) >= 0)
+            {
+                lat = "ou";
+                if (char.IsUpper(c)) lat = WordIsUpper(text, i, ref wordEnd, ref wordUpper) ? "OU" : "Ou";
+                sb.Append(lat);
+                i++;
+                continue;
+            }
+            // Russian words in a Ukrainian or Belarusian user's text keep their own letters (ы, э, ё, ъ; и, щ):
+            // the Russian table has them
+            if (!(lang == "uk" && wordStart && UkWordStart.TryGetValue(low, out lat)) && !table.TryGetValue(low, out lat) &&
+                !((lang == "uk" || lang == "be") && RuToLat.TryGetValue(low, out lat))) { sb.Append(c); continue; }
             if (char.IsUpper(c) && lat.Length > 0)
-                lat = WordIsUpper(text, i) ? lat.ToUpperInvariant() : char.ToUpperInvariant(lat[0]) + lat.Substring(1);
+                lat = WordIsUpper(text, i, ref wordEnd, ref wordUpper) ? lat.ToUpperInvariant() : char.ToUpperInvariant(lat[0]) + lat.Substring(1);
             sb.Append(lat);
         }
         return sb.ToString();
@@ -174,7 +189,8 @@ public static class Transliterator
         var table = lang == "uk" ? ToUk : lang == "be" ? ToBe : lang == "sr-cyrl" || lang == "sr-latn" ? ToSr : lang == "el" ? ToEl : ToRu;
         bool ru = table == ToRu, el = table == ToEl;
         var sb = new StringBuilder(text.Length);
-        int i = 0;
+        int i = 0, upperEnd = 0;
+        bool wordUpper = false;
         while (i < text.Length)
         {
             char c = text[i];
@@ -185,7 +201,7 @@ public static class Transliterator
             string rest = text.Substring(i, System.Math.Min(4, text.Length - i)).ToLowerInvariant();
             string res = null; int len = 1;
             foreach (var pair in table)
-                if (rest.StartsWith(pair[0])) { res = pair[1]; len = pair[0].Length; break; }
+                if (rest.StartsWith(pair[0], System.StringComparison.Ordinal)) { res = pair[1]; len = pair[0].Length; break; }
             if (res == null) { sb.Append(c); i++; continue; }
 
             bool wordStart = i == 0 || !char.IsLetter(text[i - 1]);
@@ -200,19 +216,43 @@ public static class Transliterator
             if (el && res == "σ" && wordEnd) res = "ς";                                              // final sigma
 
             if (char.IsUpper(c))
-                res = WordIsUpper(text, i) ? res.ToUpperInvariant() : char.ToUpperInvariant(res[0]) + res.Substring(1);
+                res = WordIsUpper(text, i, ref upperEnd, ref wordUpper) ? res.ToUpperInvariant() : char.ToUpperInvariant(res[0]) + res.Substring(1);
             sb.Append(res);
             i += len;
         }
         return sb.ToString();
     }
 
-    // The whole word is uppercase (ЖУК → ZHUK), not just capitalized (Жук → Zhuk)
-    static bool WordIsUpper(string text, int i)
+    // The whole word is uppercase (ЖУК → ZHUK), not just capitalized (Жук → Zhuk).
+    // end, known: where the word looked at last ends and the answer for it, kept by the caller as it goes through the
+    // text. The answer is the same for every letter of a word; counting the word again for each capital took time
+    // that grew with the square of its length (minutes for 200,000 letters in a row)
+    static bool WordIsUpper(string text, int i, ref int end, ref bool known)
+    {
+        if (i < end) return known;
+        known = WordIsUpper(text, i, out end);
+        return known;
+    }
+
+    static bool WordIsUpper(string text, int i, out int end)
     {
         int letters = 0, upper = 0;
         for (int j = i; j >= 0 && char.IsLetter(text[j]); j--) { letters++; if (char.IsUpper(text[j])) upper++; }
-        for (int j = i + 1; j < text.Length && char.IsLetter(text[j]); j++) { letters++; if (char.IsUpper(text[j])) upper++; }
+        for (end = i + 1; end < text.Length && char.IsLetter(text[end]); end++) { letters++; if (char.IsUpper(text[end])) upper++; }
+        if (letters == 1 && upper == 1)
+        {
+            // A one-letter word in capitals goes by the words beside it: "Я ЛЮБЛЮ" is YA LYUBLYU, "Я люблю" is Ya lyublyu
+            for (int dir = -1; dir <= 1; dir += 2)
+            {
+                int j = i + dir;
+                while (j >= 0 && j < text.Length && !char.IsLetter(text[j]) && text[j] != '\n') j += dir;
+                if (j < 0 || j >= text.Length || !char.IsLetter(text[j])) continue;
+                int n = 0, up = 0;
+                for (int k = j; k >= 0 && k < text.Length && char.IsLetter(text[k]); k += dir) { n++; if (char.IsUpper(text[k])) up++; }
+                if (n > 1) return up == n;
+            }
+            return false;
+        }
         return letters > 1 && upper == letters;
     }
 }

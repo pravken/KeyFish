@@ -17,10 +17,11 @@ public struct KeyStroke
 // the same physical key has different virtual-key codes in, say, German QWERTZ and US QWERTY.
 public class LayoutTable
 {
-    // Shift states: 0 — none, 1 — Shift, 2 — AltGr (Ctrl+Alt), 3 — Shift+AltGr
-    readonly char[,] chars = new char[256, 4];
-    readonly char[,] dead = new char[256, 4];            // dead keys: an accent that goes onto the next letter (Greek ´, French ^)
-    readonly bool[] capsLetter = new bool[256];          // CapsLock acts like Shift on this key
+    // Shift states: 0 — none, 1 — Shift, 2 — AltGr (Ctrl+Alt), 3 — Shift+AltGr; the same four with CapsLock on are 4–7.
+    // CapsLock has its own states because it is not always Shift: on the Czech digit row it types the capital letter
+    // (š → Š, where Shift types 3), in Polish it also capitalises AltGr letters (Ą), in German it leaves AltGr alone (@)
+    readonly char[,] chars = new char[256, 8];
+    readonly char[,] dead = new char[256, 8];            // dead keys: an accent that goes onto the next letter (Greek ´, French ^)
     readonly Dictionary<char, int> reverse = new Dictionary<char, int>();       // char → scan * 4 + state
     readonly Dictionary<char, int> reverseDead = new Dictionary<char, int>();   // combining accent → dead key
 
@@ -41,10 +42,9 @@ public class LayoutTable
         return dead[scan, State(scan, shift, caps, altGr)];
     }
 
-    int State(int scan, bool shift, bool caps, bool altGr)
+    static int State(int scan, bool shift, bool caps, bool altGr)
     {
-        bool upper = shift ^ (caps && capsLetter[scan]);
-        return (upper ? 1 : 0) + (altGr ? 2 : 0);
+        return (shift ? 1 : 0) + (altGr ? 2 : 0) + (caps ? 4 : 0);
     }
 
     public bool IsDead(KeyStroke k) { return CharFor(k.Scan, k.Shift, k.Caps, k.AltGr) == '\0' && DeadFor(k.Scan, k.Shift, k.Caps, k.AltGr) != '\0'; }
@@ -90,13 +90,50 @@ public class LayoutTable
             int scan; bool shift, altGr;
             if (Find(c, out scan, out shift, out altGr)) { keys.Add(new KeyStroke(scan, shift, false, altGr)); continue; }
             // έ = ε + combining acute: the dead key for the accent, then the letter
-            string d = c.ToString().Normalize(NormalizationForm.FormD);
+            string d = Decomposed(c);
+            if (d == null || d.Length < 2 || d.Length > 3) return null;
             int code;
-            if (d.Length != 2 || !reverseDead.TryGetValue(d[1], out code) || !Find(d[0], out scan, out shift, out altGr)) return null;
+            char letter = d[0];
+            if (!FindDead(d.Substring(1), out code))
+            {
+                // ǘ = ü + acute: a letter of the layout that has a mark of its own, under a dead key's accent.
+                // Either of the two marks may be the letter's own where their order doesn't matter (ḉ is ç + acute
+                // and ć + cedilla); where it does (ǻ is å + acute, but á + ring is another letter), only the first
+                if (d.Length != 3) return null;
+                bool found = false;
+                for (int own = 1; own <= 2 && !found; own++)
+                {
+                    string marked = (d.Substring(0, 1) + d[own]).Normalize(NormalizationForm.FormC);
+                    found = marked.Length == 1 && (marked + d[3 - own]).Normalize(NormalizationForm.FormC) == c.ToString() &&
+                            reverseDead.TryGetValue(d[3 - own], out code) && Find(marked[0], out scan, out shift, out altGr);
+                    if (found) letter = marked[0];
+                }
+                if (!found) return null;
+            }
+            if (!Find(letter, out scan, out shift, out altGr)) return null;
             keys.Add(new KeyStroke(code / 4, (code & 1) != 0, false, (code & 2) != 0));
             keys.Add(new KeyStroke(scan, shift, false, altGr));
         }
         return keys;
+    }
+
+    // The letter and its combining marks apart; null for what isn't a character: half of one outside the first 65536
+    // (an emoji is two such halves), U+FFFE, U+FFFF. Normalize throws on those, and no key types them
+    static string Decomposed(char c)
+    {
+        if (char.IsSurrogate(c) || c >= '\uFFFE') return null;
+        try { return c.ToString().Normalize(NormalizationForm.FormD); }
+        catch (ArgumentException) { return null; }
+    }
+
+    // The dead key whose accent is these combining marks: one mark, or two that one key gives (Greek ΅ is ¨ and ´: ΐ, ΰ)
+    bool FindDead(string marks, out int code)
+    {
+        if (marks.Length == 1) return reverseDead.TryGetValue(marks[0], out code);
+        foreach (var kv in reverseDead)
+            if (kv.Key.ToString().Normalize(NormalizationForm.FormD) == marks) { code = kv.Value; return true; }
+        code = 0;
+        return false;
     }
 
     // The key (and shift state) that types this character directly
@@ -143,6 +180,7 @@ public class LayoutTable
     {
         if (c == '\0' || char.IsControl(c) || !IsTypingKey(scan)) return;
         chars[scan, state] = c;
+        if (state >= 4) return;   // text is turned into keys without CapsLock
         int code = scan * 4 + state;
         // Prefer the simplest way to type a character (no Shift, no AltGr)
         if (!reverse.ContainsKey(c) || code % 4 < reverse[c] % 4) reverse[c] = code;
@@ -152,6 +190,7 @@ public class LayoutTable
     {
         if (c == '\0' || !IsTypingKey(scan)) return;
         dead[scan, state] = c;
+        if (state >= 4) return;
         char mark = Combining(c);
         int code = scan * 4 + state;
         if (mark != '\0' && (!reverseDead.ContainsKey(mark) || code % 4 < reverseDead[mark] % 4)) reverseDead[mark] = code;
@@ -224,23 +263,18 @@ public class LayoutTable
         {
             uint vk = MapVirtualKeyEx((uint)scan, 3, hkl);   // MAPVK_VSC_TO_VK_EX
             if (vk == 0) continue;
-            for (int s = 0; s < 4; s++)
+            for (int s = 0; s < 8; s++)
             {
                 Array.Clear(state, 0, 256);
                 if ((s & 1) != 0) state[0x10] = state[0xA0] = 0x80;                        // Shift
                 if ((s & 2) != 0) state[0x11] = state[0xA2] = state[0x12] = state[0xA5] = 0x80;   // AltGr
+                if ((s & 4) != 0) state[0x14] = 0x01;                                      // CapsLock on
                 buf.Clear();
                 // Flag 4: don't touch the system keyboard state (dead keys stay intact)
                 int n = ToUnicodeEx(vk, (uint)scan, state, buf, buf.Capacity, 4, hkl);
                 if (n == 1) t.Set(scan, s, buf[0]);
                 else if (n < 0 && buf.Length > 0) t.SetDead(scan, s, buf[0]);   // a dead key reports its accent
             }
-            // Does CapsLock act like Shift on this key? Compare unshifted output with CapsLock on
-            Array.Clear(state, 0, 256);
-            state[0x14] = 0x01;
-            buf.Clear();
-            if (ToUnicodeEx(vk, (uint)scan, state, buf, buf.Capacity, 4, hkl) == 1)
-                t.capsLetter[scan] = buf[0] != t.chars[scan, 0] && buf[0] == t.chars[scan, 1];
         }
         t.Finish();
         int langId = (int)(hkl.ToInt64() & 0xFFFF);
@@ -278,6 +312,9 @@ public class LayoutTable
         var columns = new List<int>();   // KLC column order of shift states
         int langId = 0;
         string section = "";
+        var capsFlags = new int[256];    // KLC "Cap" column: 1 — CapsLock is Shift, 4 — the same for the AltGr states
+        var sgCaps = new bool[256];      // "SGCap": the next line holds what the key types with CapsLock on
+        int sgScan = 0;
         foreach (string raw in text.Split('\n'))
         {
             string line = raw.Split(new[] { "//" }, StringSplitOptions.None)[0].Trim();
@@ -294,13 +331,22 @@ public class LayoutTable
             }
             if (section != "LAYOUT" || parts.Length < 4) continue;
             int scan;
-            if (!int.TryParse(parts[0], NumberStyles.HexNumber, null, out scan)) continue;
-            t.capsLetter[scan] = parts[2] == "1" || parts[2] == "SGCap";
+            // The line after a SGCap key ("-1 -1 0 ..."): its plain and Shift columns are the CapsLock states
+            bool capsLine = parts[0] == "-1" && sgScan != 0;
+            if (capsLine) { scan = sgScan; sgScan = 0; }
+            else
+            {
+                if (!int.TryParse(parts[0], NumberStyles.HexNumber, null, out scan) || scan <= 0 || scan > 255) continue;
+                sgCaps[scan] = parts[2] == "SGCap";
+                sgScan = sgCaps[scan] ? scan : 0;
+                if (!sgCaps[scan]) int.TryParse(parts[2], out capsFlags[scan]);
+            }
             for (int i = 0; i < columns.Count && 3 + i < parts.Length; i++)
             {
                 // KLC states: 0 none, 1 Shift, 2 Ctrl, 6 Ctrl+Alt (AltGr), 7 Shift+Ctrl+Alt
                 int s = columns[i] == 0 ? 0 : columns[i] == 1 ? 1 : columns[i] == 6 ? 2 : columns[i] == 7 ? 3 : -1;
-                if (s < 0) continue;
+                if (s < 0 || (capsLine && s > 1)) continue;
+                if (capsLine) s += 4;
                 string v = parts[3 + i];
                 if (v == "-1" || v == "%%") continue;
                 bool isDead = v.EndsWith("@");
@@ -309,6 +355,16 @@ public class LayoutTable
                 if (isDead) t.SetDead(scan, s, c); else t.Set(scan, s, c);
             }
         }
+        // The CapsLock states of the other keys: Shift turned round where the key's flag says so, the same otherwise
+        for (int scan = 1; scan < 256; scan++)
+            for (int s = 4; s < 8; s++)
+            {
+                if (sgCaps[scan] && s < 6) continue;
+                bool swap = (capsFlags[scan] & (s < 6 ? 1 : 4)) != 0;
+                int from = (s - 4) ^ (swap ? 1 : 0);
+                t.chars[scan, s] = t.chars[scan, from];
+                t.dead[scan, s] = t.dead[scan, from];
+            }
         t.Finish();
         t.Lang = lang ?? LangFor(langId, t.Script);
         t.Name = Path.GetFileNameWithoutExtension(path);

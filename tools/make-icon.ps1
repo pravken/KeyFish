@@ -2,9 +2,33 @@
 #   fish.ico           — blue: the app icon and the English layout in the tray
 #   fish-ru.ico        — orange: the Russian layout
 #   fish-blink*.ico    — inverted: the blink after an auto-fix
+#   fish.ico's frames from 48 pixels up are the detailed logo of the About window (FishLogo.cs, drawn by LogoIcon.cs):
+#   that is the app icon in Start, the Store and Explorer. The tray sizes (16–40) stay this flat fish, which reads
+#   better that small, and match the orange and blinking ones
 Add-Type -AssemblyName System.Drawing
 $root = Split-Path $PSScriptRoot -Parent
 $sizes = 16, 20, 24, 32, 40, 48, 64, 256
+$detailedFrom = 48
+
+# The detailed logo: FishLogo.cs with the app's code around it (the skin colors), the output kept in obj\logo
+$fw = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319"; $md = "$env:WINDIR\System32\WinMetadata"
+$src = ((Get-Content (Join-Path $root 'build.bat') | Select-String 'csc.exe').Line -split ' ' | Where-Object { $_ -like '*.cs' } |
+  ForEach-Object { Join-Path $root $_ }) + (Join-Path $PSScriptRoot 'LogoIcon.cs')
+$logoDir = Join-Path $root 'obj\logo'
+New-Item -ItemType Directory -Force $logoDir | Out-Null
+& "$fw\csc.exe" /nologo /codepage:65001 /target:winexe /main:LogoIcon /out:"$logoDir\LogoIcon.exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll `
+  /r:System.Core.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll "/lib:$fw\WPF" /r:Accessibility.dll /r:UIAutomationClient.dll `
+  /r:UIAutomationTypes.dll /r:WindowsBase.dll "/r:$fw\System.Runtime.dll" "/r:$fw\System.Runtime.WindowsRuntime.dll" `
+  "/r:$fw\System.Runtime.InteropServices.WindowsRuntime.dll" "/r:$md\Windows.Data.winmd" "/r:$md\Windows.UI.winmd" "/r:$md\Windows.Foundation.winmd" `
+  "/r:$md\Windows.ApplicationModel.winmd" @src | Select-String -NotMatch 'warning'
+if ($LASTEXITCODE) { throw 'LogoIcon.exe does not build' }
+Remove-Item "$logoDir\logo-*.png" -ErrorAction SilentlyContinue
+Start-Process "$logoDir\LogoIcon.exe" -ArgumentList (@("`"$logoDir`"") + ($sizes | Where-Object { $_ -ge $detailedFrom })) -Wait
+function Detailed([int]$s) {
+    # Read through a copy, so the file isn't held open
+    $bytes = [IO.File]::ReadAllBytes((Join-Path $logoDir "logo-$s.png"))
+    return New-Object System.Drawing.Bitmap (New-Object System.IO.MemoryStream (, $bytes))
+}
 $blue = [System.Drawing.Color]::FromArgb(40, 110, 220)
 $orange = [System.Drawing.Color]::FromArgb(235, 120, 30)
 $white = [System.Drawing.Color]::White
@@ -66,9 +90,9 @@ function To-Dib([System.Drawing.Bitmap]$bmp) {
     return , $ms.ToArray()
 }
 
-function Save-Ico([string]$name, $bg, $fg) {
+function Save-Ico([string]$name, $bg, $fg, [switch]$Logo) {
     $frames = foreach ($s in $sizes) {
-        $bmp = Draw-Fish $s $bg $fg
+        $bmp = if ($Logo -and $s -ge $detailedFrom) { Detailed $s } else { Draw-Fish $s $bg $fg }
         if ($s -ge 256) {
             $ms = New-Object System.IO.MemoryStream
             $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
@@ -96,7 +120,7 @@ function Save-Ico([string]$name, $bg, $fg) {
     [IO.File]::WriteAllBytes((Join-Path $root $name), $out.ToArray())
 }
 
-Save-Ico 'fish.ico' $blue $white
+Save-Ico 'fish.ico' $blue $white -Logo
 Save-Ico 'fish-ru.ico' $orange $white
 Save-Ico 'fish-blink.ico' $white $blue
 Save-Ico 'fish-ru-blink.ico' $white $orange
@@ -106,7 +130,7 @@ $variants = @(@($blue, $white), @($orange, $white), @($white, $blue), @($white, 
 $preview = New-Object System.Drawing.Bitmap 450, 270
 $g = [System.Drawing.Graphics]::FromImage($preview)
 $g.Clear([System.Drawing.Color]::FromArgb(245, 245, 245))
-$g.DrawImage((Draw-Fish 256 $blue $white), 5, 5, 256, 256)
+$g.DrawImage((Detailed 256), 5, 5, 256, 256)
 $g.FillRectangle((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(32, 32, 32))), 270, 140, 180, 120)
 $y = 20
 foreach ($s in 16, 24, 32) {

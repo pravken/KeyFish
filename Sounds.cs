@@ -131,7 +131,14 @@ static class Sounds
     static bool Known(string s)
     {
         return s == Look || s == None || Array.IndexOf(Builtin, s) >= 0 ||
-               (s.StartsWith(FilePrefix) && s.Length > FilePrefix.Length && s.Substring(FilePrefix.Length) == Path.GetFileName(s.Substring(FilePrefix.Length)));
+               (s.StartsWith(FilePrefix) && s.Length > FilePrefix.Length && IsFileName(s.Substring(FilePrefix.Length)));
+    }
+
+    // A file's name alone, no folders. Path.GetFileName throws on the characters no path has (| < > " and control
+    // ones), and sounds.txt comes from anywhere: a settings file made on another computer, the user's own editing
+    static bool IsFileName(string name)
+    {
+        return name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
     }
 
     public static string Format(Dictionary<string, string> m)

@@ -91,16 +91,25 @@ partial class App
         busy = true;
         hotkeyWindow = Native.GetForegroundWindow();
         textChanged = false;
+        // The previous hotkey's clipboard back first: Ctrl+Shift+V or the clipboard conversion within that second
+        // would read KeyFish's own text instead of the user's
+        FlushRestore();
         try
         {
             // The clipboard is converted in place: nothing is copied from or typed into the window, so it works anywhere
             if (id == HkClipboard) { ConvertClipboard(); return; }
             if (id == HkPause) { TogglePause(true); return; }
-            if (W.HasMoreRights(hotkeyWindow)) { NoRightsHere(hotkeyWindow); return; }
+            if (W.HasMoreRights(hotkeyWindow)) { watcher.Note(hotkeyWindow, "hotkey " + id + ": the app runs as administrator"); NoRightsHere(hotkeyWindow); return; }
             if (id == HkPastePlain) { PastePlain(); return; }
-            if (id == HkLayout && watcher.Undo()) return;
-            if (!watcher.HotkeyAllowed(hotkeyWindow)) return;   // an excluded app or a password field
-            if (!Native.WaitModifiersReleased()) return;      // keys still held: Ctrl+C would become Ctrl+Shift+C
+            // A hint at the caret is taken first: it is about the word just typed
+            // With a fresh check of the focus, as for every hotkey that types: the field may have changed since the hint
+            // and with the hotkey's own keys let go of: Alt held (a hotkey set to Alt+Pause) would make the Backspaces Undo
+            if ((id == HkLayout || id == HkLayoutAlt) && watcher.HasHint && watcher.HotkeyAllowed(hotkeyWindow) && Native.WaitModifiersReleased() &&
+                watcher.AcceptHint()) return;
+            if (id == HkLayout && watcher.Undo()) { watcher.Note(hotkeyWindow, "hotkey " + id + ": the last fix taken back"); return; }
+            if (!watcher.HotkeyAllowed(hotkeyWindow)) { watcher.Note(hotkeyWindow, "hotkey " + id + ": not here (an excluded app, a password field or no check of the focus)"); return; }
+            if (!Native.WaitModifiersReleased()) { watcher.Note(hotkeyWindow, "hotkey " + id + ": keys still held"); return; }
+            watcher.Note(hotkeyWindow, "hotkey " + id);
             if (id == HkCase) ChangeCase();
             else if (id == HkTranslit) { string lang = TranslitLanguage(); TransformSelection(s => Transliterator.Convert(s, lang)); }
             else if (id == HkLine) ConvertLine();
@@ -111,6 +120,8 @@ partial class App
         catch { }
         finally
         {
+            // A hotkey that failed halfway still gives the user's clipboard back
+            if (pendingSave) RestoreClipboard(pendingSaved);
             busy = false;
             if (textChanged && playSound) Sounds.Play(Sounds.Hotkey);
         }
@@ -155,21 +166,33 @@ partial class App
     void TransformSelection(Func<string, string> transform)
     {
         Clip.Saved saved = SaveClipboard();
-        string text = GetSelectionOrLastWord();
+        bool selectedHere;
+        string text = GetSelectionOrLastWord(out selectedHere);
+        bool pasted = false;
         if (!string.IsNullOrEmpty(text))
         {
             string result = transform(text);
-            if (result != text) Paste(result);
+            if (result != text) pasted = Paste(result);
         }
+        LetGo(selectedHere, pasted);
         RestoreClipboard(saved);
+    }
+
+    // The word KeyFish selected itself (nothing was selected) and then left as it was: let go of, or the next key typed
+    // would replace it
+    static void LetGo(bool selectedHere, bool pasted)
+    {
+        if (selectedHere && !pasted && SameWindow()) Unselect(hotkeyWindow);
     }
 
     // The selection pasted back as plain text (PlainText), even when its letters stay the same
     void PlainSelection()
     {
         Clip.Saved saved = SaveClipboard();
-        string text = GetSelectionOrLastWord();
-        if (!string.IsNullOrEmpty(text)) Paste(PlainText.Clean(text));
+        bool selectedHere;
+        string text = GetSelectionOrLastWord(out selectedHere);
+        bool pasted = !string.IsNullOrEmpty(text) && Paste(PlainText.Clean(text));
+        LetGo(selectedHere, pasted);
         RestoreClipboard(saved);
     }
 
@@ -177,11 +200,15 @@ partial class App
     {
         Clip.Saved saved = SaveClipboard();
 
-        string text = GetSelectionOrLastWord();
+        bool selectedHere;
+        string text = GetSelectionOrLastWord(out selectedHere);
+        bool pasted = false;
         if (!string.IsNullOrEmpty(text))
         {
             string result = CaseConverter.Next(text);
-            if (Paste(result))
+            // Text without letters of two cases (digits, Hebrew, Chinese) has nothing to change: not pasted, so its
+            // formatting stays
+            if (result != text && (pasted = Paste(result)))
             {
                 // Select the pasted text again so the next press continues the cycle
                 // One caret step per character: an emoji is two UTF-16 units, a line break two characters
@@ -191,6 +218,7 @@ partial class App
             }
         }
 
+        LetGo(selectedHere, pasted);
         RestoreClipboard(saved);
     }
 
@@ -201,9 +229,14 @@ partial class App
         return n;
     }
 
-    static string GetSelectionOrLastWord()
+    // selectedHere: KeyFish selected the word itself
+    static string GetSelectionOrLastWord(out bool selectedHere)
     {
+        selectedHere = false;
         string text = CopySelection();
+        // Spreadsheet cells, not text being edited: Ctrl+Shift+Left would select more cells, and pasting would put
+        // plain values over their formulas
+        if (copiedCells) return null;
         if (string.IsNullOrEmpty(text))
         {
             // Nothing is selected, so take the last word before the caret
@@ -211,6 +244,8 @@ partial class App
             Native.Chord(Native.VK_CONTROL, Native.VK_SHIFT, Native.VK_LEFT);
             Pump(30);
             text = CopySelection();
+            selectedHere = !string.IsNullOrEmpty(text) && !copiedCells;
+            if (copiedCells) text = null;
         }
         return text;
     }
@@ -246,12 +281,14 @@ partial class App
         Native.Chord(Native.VK_SHIFT, Native.VK_HOME);
         Pump(30);
         string text = CopySelection();
-        if (!string.IsNullOrEmpty(text))
+        bool pasted = false;
+        if (!string.IsNullOrEmpty(text) && !copiedCells)
         {
             LayoutTable layout;
             string result = watcher.ConvertText(text, target, out layout);
-            if (result != null && Paste(result)) W.SwitchLayout(target, layout.Hkl);
+            if (result != null && (pasted = Paste(result))) W.SwitchLayout(target, layout.Hkl);
         }
+        LetGo(!string.IsNullOrEmpty(text) && !copiedCells, pasted);
         RestoreClipboard(saved);
     }
 
@@ -287,7 +324,8 @@ partial class App
 
         Clip.Saved saved = SaveClipboard();
 
-        string text = GetSelectionOrLastWord();
+        bool selectedHere, pasted = false;
+        string text = GetSelectionOrLastWord(out selectedHere);
         if (!string.IsNullOrEmpty(text))
         {
             LayoutTable layout, source;
@@ -307,7 +345,7 @@ partial class App
                 result = watcher.ConvertText(text, target, out layout, out source);
                 c = null;
             }
-            if (result != null && Paste(result))
+            if (result != null && (pasted = Paste(result)))
             {
                 W.SwitchLayout(target, layout.Hkl);
                 if (c == null) cycle = new LayoutCycle { Hwnd = target, Source = source, Original = text };
@@ -321,7 +359,9 @@ partial class App
             }
         }
 
+        LetGo(selectedHere, pasted);
         RestoreClipboard(saved);
+        watcher.Note(hotkeyWindow, "front: " + W.ClassName(Native.GetForegroundWindow()) + " / was " + W.ClassName(target) + "; layout hotkey: " + (string.IsNullOrEmpty(text) ? (copiedCells ? "spreadsheet cells, left alone" : "nothing copied") : pasted ? "converted" : "not converted"));
     }
 
     // Apps where Ctrl+Shift+V already has a meaning of its own: editors and IDEs (Markdown preview, the clipboard
@@ -374,14 +414,14 @@ partial class App
         Clip.Saved saved = SaveClipboard();
         bool selectedHere = false;
         string text = CopySelection();
-        if (string.IsNullOrEmpty(text) && SameWindow())
+        if (string.IsNullOrEmpty(text) && SameWindow() && !copiedCells)
         {
             Native.Chord(Native.VK_SHIFT, Native.VK_HOME);
             Pump(30);
             text = CopySelection();
             selectedHere = !string.IsNullOrEmpty(text);
         }
-        if (string.IsNullOrEmpty(text) || text.Length > 100000) { RestoreClipboard(saved); return; }
+        if (string.IsNullOrEmpty(text) || text.Length > 100000 || copiedCells) { RestoreClipboard(saved); return; }
 
         string result = null;
         Action after = null;
@@ -538,8 +578,12 @@ partial class App
         }
     }
 
+    // Ctrl+C copied spreadsheet cells (Excel and the like, outside the editing of a cell), not text
+    static bool copiedCells;
+
     static string CopySelection()
     {
+        copiedCells = false;
         if (!SameWindow()) return null;
         uint before = Native.GetClipboardSequenceNumber();
         Native.Chord(Native.VK_CONTROL, (byte)'C');
@@ -551,7 +595,15 @@ partial class App
                 for (int attempt = 0; attempt < 10; attempt++)
                 {
                     Pump(20);
-                    try { return Clip.HasText() && !IsLineCopy() ? Clip.Text() : null; }
+                    try
+                    {
+                        if (!Clip.HasText() || IsLineCopy()) return null;
+                        // Only whether such a format is there: reading it would have Excel render a whole range
+                        if (Clip.Has("Biff12", "Biff8", "XML Spreadsheet")) { copiedCells = true; return null; }
+                        string text = Clip.Text();
+                        // A whole document selected: far more than anyone converts by hand, and too much to retype
+                        return text != null && text.Length > 100000 ? null : text;
+                    }
                     catch { }
                 }
                 return null;
@@ -591,9 +643,19 @@ partial class App
     static Clip.Saved SaveClipboard()
     {
         FlushRestore();   // the previous hotkey's restore first, or its text would be saved as the user's
-        try { return Clip.Save(64L * 1024 * 1024); }
-        catch { return null; }
+        savedSeq = Native.GetClipboardSequenceNumber();
+        pendingSave = true;
+        try { return pendingSaved = Clip.Save(64L * 1024 * 1024); }
+        catch { return pendingSaved = null; }
     }
+
+    // The clipboard's number when it was saved: unchanged at the end, KeyFish didn't touch it (nothing was copied), and
+    // nothing is put back. Putting back would only lose what isn't kept (a spreadsheet's own formats) or, with nothing
+    // kept, empty it
+    static uint savedSeq;
+    // Saved and not yet given back: the hotkey's finally gives it back if the hotkey failed halfway
+    static bool pendingSave;
+    static Clip.Saved pendingSaved;
 
     // The user's clipboard is given back a second later, not right after Ctrl+V: a slow app (a remote desktop, a busy
     // Electron window) may read the clipboard after that and would paste the old contents instead of the fix.
@@ -606,7 +668,10 @@ partial class App
 
     static void RestoreClipboard(Clip.Saved saved)
     {
+        pendingSave = false;
+        pendingSaved = null;
         FlushRestore();
+        if (Native.GetClipboardSequenceNumber() == savedSeq) return;
         restoreData = saved;
         restoreSeq = Native.GetClipboardSequenceNumber();
         if (restoreTimer == null)
@@ -690,10 +755,26 @@ static class Clip
 
     public static bool HasText() { return IsClipboardFormatAvailable(CF_UNICODETEXT); }
 
-    // The text on the clipboard, or null
-    public static string Text()
+    // One of these named formats is on the clipboard (nothing is read from it)
+    public static bool Has(params string[] names)
     {
-        if (!HasText() || !Open()) return null;
+        foreach (string n in names) if (IsClipboardFormatAvailable(RegisterClipboardFormat(n))) return true;
+        return false;
+    }
+
+    // The text on the clipboard, or null
+    public static string Text() { return Text(false); }
+
+    // unowned: read from a thread other than the window thread (the {clipboard} placeholder): the clipboard is opened
+    // without an owner window, which only the window thread may make
+    public static string Text(bool unowned)
+    {
+        if (!HasText()) return null;
+        bool open = false;
+        if (unowned) for (int i = 0; i < 20 && !(open = OpenClipboard(IntPtr.Zero)); i++) Thread.Sleep(10);
+        else open = Open();
+        // Held by another app: an error, not "no text", so the caller tries again
+        if (!open) throw new InvalidOperationException("the clipboard is busy");
         try
         {
             byte[] b = Read(GetClipboardData(CF_UNICODETEXT));

@@ -32,8 +32,8 @@ static class LayoutCheck
             if (match == null) continue;
             int diff = 0;
             for (int s = 1; s < 0x60; s++)
-                for (int st = 0; st < 2; st++)
-                    { char a = match.CharFor(s, st == 1, false, false), b = k.CharFor(s, st == 1, false, false); if (a != b) { diff++; Console.WriteLine("      scan {0:X2} {1}: windows [{2}] klc [{3}]", s, st == 1 ? "shift" : "plain", a == '\0' ? "none" : a.ToString(), b == '\0' ? "none" : b.ToString()); } }
+                for (int st = 0; st < 4; st++)   // plain, Shift, and the same two with CapsLock on
+                    { char a = match.CharFor(s, (st & 1) != 0, st >= 2, false), b = k.CharFor(s, (st & 1) != 0, st >= 2, false); if (a != b) { diff++; Console.WriteLine("      scan {0:X2} {1}: windows [{2}] klc [{3}]", s, ((st & 1) != 0 ? "shift" : "plain") + (st >= 2 ? " CapsLock" : ""), a == '\0' ? "none" : a.ToString(), b == '\0' ? "none" : b.ToString()); } }
             Console.WriteLine("   vs Windows {0}: {1} differences", match.Name, diff);
         }
     }

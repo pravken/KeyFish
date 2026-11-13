@@ -25,12 +25,22 @@ static class CrashLog
     // Windows' record of the crash that ended the last run, once found (KeyFish then offers to report it)
     public static volatile string LastCrash;
 
-    // The user's own folder (and so their Windows user name) never goes into the log
+    // The user's own folder, their Windows user name and the computer's name never go into the log (a folder outside
+    // the profile, D:\Users\Name or a network path, may carry them too)
     static string Private(string text)
     {
         string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        return string.IsNullOrEmpty(home) ? text : System.Text.RegularExpressions.Regex.Replace(text,
-            System.Text.RegularExpressions.Regex.Escape(home), "%USERPROFILE%", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (!string.IsNullOrEmpty(home)) text = Scrub(text, home, "%USERPROFILE%");
+        text = Scrub(text, Environment.UserName, "%USERNAME%");
+        return Scrub(text, Environment.MachineName, "%COMPUTERNAME%");
+    }
+
+    // Whole names only: a user called "a" mustn't turn every a in the log into %USERNAME%
+    static string Scrub(string text, string value, string with)
+    {
+        if (string.IsNullOrEmpty(value) || value.Length < 2) return text;
+        return System.Text.RegularExpressions.Regex.Replace(text, @"(?<![\p{L}\p{N}])" + System.Text.RegularExpressions.Regex.Escape(value) + @"(?![\p{L}\p{N}])",
+            with, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     }
 
     // At the very start of a process. guard: the password-guard process, which only writes its own errors

@@ -6,6 +6,7 @@
 # keyboard hook, the memory and the processor time of both KeyFish processes are shown
 param([string]$Only, [switch]$Perf, [switch]$Big)
 $ErrorActionPreference = 'Stop'
+$userCopy = ''   # the KeyFish to start again at the end, found below
 $root = Split-Path $PSScriptRoot -Parent
 # The tests run the build in tests\bin (build.bat with OUT=tests\bin\KeyFish.exe), which keeps its own lists next to it.
 # The user's KeyFish.exe in the project folder and its files are never touched: it is only closed for the run and started again
@@ -23,7 +24,7 @@ Copy-Item "$PSScriptRoot\pw.html", "$PSScriptRoot\tx.html" $bin -Force
 # so a run that was cut short (window closed, power lost) is undone by the next run before it starts.
 # "complete" is written last: without it the copy is unfinished, and the user's own files were never touched
 $files = 'replacements.txt', 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt', 'exclusions.txt', 'no-auto-layouts.txt'
-$regNames = 'Typos', 'StatsTotal', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect', 'QuickKey', 'CorrectionTips', 'Typography', 'Hotkey6', 'IntroShown', 'StatsDays', 'SwitchWhileTyping'
+$regNames = 'Typos', 'StatsTotal', 'UndoCtrlZ', 'QuietFullscreen', 'AutoCorrect', 'QuickKey', 'CorrectionTips', 'Typography', 'Hotkey6', 'IntroShown', 'StatsDays', 'SwitchWhileTyping', 'Hints'
 $backupDir = Join-Path $PSScriptRoot 'backup'
 
 # KeyFish's settings in the registry go through reg.exe in a .cmd started by Explorer: when this script runs inside a
@@ -74,14 +75,18 @@ elseif (Test-Path $backupDir) { Remove-Item $backupDir -Recurse -Force }
 New-Item -ItemType Directory -Force $backupDir | Out-Null
 foreach ($f in $files) { $p = Join-Path $data $f; if (Test-Path $p) { Copy-Item $p (Join-Path $backupDir $f) } }
 Get-Real $regNames | Set-Content (Join-Path $backupDir 'registry.txt') -Encoding ascii
+# The KeyFish running now is started again at the end: the Store one through its package, a downloaded one by its path
+$running = @(Get-Process KeyFish -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path -ne $app } | Select-Object -ExpandProperty Path -Unique)
+$userCopy = if ($running | Where-Object { $_ -like '*\WindowsApps\*' }) { 'store' } elseif ($running) { $running[0] } else { Join-Path $root 'KeyFish.exe' }
 Set-Content (Join-Path $backupDir 'complete') 'ok' -Encoding ascii
 
-[IO.File]::WriteAllText((Join-Path $data 'replacements.txt'), "спс = спасибо`r`nсув = С уважением,\nТест`r`nln2 = C:\\new`r`nxdt = {date}`r`nxcur = (a{cursor}b)`r`nxclip = {clipboard}`r`n", (New-Object Text.UTF8Encoding $false))
+[IO.File]::WriteAllText((Join-Path $data 'replacements.txt'), "спс = спасибо`r`nсув = С уважением,\nТест`r`nln2 = C:\\new`r`nxdt = {date}`r`nxcur = (a{cursor}b)`r`nxclip = {clipboard}`r`nxsm = ok 🙂👍🏽`r`n", (New-Object Text.UTF8Encoding $false))
 foreach ($f in 'ignored-words.txt', 'learned-words.txt', 'app-layouts.txt', 'no-auto-layouts.txt') { $p = Join-Path $data $f; if (Test-Path $p) { Remove-Item $p } }
 # Rules by the test window's title (Typer.exe title=…)
 [IO.File]::WriteAllText((Join-Path $data 'exclusions.txt'), "title: KF-off`r`ntitle: KF-hot* = hotkeys`r`n", (New-Object Text.UTF8Encoding $false))
 # QuickKey 1: double Shift; CorrectionTips 2: no first-fix tips over the test windows
-Set-Real ([ordered]@{ Typos = 1; SwitchWhileTyping = 1; UndoCtrlZ = 1; QuietFullscreen = 1; AutoCorrect = 1; QuickKey = 1; Typography = 1; CorrectionTips = 2; Hotkey6 = 196689; IntroShown = 1 })   # Hotkey6: Ctrl+Shift+Q converts the clipboard
+# Hints: a word KeyFish isn't sure of is shown at the caret, and Pause fixes it
+Set-Real ([ordered]@{ Typos = 1; SwitchWhileTyping = 1; UndoCtrlZ = 1; QuietFullscreen = 1; AutoCorrect = 1; QuickKey = 1; Typography = 1; CorrectionTips = 2; Hotkey6 = 196689; IntroShown = 1; Hints = 1 })   # Hotkey6: Ctrl+Shift+Q converts the clipboard
 Get-Process KeyFish -ErrorAction SilentlyContinue | Stop-Process; Start-Sleep -Milliseconds 800
 $debugLog = Join-Path $data 'debug-log.txt'
 if ($Perf) { Set-Content $debugLog '' -Encoding utf8 }
@@ -155,6 +160,16 @@ $bigTests = @(
   @('x: Shift held long, en', '^h^ello ~~~~',                             'Hello ', ''),
   @('x: CapsLock, English',   '#^hello ~~~~',                             'Hello ', ''),
   @('x: short words first',   'f ns ult ~~~~',                            'а ты где ', ''),
+  @('x: one letter first',    'f tckb ~~~~',                              'а если ', ''),
+  @('x: whole phrase back',   'f z f jy f vs vjcrdf ~~~~',                'а я а он а мы москва ', ''),   # more than three words before the one fixed
+  @('x: English stays',       'I use ghbdtn ~~~~',                        'I use привет ', ''),   # real words of the typed language end the phrase
+  # Typing on drops the hint: Pause then converts the last word as usual, not the hinted one. Before "hint taken", which
+  # teaches KeyFish the word
+  @('x: emoji replacement',  'hello ~~xsm ~~~~',                         'hello ok 🙂👍🏽 ', ''),   # characters beyond U+FFFF, as surrogate pairs
+  @('x: emoji, Pause',       'hello ~~xsm ~~~~|~~~~~~',                  'hello xsm ', ''),   # taking it back erases an emoji as one character
+  @('x: hint passed by',      "hello ~~dfot ~~ye~~|$w",                  'hello dfot ну', ''),
+  @('x: hint taken',          'hello ~~dfot ~~~~|~~~~~~',                 'hello ваще ', ''),   # left alone (not sure), the hint is taken with Pause
+  @('x: two spaces, no retro', 'hello ~~f  ~~ghjuhfvvf ~~~~',            'hello f  программа ', ''),   # a double space ends the chain of words fixed back
   @('x: year in a sentence',  'd 2026 ujle ~~~~',                         'в 2026 году ', ''),
   @('x: Backspace in word',   'ghbdtx<n ~~~~',                            'привет ', ''),
   @('x: Enter ends a word',   'ghbdtn$~~~~',                              "привет`r`n", ''),
@@ -245,6 +260,7 @@ finally {
   if ($Perf) { Remove-Item $debugLog -ErrorAction SilentlyContinue }
   # Restore everything and start KeyFish normally again (also when a test fails with an error)
   Restore-Backup
-  if (Test-Path (Join-Path $root 'KeyFish.exe')) { explorer.exe (Join-Path $root 'KeyFish.exe') }   # the user's own copy again
+  if ($userCopy -eq 'store') { explorer.exe 'shell:AppsFolder\MaximPravko.KeyFish_q2dp1ns3fa4wr!KeyFish' }   # the user's own copy again
+  elseif (Test-Path $userCopy) { explorer.exe $userCopy }
   "tests finished"
 }

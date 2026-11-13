@@ -17,12 +17,20 @@ partial class App
 
     Updater.Release pendingRelease;
 
-    bool installing;
+    bool installing, offering;
 
     // "Yes" downloads and installs now, "No" opens the release page to update manually
     void OfferUpdate(Updater.Release r)
     {
-        if (installing) return;
+        // One offer at a time: the notification, the menu and About can each ask, and two "Yes" would install twice
+        if (installing || offering) return;
+        offering = true;
+        try { Offer(r); }
+        finally { offering = false; }
+    }
+
+    void Offer(Updater.Release r)
+    {
         if (!r.CanInstall)
         {
             if (ThemedMessage.Show(L.F("Доступна версия {0} (установлена {1}).\n\nОткрыть страницу загрузки?",
@@ -53,7 +61,18 @@ partial class App
                 if (error == null)
                 {
                     SaveStats();
-                    Process.Start(Updater.ExePath, "--updated");
+                    try { Process.Start(Updater.ExePath, "--updated"); }
+                    catch (Exception ex)
+                    {
+                        // The new version can't be started (an antivirus took it, a policy blocks it): the old one goes
+                        // back in its place, or after a restart there would be no working KeyFish
+                        Updater.Rollback();
+                        CrashLog.Write("the new version did not start", ex);
+                        ThemedMessage.Show(L.T("Не удалось запустить новую версию. Восстановлена прежняя версия KeyFish.",
+                                               "The new version could not be started. The previous version of KeyFish has been restored."),
+                                           L.T("Обновление KeyFish", "KeyFish update"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
                     ExitThread();
                 }
                 else if (ThemedMessage.Show(error + "\n\n" + L.T("Открыть страницу загрузки?", "Open the download page?"),

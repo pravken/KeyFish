@@ -303,3 +303,6 @@ Layouts KeyFish switches to automatically. Clear a rarely used layout if KeyFish
 All layouts	Сви распореди
 All but {0}	Осим {0}
 The downloaded file's signature could not be verified — update cancelled.	Потпис преузете датотеке није потврђен — ажурирање је отказано.
+The new version could not be started. The previous version of KeyFish has been restored.	Нова верзија није могла да се покрене. Враћена је претходна верзија програма KeyFish.
+Suggest fixes	Предлажи исправке
+When KeyFish is not sure a word was typed in the wrong layout, the word is left as it is and the other layout's version is shown at the cursor. The layout fix key replaces the word with it.	Када KeyFish није сигуран да је реч откуцана у погрешном распореду, реч остаје каква јесте, а поред курсора се приказује њена верзија у другом распореду. Тастер за исправку распореда замењује реч том верзијом.

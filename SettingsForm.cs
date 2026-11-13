@@ -12,6 +12,7 @@ using System.Windows.Forms;
 class SettingsForm : Form
 {
     public bool SwitchWhileTyping = true;
+    public bool Hints;
     public bool AutoCorrect, Typos, QuietFullscreen, UndoCtrlZ, LayoutColor, Autostart, CheckUpdates, LayoutBadge, RecentMenu, Sound, TrayLetters, Typography;
     public string BackupDir;             // where KeyFish keeps copies of the settings made before each save
     public Action<IWin32Window> OpenAbout;   // the About window, which otherwise opens only from the tray menu
@@ -62,7 +63,7 @@ class SettingsForm : Form
     NavList nav;
     Panel content;
 
-    ToggleSwitch tAuto, tEarly, tTypos, tQuiet, tCtrlZ, tColor, tAutostart, tUpdates, tBadge, tRecent, tSound, tLetters, tTypography;
+    ToggleSwitch tAuto, tEarly, tHints, tTypos, tQuiet, tCtrlZ, tColor, tAutostart, tUpdates, tBadge, tRecent, tSound, tLetters, tTypography;
     DropDown cbLanguage, cbScale, cbTheme, cbQuickKey;
     ToggleSwitch tHoliday, tSkinLogo, tSkinSound;
     SkinGallery gallery;
@@ -1115,6 +1116,10 @@ class SettingsForm : Form
             L.T("Если начало слова явно набрано не в той раскладке, раскладка переключается после 4–6 букв, не дожидаясь пробела.",
                 "When the beginning of a word is plainly in the wrong layout, the layout is switched after 4–6 letters, without waiting for a space."),
             tEarly = Toggle(SwitchWhileTyping));
+        Row(page, ref y, L.T("Подсказывать исправление", "Suggest fixes"),
+            L.T("Если KeyFish не уверен, что слово набрано не в той раскладке, слово остаётся как есть, а у курсора показывается вариант в другой раскладке. Клавиша исправления раскладки заменяет слово этим вариантом.",
+                "When KeyFish is not sure a word was typed in the wrong layout, the word is left as it is and the other layout's version is shown at the cursor. The layout fix key replaces the word with it."),
+            tHints = Toggle(Hints));
         AutoLayoutsRow(page, ref y);
         DictionaryRow(page, ref y);
         Row(page, ref y, L.T("Исправлять опечатки", "Fix typos"),
@@ -1751,6 +1756,7 @@ class SettingsForm : Form
         var v = new Dictionary<string, int>
         {
             { "AutoCorrect", AutoCorrect ? 1 : 0 }, { "Typos", Typos ? 1 : 0 }, { "QuietFullscreen", QuietFullscreen ? 1 : 0 }, { "SwitchWhileTyping", SwitchWhileTyping ? 1 : 0 },
+            { "Hints", Hints ? 1 : 0 },
             { "UndoCtrlZ", UndoCtrlZ ? 1 : 0 }, { "LayoutColor", LayoutColor ? 1 : 0 }, { "CheckUpdates", CheckUpdates ? 1 : 0 },
             { "LayoutBadge", LayoutBadge ? 1 : 0 }, { "RecentMenu", RecentMenu ? 1 : 0 }, { "QuickKey", QuickKey }, { "Sound", Sound ? 1 : 0 }, { "Typography", Typography ? 1 : 0 },
             { "TrayLetters", TrayLetters ? 1 : 0 },
@@ -1821,6 +1827,7 @@ class SettingsForm : Form
         if (files.TryGetValue("sounds.txt", out text)) SoundMap = Sounds.Parse(text);
         Func<string, bool, bool> flag = (name, current) => { int v; return values.TryGetValue(name, out v) ? v != 0 : current; };
         AutoCorrect = flag("AutoCorrect", AutoCorrect); Typos = flag("Typos", Typos); QuietFullscreen = flag("QuietFullscreen", QuietFullscreen); SwitchWhileTyping = flag("SwitchWhileTyping", SwitchWhileTyping);
+        Hints = flag("Hints", Hints);
         UndoCtrlZ = flag("UndoCtrlZ", UndoCtrlZ); LayoutColor = flag("LayoutColor", LayoutColor); CheckUpdates = flag("CheckUpdates", CheckUpdates);
         LayoutBadge = flag("LayoutBadge", LayoutBadge); RecentMenu = flag("RecentMenu", RecentMenu); Sound = flag("Sound", Sound); Typography = flag("Typography", Typography);
         TrayLetters = flag("TrayLetters", TrayLetters);
@@ -1852,6 +1859,7 @@ class SettingsForm : Form
         Typos = tTypos.Checked;
         QuietFullscreen = tQuiet.Checked;
         SwitchWhileTyping = tEarly.Checked;
+        Hints = tHints.Checked;
         UndoCtrlZ = tCtrlZ.Checked;
         LayoutColor = tColor.Checked;
         TrayLetters = tLetters.Checked;
@@ -2077,10 +2085,13 @@ static class Importer
         var list = new List<KeyValuePair<string, string>>();
         string[] lines = ReadLines(path);
         if (lines == null) return list;
+        // The abbreviations taken so far. Looking each new one up in the list itself took minutes on a file of
+        // 150,000 lines: the time grew with the square of their number
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         string ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
         if (ext == ".yml" || ext == ".yaml" || lines.Any(l => l.TrimStart().StartsWith("- trigger:")))
         {
-            Espanso(lines, list);
+            Espanso(lines, list, seen);
             return list;
         }
         var hotstring = new System.Text.RegularExpressions.Regex(@"^:[^:]*:(.+?)::(.+)$");
@@ -2089,10 +2100,10 @@ static class Importer
             string s = raw.Trim();
             if (s.Length == 0 || s.StartsWith("#") || s.StartsWith(";") || s.StartsWith("//")) continue;
             var m = hotstring.Match(s);
-            if (m.Success) { Add(list, m.Groups[1].Value, AutoHotkeyText(m.Groups[2].Value)); continue; }
+            if (m.Success) { Add(list, seen, m.Groups[1].Value, AutoHotkeyText(m.Groups[2].Value)); continue; }
             string[] cells = Cells(s, ext == ".csv");
-            if (cells != null) { Add(list, cells[0], cells[1].Replace("\\n", "\n")); continue; }
-            foreach (var kv in ReplacementFile.Parse(s)) Add(list, kv.Key, kv.Value);
+            if (cells != null) { Add(list, seen, cells[0], cells[1].Replace("\\n", "\n")); continue; }
+            foreach (var kv in ReplacementFile.Parse(s)) Add(list, seen, kv.Key, kv.Value);
         }
         return list;
     }
@@ -2102,6 +2113,7 @@ static class Importer
         var list = new List<string>();
         string[] lines = ReadLines(path);
         if (lines == null) return list;
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);   // see Replacements: a spelling dictionary has 150,000 words
         foreach (string raw in lines)
         {
             string s = raw.Trim();
@@ -2109,19 +2121,19 @@ static class Importer
             int cut = s.IndexOfAny(new[] { '\t', ',', ';', '/' });   // a table's first column; "word/flags" in spell-checker lists
             if (cut >= 0) s = s.Substring(0, cut);
             s = s.Trim().Trim('"').Trim();
-            if (s.Length > 0 && s.Length <= 40 && s.IndexOf(' ') < 0 && s.Any(char.IsLetter) && !list.Contains(s, StringComparer.OrdinalIgnoreCase))
+            if (s.Length > 0 && s.Length <= 40 && s.IndexOf(' ') < 0 && s.Any(char.IsLetter) && seen.Add(s))
                 list.Add(s);
         }
         return list;
     }
 
-    static void Add(List<KeyValuePair<string, string>> list, string key, string value)
+    static void Add(List<KeyValuePair<string, string>> list, HashSet<string> seen, string key, string value)
     {
         key = key.Trim();
         value = value.Trim();
         // The same rules as the editor: one word without "=", not starting with "#", and some text to put in
         if (key.Length == 0 || key.Length > 40 || key.IndexOfAny(new[] { ' ', '=', '\t' }) >= 0 || key.StartsWith("#") || value.Length == 0) return;
-        if (list.Any(kv => string.Equals(kv.Key, key, StringComparison.OrdinalIgnoreCase))) return;
+        if (!seen.Add(key)) return;
         list.Add(new KeyValuePair<string, string>(key, value));
     }
 
@@ -2174,7 +2186,7 @@ static class Importer
     }
 
     // Espanso: "- trigger: ..." followed by "replace: ..." (one-line values; forms and variables are skipped)
-    static void Espanso(string[] lines, List<KeyValuePair<string, string>> list)
+    static void Espanso(string[] lines, List<KeyValuePair<string, string>> list, HashSet<string> seen)
     {
         string trigger = null;
         foreach (string raw in lines)
@@ -2185,7 +2197,7 @@ static class Importer
             else if (s.StartsWith("replace:") && trigger != null)
             {
                 string value = YamlValue(s.Substring(8));
-                if (value != null && value != "|" && value != ">" && value.IndexOf("{{", StringComparison.Ordinal) < 0) Add(list, trigger, value);
+                if (value != null && value != "|" && value != ">" && value.IndexOf("{{", StringComparison.Ordinal) < 0) Add(list, seen, trigger, value);
                 trigger = null;
             }
         }
@@ -2238,7 +2250,7 @@ static class SettingsArchive
 {
     public static readonly string[] Values =
     {
-        "AutoCorrect", "Typos", "QuietFullscreen", "SwitchWhileTyping", "UndoCtrlZ", "LayoutColor", "CheckUpdates", "LayoutBadge", "RecentMenu", "QuickKey", "Sound", "TrayLetters", "Typography",
+        "AutoCorrect", "Typos", "QuietFullscreen", "SwitchWhileTyping", "Hints", "UndoCtrlZ", "LayoutColor", "CheckUpdates", "LayoutBadge", "RecentMenu", "QuickKey", "Sound", "TrayLetters", "Typography",
         "Language", "UiScale", "Theme", "Holiday", "Skin", "SkinLogo", "SkinSound", "CustomAccent", "CustomWindow", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5", "Hotkey6", "Hotkey7", "Hotkey8"
     };
     static readonly string[] FileNames = { "replacements.txt", "exclusions.txt", "ignored-words.txt", "learned-words.txt", "app-layouts.txt", "no-auto-layouts.txt", "layout-colors.txt", "sounds.txt" };

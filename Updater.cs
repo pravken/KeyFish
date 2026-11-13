@@ -72,6 +72,18 @@ static class Updater
     public static string OldPath { get { return Path.Combine(Path.GetDirectoryName(ExePath), "KeyFish.old.exe"); } }
     static string NewPath { get { return Path.Combine(Path.GetDirectoryName(ExePath), "KeyFish.new.exe"); } }
 
+    // The old version back in place of a new one that couldn't be started
+    public static void Rollback()
+    {
+        try
+        {
+            if (!File.Exists(OldPath)) return;
+            if (File.Exists(ExePath)) File.Delete(ExePath);
+            File.Move(OldPath, ExePath);
+        }
+        catch { }
+    }
+
     // Downloads the new version, verifies its checksum and puts it in place of the current one.
     // Returns null on success or an error message; on error the old version stays as it was
     public static string Install(Release r)

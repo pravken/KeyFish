@@ -39,7 +39,12 @@ static class Program
 
         bool updated = Array.IndexOf(args, "--updated") >= 0;
         bool created;
-        using (var mutex = new Mutex(true, "KeyFish_SingleInstance", out created))
+        Mutex instance;
+        // A copy run as administrator owns the mutex with rights this one doesn't have: it is running, so this one
+        // leaves, instead of failing with .NET's error window at every sign-in
+        try { instance = new Mutex(true, "KeyFish_SingleInstance", out created); }
+        catch (UnauthorizedAccessException) { return; }
+        using (var mutex = instance)
         {
             if (!created)
             {
@@ -53,9 +58,17 @@ static class Program
                 {
                     if (!mutex.WaitOne(replaced ? 5000 : 15000))
                     {
+                        // Only the copy being replaced (this exe's path, or the .old one it was renamed to), never the
+                        // Store version or another KeyFish.exe somewhere else
                         int self = Process.GetCurrentProcess().Id;
                         foreach (var p in Process.GetProcessesByName("KeyFish"))
-                            try { if (p.Id != self) p.Kill(); } catch { }
+                            try
+                            {
+                                string file = p.MainModule.FileName;
+                                if (p.Id != self && (string.Equals(file, Updater.ExePath, StringComparison.OrdinalIgnoreCase) ||
+                                                     string.Equals(file, Updater.OldPath, StringComparison.OrdinalIgnoreCase))) p.Kill();
+                            }
+                            catch { }
                         if (!mutex.WaitOne(5000)) return;
                     }
                 }
@@ -86,7 +99,7 @@ partial class App : ApplicationContext
                        "# Apps where auto-correction is off.\r\n" +
                        "# One process name per line, as in Task Manager (.exe is optional).\r\n") +
                    "Code\r\ndevenv\r\ncmd\r\npowershell\r\npwsh\r\nWindowsTerminal\r\nidea64\r\npycharm64\r\nrider64\r\n" +
-                   "KeePass\r\nKeePassXC\r\n1Password\r\nmstsc\r\n" + string.Join("\r\n", AddedExclusions.Concat(AddedExclusions3)) + "\r\n";
+                   "KeePass\r\nKeePassXC\r\n1Password\r\nmstsc\r\n" + string.Join("\r\n", AddedExclusions.Concat(AddedExclusions3).Concat(AddedExclusions4)) + "\r\n";
         }
     }
 
@@ -107,7 +120,14 @@ partial class App : ApplicationContext
         "msrdc", "msrdcw", "Windows365", "RDCMan", "mRemoteNG", "RoyalTS", "RemoteDesktopManager", "RemoteDesktopManager64",
         "vncviewer", "tvnviewer"
     };
-    const int ExclusionsVersion = 3;
+    // Added in 2.6: the other code editors and IDEs besides Code, Visual Studio, IntelliJ, PyCharm and Rider (code isn't
+    // text in a language, and their terminals take Ctrl+C for stopping a program), and more terminals
+    static readonly string[] AddedExclusions4 =
+    {
+        "Code - Insiders", "VSCodium", "Cursor", "Windsurf", "webstorm64", "clion64", "goland64", "phpstorm64", "datagrip64",
+        "rubymine64", "studio64", "fleet", "ConEmu", "ConEmu64", "Warp"
+    };
+    const int ExclusionsVersion = 4;
 
     // Adds the new default exclusions to an older list, once: if the user removes one later, it stays removed
     void AddNewExclusions()
@@ -119,13 +139,15 @@ partial class App : ApplicationContext
             var have = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (string line in File.ReadAllLines(exclusionsPath, Encoding.UTF8))
             {
-                string s = line.Trim();
+                // "Cursor = hotkeys" names Cursor too: adding a bare "Cursor" would turn its hotkeys off as well
+                bool hotkeysOnly;
+                string s = AppRules.Split(line.Trim(), out hotkeysOnly).Trim();
                 if (s.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) s = s.Substring(0, s.Length - 4);
                 have.Add(s);
             }
             var add = new StringBuilder();
             // Each list once: a name the user removed after an earlier list was added stays removed
-            var added = (version < 2 ? AddedExclusions : new string[0]).Concat(AddedExclusions3);
+            var added = (version < 2 ? AddedExclusions : new string[0]).Concat(version < 3 ? AddedExclusions3 : new string[0]).Concat(AddedExclusions4);
             foreach (string name in added) if (!have.Contains(name)) add.Append(name).Append("\r\n");
             string text = File.ReadAllText(exclusionsPath, Encoding.UTF8);
             if (add.Length > 0) File.WriteAllText(exclusionsPath, text + (text.Length == 0 || text.EndsWith("\n") ? "" : "\r\n") + add, Encoding.UTF8);
@@ -145,9 +167,14 @@ partial class App : ApplicationContext
         try
         {
             string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            bool own = (profile.Length > 0 && exeDir.StartsWith(profile.TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase)) ||
-                       File.Exists(Path.Combine(exeDir, "portable.txt")) || File.Exists(Path.Combine(exeDir, "replacements.txt")) ||
-                       File.Exists(Path.Combine(exeDir, "exclusions.txt"));
+            // Run straight from an archive, the exe is in a temporary folder the archiver deletes: the settings go
+            // to %APPDATA% then
+            string temp = Path.GetTempPath().TrimEnd('\\') + "\\";
+            bool inTemp = exeDir.StartsWith(temp, StringComparison.OrdinalIgnoreCase);
+            bool own = !inTemp &&
+                       ((profile.Length > 0 && exeDir.StartsWith(profile.TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase)) ||
+                        File.Exists(Path.Combine(exeDir, "portable.txt")) || File.Exists(Path.Combine(exeDir, "replacements.txt")) ||
+                        File.Exists(Path.Combine(exeDir, "exclusions.txt")));
             if (own)
             {
                 using (new FileStream(Path.Combine(exeDir, "~keyfish-write-test.tmp"), FileMode.Create, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose)) { }
@@ -246,13 +273,29 @@ partial class App : ApplicationContext
         catch { return null; }
     }
 
+    // A setting that can't be written (a policy, a damaged key) is lost, not a reason for KeyFish not to start
     static void SetText(string name, string value)
     {
-        using (var k = Registry.CurrentUser.CreateSubKey(SettingsKey))
-            if (!((value ?? "").Equals(k.GetValue(name) as string))) k.SetValue(name, value ?? "", RegistryValueKind.String);
+        try
+        {
+            using (var k = Registry.CurrentUser.CreateSubKey(SettingsKey))
+                if (!((value ?? "").Equals(k.GetValue(name) as string))) k.SetValue(name, value ?? "", RegistryValueKind.String);
+        }
+        catch { }
     }
 
-    LayoutBadge badge;
+    LayoutBadge badge, hintBadge;
+
+    void ShowHint(string alt)
+    {
+        // Only keys that don't take the hint away on their way: any other key pressed counts as typing on (the keyboard
+        // hook sees it before the hotkey fires), so the hint names Pause or the quick key
+        Keys k = GetHotkey(HkLayout - 1);
+        string key = k == Keys.Pause ? SettingsForm.Format(k) : watcher.QuickKey == 1 ? "Shift Shift" : watcher.QuickKey == 2 ? "Caps Lock" : null;
+        if (key == null) return;   // no such key: a hint would offer nothing
+        if (hintBadge == null) hintBadge = new LayoutBadge();
+        hintBadge.Flash(alt + "  ·  " + key, Theme.Accent, KeyboardWatcher.HintMs);
+    }
     bool showBadge;
     Icon iconOff;                        // grey fish: auto-correction is off or paused
 
@@ -279,12 +322,16 @@ partial class App : ApplicationContext
     // Settings apply at every change in the window: a value that is already there isn't written again
     static void SetSetting(string name, int value)
     {
-        using (var k = Registry.CurrentUser.CreateSubKey(SettingsKey))
+        try
         {
-            object old = k.GetValue(name);
-            if (old is int && (int)old == value) return;
-            k.SetValue(name, value, RegistryValueKind.DWord);
+            using (var k = Registry.CurrentUser.CreateSubKey(SettingsKey))
+            {
+                object old = k.GetValue(name);
+                if (old is int && (int)old == value) return;
+                k.SetValue(name, value, RegistryValueKind.DWord);
+            }
         }
+        catch { }
     }
 
     readonly string exclusionsPath, ignoredPath, replacementsPath, learnedPath, appLayoutsPath, noAutoPath, backupDir;
@@ -329,13 +376,13 @@ partial class App : ApplicationContext
         Theme.Mode = Math.Max(0, Math.Min(GetSetting("Theme", 0), 2));
         Theme.Chosen = GetSetting("Skin", 0);
         Theme.Holidays = GetSetting("Holiday", 1) != 0;
-        DateTime.TryParseExact(GetSetting("HolidayDeclined", 0).ToString(), "yyyyMMdd", null, System.Globalization.DateTimeStyles.None, out Theme.Declined);
+        DateTime.TryParseExact(GetSetting("HolidayDeclined", 0).ToString(), "yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out Theme.Declined);
         Theme.SkinLogo = GetSetting("SkinLogo", 1) != 0;
         Theme.SkinSound = GetSetting("SkinSound", 1) != 0;
         Skin.SetCustom(Color.FromArgb(GetSetting("CustomAccent", 0)), Color.FromArgb(GetSetting("CustomWindow", 0)));
         Theme.Refresh();
         statsBase = GetSetting("StatsTotal", 0);
-        if (GetSetting("StatsSince", 0) == 0) SetSetting("StatsSince", int.Parse(DateTime.Today.ToString("yyyyMMdd")));
+        if (GetSetting("StatsSince", 0) == 0) SetSetting("StatsSince", DayKey(DateTime.Today));   // Gregorian whatever the calendar
         // The day the count by day started (2.1.0): a week or a month before it isn't known
         if (GetSetting("StatsDaysSince", 0) == 0) SetSetting("StatsDaysSince", Daily().Count > 0 ? Daily().Keys.Min() : DayKey(DateTime.Today));
         string dir = DataDir();
@@ -365,6 +412,7 @@ partial class App : ApplicationContext
             FixTypos = GetSetting("Typos", 0) != 0,
             QuietFullscreen = GetSetting("QuietFullscreen", 1) != 0,
             SwitchWhileTyping = GetSetting("SwitchWhileTyping", 1) != 0,
+            Hints = GetSetting("Hints", 0) != 0,
             UndoWithCtrlZ = GetSetting("UndoCtrlZ", 1) != 0,
             KeepRecent = GetSetting("RecentMenu", 1) != 0,
             Typography = GetSetting("Typography", 0) != 0,
@@ -385,6 +433,9 @@ partial class App : ApplicationContext
         {
             if (!hotkeysOff && W.GetForegroundWindow() != IntPtr.Zero) OnHotkey(HkLayout);
         }, null);
+        // A hint at the caret: the word as it would be in the other layout, and the key that makes it so
+        watcher.HintShown = alt => ui.Post(_ => ShowHint(alt), null);
+        watcher.HintGone = () => ui.Post(_ => { if (hintBadge != null) hintBadge.HideNow(); }, null);
         LoadAppLayouts();
 
         var menu = BuildMenu();
@@ -577,7 +628,7 @@ partial class App : ApplicationContext
             StatsTotal = total, StatsSince = StatsSince(), StatsRecent = RecentStats(total), StatsDays = new Dictionary<int, int>(Daily()),
             StatsDaysSince = GetSetting("StatsDaysSince", DayKey(DateTime.Today)), ResetStats = ResetStats,
             OpenAbout = owner => ShowAbout(owner), Updates = Packaged.Yes ? null : updates,
-            BackupDir = backupDir, TrayLetters = trayLetters, LayoutColors = new Dictionary<string, Color>(layoutColors, StringComparer.OrdinalIgnoreCase), AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, SoundMap = new Dictionary<string, string>(Sounds.Map), SoundsDir = Sounds.Dir, RecentMenu = watcher.KeepRecent, Typography = watcher.Typography, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, SwitchWhileTyping = watcher.SwitchWhileTyping, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
+            BackupDir = backupDir, TrayLetters = trayLetters, LayoutColors = new Dictionary<string, Color>(layoutColors, StringComparer.OrdinalIgnoreCase), AutoCorrect = autoCorrect, LayoutBadge = showBadge, Sound = playSound, SoundMap = new Dictionary<string, string>(Sounds.Map), SoundsDir = Sounds.Dir, RecentMenu = watcher.KeepRecent, Typography = watcher.Typography, QuickKey = watcher.QuickKey, Typos = watcher.FixTypos, QuietFullscreen = watcher.QuietFullscreen, SwitchWhileTyping = watcher.SwitchWhileTyping, Hints = watcher.Hints, UndoCtrlZ = watcher.UndoWithCtrlZ, LayoutColor = showLayout, Autostart = IsAutostart(),
             CheckUpdates = GetSetting("CheckUpdates", 1) != 0, Hotkeys = keys, Language = L.Setting, UiScale = GetSetting("UiScale", 0), ThemeMode = Theme.Mode, SkinNumber = shownSkin, Holiday = Theme.Holidays, SkinLogo = Theme.SkinLogo, SkinSound = Theme.SkinSound, CustomAccent = Skin.Custom.Accent, CustomWindow = Skin.Custom.Window,
             Replacements = ReadText(replacementsPath), Exclusions = ReadText(exclusionsPath), Ignored = ignored, Learned = learned,
             AppLayouts = ReadText(appLayoutsPath), NoAutoLayouts = ReadText(noAutoPath), InstalledLayouts = new List<LayoutTable>(watcher.Layouts.All)
@@ -605,6 +656,7 @@ partial class App : ApplicationContext
         watcher.FixTypos = f.Typos; SetSetting("Typos", f.Typos ? 1 : 0);
         watcher.QuietFullscreen = f.QuietFullscreen; SetSetting("QuietFullscreen", f.QuietFullscreen ? 1 : 0);
         watcher.SwitchWhileTyping = f.SwitchWhileTyping; SetSetting("SwitchWhileTyping", f.SwitchWhileTyping ? 1 : 0);
+        watcher.Hints = f.Hints; SetSetting("Hints", f.Hints ? 1 : 0);
         watcher.UndoWithCtrlZ = f.UndoCtrlZ; SetSetting("UndoCtrlZ", f.UndoCtrlZ ? 1 : 0);
         showLayout = f.LayoutColor; SetSetting("LayoutColor", f.LayoutColor ? 1 : 0);
         SetSetting("CheckUpdates", f.CheckUpdates ? 1 : 0);
@@ -658,7 +710,7 @@ partial class App : ApplicationContext
                 SetSetting("Skin", f.SkinNumber);
                 Theme.Chosen = f.SkinNumber;
                 Theme.Declined = Skin.Declines(f.SkinNumber, DateTime.Today);
-                SetSetting("HolidayDeclined", Theme.Declined == DateTime.MinValue ? 0 : int.Parse(Theme.Declined.ToString("yyyyMMdd")));
+                SetSetting("HolidayDeclined", Theme.Declined == DateTime.MinValue ? 0 : DayKey(Theme.Declined));
             }
             if (Theme.Refresh()) themeChanged = true;
         }
@@ -765,7 +817,10 @@ partial class App : ApplicationContext
         try
         {
             // The Store version is installed and starts with Windows itself: this copy's autostart would only race it
-            if (Packaged.StoreInstalled) { SetAutostart(false); return; }
+            // Once: a Store package folder left after uninstalling, or the user's own choice to start this copy
+            // after all, isn't undone at every start
+            if (Packaged.StoreInstalled && GetSetting("StoreAutostartOff", 0) == 0) { SetAutostart(false); SetSetting("StoreAutostartOff", 1); return; }
+            if (Packaged.StoreInstalled) return;
             string target = AutostartTarget();
             if (target != null && !File.Exists(target)) SetAutostart(true);
         }

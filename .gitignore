@@ -21,3 +21,10 @@ crash.log
 ~keyfish.running
 backups/
 *.msix
+
+# Backups the stress tests make of your lists and language list while they run
+tests/backup-stress/
+tests/backup-chaos/
+tests/backup-langs.json
+# Dictionaries downloaded or built locally
+dictionaries/

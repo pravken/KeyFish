@@ -11,11 +11,12 @@ public static class CaseConverter
     public static string Next(string text)
     {
         if (!HasLetters(text)) return text;
-        string lower = text.ToLower(CultureInfo.CurrentCulture);
+        string lower = FinalSigma(text.ToLower(CultureInfo.CurrentCulture));
         string upper = text.ToUpper(CultureInfo.CurrentCulture);
         string title = ToTitle(text);
 
-        if (text == lower) return title;
+        // "2nd", "x86": lower case is already its title case, so the next step is the capitals, or the cycle would stop
+        if (text == lower) return title != text ? title : upper;
         if (text == upper) return lower;
         if (text == title) return upper;
         return lower;
@@ -35,12 +36,25 @@ public static class CaseConverter
             else
             {
                 sb.Append(c);
-                // Digits and apostrophes belong to the word: 2nd, don't
-                if (char.IsDigit(c)) wordStart = false;
+                // Digits and apostrophes belong to the word: 2nd, don't. So does a mark on the letter before it
+                // (за́мок, a decomposed é): it isn't where a word starts
+                if (char.IsDigit(c) || IsMark(c)) wordStart = false;
                 else if (c != '\'' && c != '’') wordStart = true;
             }
         }
-        return sb.ToString();
+        return FinalSigma(sb.ToString());
+    }
+
+    static bool IsMark(char c)
+    {
+        var cat = char.GetUnicodeCategory(c);
+        return cat == UnicodeCategory.NonSpacingMark || cat == UnicodeCategory.SpacingCombiningMark || cat == UnicodeCategory.EnclosingMark;
+    }
+
+    // Greek sigma at the end of a word is ς: lower case alone makes ΟΔΟΣ "οδοσ"
+    public static string FinalSigma(string text)
+    {
+        return text.IndexOf('σ') < 0 ? text : Regex.Replace(text, @"(?<=\p{L}\p{M}*)σ(?!\p{L}|\p{M})", "ς");
     }
 
     static bool HasLetters(string text)
@@ -87,22 +101,25 @@ public static class TextActions
     public static string Sentence(string text)
     {
         var sb = new StringBuilder(text.Length);
-        bool start = true;
+        bool start = true, ended = false;   // ended: a . ! ? or … just went by; a sentence starts after the space
         foreach (char c in text)
         {
             if (char.IsLetter(c))
             {
                 sb.Append(start ? char.ToUpper(c, CultureInfo.CurrentCulture) : char.ToLower(c, CultureInfo.CurrentCulture));
-                start = false;
+                start = ended = false;
             }
             else
             {
                 sb.Append(c);
-                if (c == '.' || c == '!' || c == '?' || c == '…' || c == '\n') start = true;
-                else if (char.IsDigit(c)) start = false;
+                // "file.txt", "e.g." and "3.5" don't end a sentence: only a mark followed by a space does
+                if (c == '.' || c == '!' || c == '?' || c == '…') ended = true;
+                else if (c == '\n') { start = true; ended = false; }
+                else if (char.IsWhiteSpace(c)) { if (ended) start = true; }
+                else if (char.IsDigit(c)) start = ended = false;
             }
         }
-        return sb.ToString();
+        return CaseConverter.FinalSigma(sb.ToString());
     }
 
     // One space between words, none at the ends of lines, at most one empty line in a row, none at the start and end

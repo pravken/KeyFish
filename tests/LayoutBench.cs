@@ -31,15 +31,11 @@ static class LayoutBench
     // What KeyFish makes of a word typed in layout `current`: the other side's word, or null to leave it
     static string Decide(string typed, Side current, Side other, ref string context)
     {
-        if (Skipped(typed)) return null;
         string alt = Retype(typed, current.Layout, other.Layout);
+        if (Detector.Skipped(typed, alt, current.Model, other.Model)) return null;
         var alts = new List<string> { alt };
         int chosen = alt == null ? -1 : Detector.Choose(typed, current.Model, alts, new List<LangModel> { other.Model }, context, -1);
-        if (chosen >= 0 && Detector.NeedsDictionary(typed))
-        {
-            string core = Detector.Core(alt);
-            if (string.IsNullOrEmpty(core) || other.Model.Count(core) == 0) chosen = -1;
-        }
+        if (chosen >= 0 && Detector.NeedsDictionary(typed) && !Detector.IsKnown(alt, other.Model)) chosen = -1;
         string result = chosen >= 0 ? alt : typed;
         var target = chosen >= 0 ? other : current;
         string resultCore = Detector.Core(result);

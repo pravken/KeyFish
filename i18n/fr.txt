@@ -303,3 +303,6 @@ Layouts KeyFish switches to automatically. Clear a rarely used layout if KeyFish
 All layouts	Toutes les dispositions
 All but {0}	Sauf {0}
 The downloaded file's signature could not be verified — update cancelled.	La signature du fichier téléchargé n'a pas pu être vérifiée — mise à jour annulée.
+The new version could not be started. The previous version of KeyFish has been restored.	La nouvelle version n'a pas pu être lancée. La version précédente de KeyFish a été restaurée.
+Suggest fixes	Proposer des corrections
+When KeyFish is not sure a word was typed in the wrong layout, the word is left as it is and the other layout's version is shown at the cursor. The layout fix key replaces the word with it.	Lorsque KeyFish n'est pas certain qu'un mot a été saisi dans la mauvaise disposition, le mot est laissé tel quel et sa version dans l'autre disposition s'affiche près du curseur. La touche de correction de la disposition remplace le mot par cette version.

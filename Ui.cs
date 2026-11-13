@@ -1090,8 +1090,14 @@ class LayoutBadge : Form
         }
     }
 
-    public void Flash(string text, Color fill)
+    int visibleMs = 1000;
+
+    public void Flash(string text, Color fill) { Flash(text, fill, 1000); }
+
+    // ms: how long it stays before it fades
+    public void Flash(string text, Color fill, int ms)
     {
+        visibleMs = ms;
         if (picture != null) picture.Dispose();
         picture = Render(text, fill);
         where = Place(picture.Size);
@@ -1102,13 +1108,21 @@ class LayoutBadge : Form
         timer.Start();
     }
 
-    // Visible for a second, then fades out
+    // Gone at once (a hint the user typed past)
+    public void HideNow()
+    {
+        if (!IsHandleCreated) return;
+        timer.Stop();
+        Native.ShowWindow(Handle, 0);
+    }
+
+    // Visible for a second (or as long as asked), then fades out
     void Step()
     {
         int t = Environment.TickCount - shownAt;
-        if (t < 1000) return;
-        if (t >= 1300) { timer.Stop(); Native.ShowWindow(Handle, 0); return; }
-        Draw((byte)(255 * (1300 - t) / 300));
+        if (t < visibleMs) return;
+        if (t >= visibleMs + 300) { timer.Stop(); Native.ShowWindow(Handle, 0); return; }
+        Draw((byte)(255 * (visibleMs + 300 - t) / 300));
     }
 
     static Bitmap Render(string text, Color fill)

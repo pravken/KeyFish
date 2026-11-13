@@ -29,7 +29,7 @@ jobs:
         run: |
           $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
           New-Item -ItemType Directory -Force tests\bin | Out-Null
-          foreach ($c in 'LayoutCheck', 'ChooseCheck', 'LayoutBench') {
+          foreach ($c in 'LayoutCheck', 'ChooseCheck', 'LayoutBench', 'LayoutMatrix', 'SameScriptCheck', 'GreekCheck') {
             & $csc /nologo /codepage:65001 /out:tests\bin\$c.exe /r:System.Core.dll tests\$c.cs Detector.cs Layouts.cs
             if ($LASTEXITCODE -ne 0) { throw "$c doesn't build" }
           }
@@ -47,6 +47,21 @@ jobs:
       - name: Layout tables
         shell: pwsh
         run: tests\bin\LayoutCheck.exe tests\layouts; if ($LASTEXITCODE -ne 0) { throw 'LayoutCheck failed' }
+
+      # Every language on its own layout, against every layout of another alphabet
+      - name: Other languages and layouts
+        shell: pwsh
+        run: tests\bin\LayoutMatrix.exe data tests\layouts; if ($LASTEXITCODE -ne 0) { throw 'LayoutMatrix failed' }
+
+      # Layouts of the same alphabet (English and German, Russian and Ukrainian): fixed on the dictionaries alone
+      - name: Layouts of the same alphabet
+        shell: pwsh
+        run: tests\bin\SameScriptCheck.exe data tests\layouts 0.05; if ($LASTEXITCODE -ne 0) { throw 'Same-alphabet fixes make false corrections' }
+
+      # English and Greek (Cyprus, Greece): Greek typed on the English layout is fixed, words typed right are left alone
+      - name: English and Greek
+        shell: pwsh
+        run: tests\bin\GreekCheck.exe data tests\layouts 0.1 95; if ($LASTEXITCODE -ne 0) { throw 'English and Greek got worse' }
 
       - name: Choosing among Cyrillic layouts
         shell: pwsh
