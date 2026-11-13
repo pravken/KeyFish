@@ -132,6 +132,11 @@ $tests = @(
 $m = '%^@' + ('_' * 15)   # the text actions menu, waited for
 $e = '~' * 10
 $bigTests = @(
+  # Text selected and erased, or erased back to a word's start: the next phrase is fixed whole, its first letter too
+  @('x: Ctrl+A, Backspace',   'hello ~~%a~~<~~f z ;le ~~~~',              'а я жду ', ''),   # no '[' here: in the script it holds Ctrl
+  @('x: Shift+Home, erase',   'hello world~~ ~~^(~~<~~f vj;yj ~~~~',      'а можно ', ''),
+  @('x: two words erased',    'hello big world ~~<<<<<<<<<<~~f vj;yj ~~~~', 'hello а можно ', ''),
+  @('x: erased into a word',  'hello world ~~<<<~~ghbdtn ~~~~',           'hello worghbdtn ', ''),   # the caret is inside "world": left as typed
   # Layouts
   @('x: phrase',              'z k.,k. ghjuhfvvbhjdfnm ~~~~',             'я люблю программировать ', ''),
   @('x: Russian goes on',     'ghbdtn ~~rfr ltkf ~~~~',                   'привет как дела ', ''),

@@ -9,7 +9,7 @@ using System.Windows.Forms;
 // Usage: Typer.exe <output file> <script> [full]
 // Script: letters and ; . , - are keys, ' ' space, '<' Backspace, '#' CapsLock, '|' Pause, '~' a 60 ms pause,
 // '^x' Shift+x, '%x' Ctrl+x, '*x' Alt+x, '[' hold Ctrl, ']' release Ctrl, '!' a tap of Shift alone, '=' the =/+ key,
-// '@' F2, '&' F3, '/' the /? key.
+// '@' F2, '&' F3, '/' the /? key, '(' Home, ')' End, '{' Up (the navigation keys, not the numpad's).
 // For KeyFish's own menu, which takes the focus: '_' a 60 ms pause, '}' Down, '$' Enter, '`' Esc — these go on while
 // another window is in front. "full" makes the window borderless full screen.
 static class Typer
@@ -55,13 +55,15 @@ static class Typer
             bool s = shift, k = ctrl, m = alt;
             shift = ctrl = alt = false;
             byte vk = c == '<' ? (byte)0x08 : c == '#' ? (byte)0x14 : c == '|' ? (byte)0x13 : c == ' ' ? (byte)0x20 :
-                      c == ';' ? (byte)0xBA : c == '.' ? (byte)0xBE : c == ',' ? (byte)0xBC : c == '-' ? (byte)0xBD : c == '=' ? (byte)0xBB : c == '@' ? (byte)0x71 : c == '&' ? (byte)0x72 : c == '/' ? (byte)0xBF : (byte)char.ToUpper(c);
+                      c == ';' ? (byte)0xBA : c == '.' ? (byte)0xBE : c == ',' ? (byte)0xBC : c == '-' ? (byte)0xBD : c == '=' ? (byte)0xBB : c == '@' ? (byte)0x71 : c == '&' ? (byte)0x72 : c == '/' ? (byte)0xBF :
+                      c == '(' ? (byte)0x24 : c == ')' ? (byte)0x23 : c == '{' ? (byte)0x26 : (byte)char.ToUpper(c);
+            uint ext = c == '(' || c == ')' || c == '{' ? 1u : 0u;
             steps.Enqueue(() =>
             {
                 if (s) keybd_event(0x10, 0, 0, UIntPtr.Zero);
                 if (k) keybd_event(0x11, 0, 0, UIntPtr.Zero);
                 if (m) keybd_event(0x12, 0, 0, UIntPtr.Zero);
-                Key(vk);
+                keybd_event(vk, 0, ext, UIntPtr.Zero); keybd_event(vk, 0, ext | 2, UIntPtr.Zero);
                 if (m) keybd_event(0x12, 0, 2, UIntPtr.Zero);
                 if (k) keybd_event(0x11, 0, 2, UIntPtr.Zero);
                 if (s) keybd_event(0x10, 0, 2, UIntPtr.Zero);

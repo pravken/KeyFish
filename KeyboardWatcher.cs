@@ -483,10 +483,30 @@ class KeyboardWatcher
         if (a != null) try { a(); } catch { }
     }
 
+    // The last left-button press, for telling a selection (double click, drag, Shift+click) from a click that only moves the caret
+    W.PT downAt;
+    int downTime;
+
     IntPtr MouseHook(int code, IntPtr wParam, IntPtr lParam)
     {
         lastHookEvent = Environment.TickCount;
         int msg = wParam.ToInt32();
+        if (code >= 0 && (msg == 0x0201 || msg == 0x0202))
+        {
+            var pt = new W.PT { X = Marshal.ReadInt32(lParam, 0), Y = Marshal.ReadInt32(lParam, 4) };
+            int time = Marshal.ReadInt32(lParam, 16);
+            var size = SystemInformation.DoubleClickSize;
+            var drag = SystemInformation.DragSize;
+            bool near = Math.Abs(pt.X - downAt.X) <= size.Width / 2 && Math.Abs(pt.Y - downAt.Y) <= size.Height / 2;
+            bool selects = msg == 0x0201
+                ? (Down(0x10) || (near && unchecked(time - downTime) <= SystemInformation.DoubleClickTime))
+                : (Math.Abs(pt.X - downAt.X) > drag.Width || Math.Abs(pt.Y - downAt.Y) > drag.Height);
+            if (msg == 0x0201) { downAt = pt; downTime = time; }
+            lock (sync)
+            {
+                if (msg == 0x0201 || selects) { selectionSerial = selects ? keySerial : -1; selectedAll = false; }
+            }
+        }
         if (code >= 0 && (msg == 0x0201 || msg == 0x0204 || msg == 0x0207)) // L/R/M button down
         {
             Notify();
@@ -699,13 +719,32 @@ class KeyboardWatcher
                              (layout.CharFor(scan, shift, caps, altGr) != '\0' || layout.DeadFor(scan, shift, caps, altGr) != '\0');
             // Win+Space switches the layout (Windows 10 and 11): the word goes on, like after Alt+Shift
             if (vk == 0x20 && (Down(0x5B) || Down(0x5C)) && !ctrl && !Down(0x12)) return false;
-            if (!(altGr && typesChar) && (ctrl || Down(0x12) || Down(0x5B) || Down(0x5C))) { Dropped(hwnd, "Ctrl, Alt or Win held"); ResetAll(); return false; }
+            if (!(altGr && typesChar) && (ctrl || Down(0x12) || Down(0x5B) || Down(0x5C)))
+            {
+                Dropped(hwnd, "Ctrl, Alt or Win held");
+                ResetAll();
+                // Ctrl+A selects everything, Ctrl+Shift with an arrow, Home or End whole words or lines: a Backspace right
+                // after it erases them, and the next word starts clean
+                bool plainCtrl = ctrl && !Down(0x12) && !Down(0x5B) && !Down(0x5C);
+                selectionSerial = plainCtrl && ((vk == 0x41 && !shift) || (shift && vk >= 0x21 && vk <= 0x28)) ? keySerial : -1;
+                selectedAll = vk == 0x41;
+                return false;
+            }
 
             if (hwnd != wordHwnd) { Dropped(wordHwnd, "typing went on in another window"); ResetAll(); wordHwnd = hwnd; context = null; erasedKeys = null; }
             // A layout KeyFish has no table for: its letters are not seen as letters at all, so no word ever ends
             if (layout == null && diagnose && vk >= 0x41 && vk <= 0x5A && unknownLayouts.Add(hkl))
                 Diagnose(hwnd, "layout not recognised: HKL " + hkl.ToInt64().ToString("X8"));
 
+            if (vk == 0x08 && selectionSerial == keySerial - 1)
+            {
+                // A selection of whole words erased: the caret is at a word's start (with everything selected, nothing is
+                // left before it at all)
+                ResetAll();
+                if (selectedAll) context = null;
+                erasedKeys = null;
+                return false;
+            }
             if (vk == 0x08)
             {
                 if (word.Count > 0)
@@ -718,6 +757,20 @@ class KeyboardWatcher
                 }
                 else
                 {
+                    // Erasing back over finished words: where each of them began is known, so a Backspace that stops right
+                    // there leaves the caret at a word's start, and the next word is checked as any other
+                    if (eraseStops == null)
+                    {
+                        eraseStops = new List<int>();
+                        int sum = 0;
+                        for (int i = history.Count - 1; i >= 0 && history[i].TerminatorVk == 0x20; i--)
+                        {
+                            sum += Steps(history[i].Shown) + 1;
+                            eraseStops.Add(sum);
+                        }
+                        erasedChars = 0;
+                    }
+                    bool atWordStart = eraseStops.Contains(++erasedChars);
                     // A finished word and the space after it, erased letter by letter
                     var rec = history.Count > 0 ? history[history.Count - 1] : null;
                     if (eraseRec == null && rec != null && !rec.Changed && !rec.Unchecked) { eraseRec = rec; eraseCount = 0; }
@@ -730,13 +783,14 @@ class KeyboardWatcher
                         return false;
                     }
                     if (eraseRec == null || eraseCount > eraseRec.Shown.Length + 1) erasedKeys = null;
-                    partial = true;
+                    partial = !atWordStart;
                 }
                 return false;
             }
 
             if (typesChar)
             {
+                eraseStops = null;
                 if (word.Count == 0) wordStartedAt = GuardClock.Now;
                 else eraseSnapshot = null;   // a letter in the middle of erasing: the word is being edited, not erased
                 eraseRec = null;
@@ -763,12 +817,25 @@ class KeyboardWatcher
             // The code only of keys that move the caret: a numpad digit or a letter of an unknown layout would be a typed character
             Dropped(hwnd, vk >= 0x21 && vk <= 0x2E ? "key 0x" + vk.ToString("X2") + " (the caret may have moved)" : "another key (the caret may have moved)");
             ResetAll(); // arrows, Delete, Home and so on: the caret position is unknown
+            // Shift with Home, End, Up, Down, Page Up or Page Down selects whole lines (Shift with Left or Right only letters,
+            // which may end inside a word)
+            selectionSerial = shift && vk >= 0x21 && vk <= 0x28 && vk != 0x25 && vk != 0x27 ? keySerial : -1;
+            selectedAll = false;
             return false;
         }
     }
 
+    // A selection of whole words or lines was just made (keySerial then): a Backspace as the very next key erases it and
+    // leaves the caret at a word's start. Ctrl+A, Ctrl+Shift or Shift with lines' keys, a double or triple click, a drag
+    int selectionSerial = -1;
+    bool selectedAll;   // that selection was Ctrl+A
+    // Erasing back over finished words: Backspaces from the end of the last word to each word's start, and how many so far
+    List<int> eraseStops;
+    int erasedChars;
+
     void ResetAll()
     {
+        eraseStops = null;
         ClearWord();
         history.Clear();
         partial = false;
@@ -974,6 +1041,15 @@ class KeyboardWatcher
         return value;
     }
 
+    // A fix erased or undone teaches its words, but not a word of one letter: "f" in Never correct would stop every phrase
+    // begun with it ("f tckb" → "а если") for good, after one erasure that most often only meant to type the line again
+    void IgnoreAfterUndo(string s)
+    {
+        int letters = 0;
+        foreach (char ch in s) if (char.IsLetter(ch)) letters++;
+        if (letters >= 2) AddIgnored(s);
+    }
+
     void AddIgnored(string s)
     {
         ignored.Add(s);
@@ -1087,7 +1163,7 @@ class KeyboardWatcher
         var c = last;
         last = null;
         bool all = c.Backspaced >= c.Replaced.Length + 1;
-        for (int i = all ? 0 : Math.Max(0, c.OriginalWords.Count - 1); i < c.OriginalWords.Count; i++) AddIgnored(c.OriginalWords[i]);
+        for (int i = all ? 0 : Math.Max(0, c.OriginalWords.Count - 1); i < c.OriginalWords.Count; i++) IgnoreAfterUndo(c.OriginalWords[i]);
         recent.Remove(c.Recent);
         W.SwitchLayout(c.Hwnd, c.OriginalLayout);
         var original = Layouts.Get(c.OriginalLayout);
@@ -1444,8 +1520,14 @@ class KeyboardWatcher
             for (int i = history.Count - 1; i >= 0 && retro.Count < RetroWords; i--)
             {
                 var p = history[i];
-                if (p.TerminatorVk != 0x20 || p.Changed || p.Layout != current || IsIgnored(p.Shown) || MovedSince(p)) break;
-                if (!Detector.ShouldConvert(p.Shown, Build(p.Keys, target), T, targetModel, target.Lang)) break;
+                string stop = RetroStop(p, current);
+                if (stop == null && !Detector.ShouldConvert(p.Shown, Build(p.Keys, target), T, targetModel, target.Lang)) stop = "looks right as typed";
+                if (stop != null)
+                {
+                    // Only the first word back that could have gone with it: one that ended otherwise than with a space isn't news
+                    if (p.TerminatorVk == 0x20 && !p.Changed) Diagnose(hwnd, "word before it kept: " + stop);
+                    break;
+                }
                 retro.Insert(0, p);
             }
         }
@@ -1462,8 +1544,13 @@ class KeyboardWatcher
                 for (int i = history.Count - 1; i >= 0 && earlier.Count < RetroWords; i--)
                 {
                     var p = history[i];
-                    if (p.TerminatorVk != 0x20 || p.Changed || p.Layout != earlyFrom || IsIgnored(p.Shown) || MovedSince(p)) break;
-                    if (!Detector.ShouldConvert(p.Shown, Build(p.Keys, current), fromModel, T, current.Lang)) break;
+                    string stop = RetroStop(p, earlyFrom);
+                    if (stop == null && !Detector.ShouldConvert(p.Shown, Build(p.Keys, current), fromModel, T, current.Lang)) stop = "looks right as typed";
+                    if (stop != null)
+                    {
+                        if (p.TerminatorVk == 0x20 && !p.Changed) Diagnose(hwnd, "word before it kept: " + stop);
+                        break;
+                    }
                     earlier.Insert(0, p);
                 }
             var from = new StringBuilder();
@@ -1596,7 +1683,7 @@ class KeyboardWatcher
             if (c == null || pending || W.GetForegroundWindow() != c.Hwnd) return false;
             last = null;
             Interlocked.Increment(ref undoCount);
-            foreach (string w in c.OriginalWords) AddIgnored(w);
+            foreach (string w in c.OriginalWords) IgnoreAfterUndo(w);
             recent.Remove(c.Recent);
             history.Clear();
             context = null;
@@ -1704,6 +1791,17 @@ class KeyboardWatcher
 
     // An unchecked word, and the focus has moved in the window in front since it ended (a script moved it, a touch, a
     // page that put the focus into its password field): it may have been typed elsewhere, so it isn't fixed later
+    // Why a word before a fixed one doesn't go with it, or null if it may
+    string RetroStop(WordRec p, LayoutTable layout)
+    {
+        if (p.TerminatorVk != 0x20) return "not followed by a space";
+        if (p.Changed) return "changed already";
+        if (p.Layout != layout) return "another layout";
+        if (IsIgnored(p.Shown)) return "in Never correct";
+        if (MovedSince(p)) return "the focus moved since";
+        return null;
+    }
+
     bool MovedSince(WordRec p)
     {
         return p.Unchecked && (guard == null || p.FocusSeq == -1 || p.FocusSeq != guard.FocusChanges);
