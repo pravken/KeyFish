@@ -1,3 +1,22 @@
+2.6.0 2026-11-13
+New:
+• Greek typed without accents is recognized
+• Hints: when KeyFish is not sure, the word is left as it is and the other layout's version is shown at the cursor; the layout fix key replaces the word (Settings → Correction, off by default)
+Improved:
+• Short words and whole phrases typed in the wrong layout are fixed together, up to 8 words
+• More accurate detection of English words in Greek text and Greek words after English
+• Layouts of the same alphabet (English, German, French, Czech; Russian, Ukrainian, Belarusian) are fixed by dictionary only; numbers stay as typed
+• After a selection is erased, or text is erased back to a word's start, the next phrase is fixed whole
+• More reliable input in Windows 11 Notepad and WinUI apps
+• Updated icon
+Fixed:
+• A fix could go to another window when the focus moved during input
+• Emoji and {cursor} in replacements were erased incorrectly
+• Short words were lost while the password field check was running
+• Undoing a one-letter fix added the letter to "Never correct"
+• A hang with some window-title rules
+• Password field check text was left in shared memory
+
 2.5.0 2026-11-10
 New:
 • Correction while typing: a word begun plainly in the wrong layout is switched after 4–6 letters

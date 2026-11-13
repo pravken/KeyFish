@@ -82,7 +82,11 @@ keyboard layout; wrong layout; layout switcher; auto switch layout; transliterat
 
 **What's new in this version**
 
-Leave blank in the first submission.
+• Greek typed without accents is recognized
+• Hints for uncertain words (off by default)
+• Short words and whole phrases are fixed together
+• Better handling of selections, erasing and Windows 11 Notepad
+• Updated icon and bug fixes
 
 **Short description**
 
@@ -135,7 +139,11 @@ KeyFish бесплатна, исходный код открыт.
 
 **Что нового в этой версии**
 
-В первой заявке оставить пустым.
+• Распознаётся греческий текст без ударений
+• Подсказки для неочевидных слов (по умолчанию выключены)
+• Короткие слова и целые фразы исправляются вместе
+• Точнее работа с выделением, стиранием и Блокнотом Windows 11
+• Обновлённая иконка и исправления ошибок
 
 **Краткое описание**
 
@@ -186,6 +194,14 @@ KeyFish безкоштовна, вихідний код відкритий.
 
 розкладка клавіатури; не та розкладка; перемикач розкладки; автоперемикання розкладки; транслітерація; виправлення тексту; набір тексту
 
+**What's new in this version**
+
+• Розпізнається грецький текст без наголосів
+• Підказки для неочевидних слів (типово вимкнені)
+• Короткі слова й цілі фрази виправляються разом
+• Точніша робота з виділенням, стиранням і Блокнотом Windows 11
+• Оновлена іконка та виправлення помилок
+
 **Short description**
 
 Виправляє текст, набраний не в тій розкладці, просто під час набору в будь-якій програмі. Набране не зберігається і не передається.
@@ -234,6 +250,14 @@ KeyFish бясплатная, зыходны код адкрыты.
 **Search terms**
 
 раскладка клавіятуры; не тая раскладка; пераключальнік раскладкі; аўтапераключэнне раскладкі; транслітарацыя; выпраўленне тэксту; набор тэксту
+
+**What's new in this version**
+
+• Распазнаецца грэчаскі тэкст без націскаў
+• Падказкі для неадназначных слоў (па змаўчанні выключаныя)
+• Кароткія словы і цэлыя фразы выпраўляюцца разам
+• Дакладнейшая праца з вылучэннем, сціраннем і Нататнікам Windows 11
+• Абноўлены значок і выпраўленні памылак
 
 **Short description**
 
@@ -284,6 +308,14 @@ KeyFish ist kostenlos und Open Source.
 
 Tastaturlayout; falsches Layout; Layout wechseln; automatischer Layoutwechsel; Transliteration; Textkorrektur; kyrillische Tastatur
 
+**What's new in this version**
+
+• Griechisch ohne Akzente wird erkannt
+• Vorschläge für unsichere Wörter (standardmäßig aus)
+• Kurze Wörter und ganze Sätze werden gemeinsam korrigiert
+• Zuverlässiger bei Markierungen, beim Löschen und im Editor von Windows 11
+• Überarbeitetes Symbol und Fehlerbehebungen
+
 **Short description**
 
 Korrigiert Text, der im falschen Tastaturlayout getippt wurde, direkt beim Tippen in jeder Anwendung. Privat: Nichts, was Sie tippen, wird gespeichert oder gesendet.
@@ -332,6 +364,14 @@ KeyFish jest bezpłatny i ma otwarty kod źródłowy.
 **Search terms**
 
 układ klawiatury; zły układ klawiatury; przełącznik układu; automatyczna zmiana układu; transliteracja; poprawianie tekstu; cyrylica
+
+**What's new in this version**
+
+• Rozpoznawanie greckiego tekstu bez akcentów
+• Podpowiedzi dla niepewnych słów (domyślnie wyłączone)
+• Krótkie słowa i całe frazy są poprawiane razem
+• Lepsza obsługa zaznaczania, usuwania i Notatnika w Windows 11
+• Odświeżona ikona i poprawki błędów
 
 **Short description**
 
@@ -382,6 +422,14 @@ KeyFish је бесплатан и отвореног кода.
 
 распоред тастатуре; погрешан распоред; промена распореда; аутоматска промена распореда; транслитерација; исправљање текста; ћирилица
 
+**What's new in this version**
+
+• Препознаје се грчки текст без акцената
+• Предлози за несигурне речи (подразумевано искључени)
+• Кратке речи и целе фразе исправљају се заједно
+• Боље понашање при означавању, брисању и у Бележници у Windows 11
+• Освежена иконица и исправке грешака
+
 **Short description**
 
 Исправља текст откуцан у погрешном распореду тастатуре још док куцате, у сваком програму. Приватно: ништа од откуцаног се не чува нити шаље.
@@ -431,6 +479,14 @@ KeyFish est gratuit et open source.
 
 disposition clavier; mauvaise disposition; changer de disposition; changement automatique de clavier; translittération; correction de texte; clavier cyrillique
 
+**What's new in this version**
+
+• Le grec saisi sans accents est reconnu
+• Suggestions pour les mots incertains (désactivées par défaut)
+• Les mots courts et les phrases entières sont corrigés ensemble
+• Meilleure prise en charge des sélections, de l'effacement et du Bloc-notes de Windows 11
+• Icône mise à jour et corrections de bugs
+
 **Short description**
 
 Corrige pendant la saisie le texte tapé dans la mauvaise disposition de clavier, dans toutes les applications. Confidentiel : rien de ce que vous tapez n'est enregistré ni envoyé.
@@ -479,6 +535,14 @@ KeyFish es gratuito y de código abierto.
 **Search terms**
 
 distribución de teclado; distribución incorrecta; cambiar distribución; cambio automático de teclado; transliteración; corrección de texto; teclado cirílico
+
+**What's new in this version**
+
+• Se reconoce el griego escrito sin acentos
+• Sugerencias para palabras dudosas (desactivadas por defecto)
+• Las palabras cortas y las frases enteras se corrigen juntas
+• Mejor manejo de selecciones, borrado y el Bloc de notas de Windows 11
+• Icono actualizado y correcciones de errores
 
 **Short description**
 
