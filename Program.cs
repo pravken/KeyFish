@@ -38,6 +38,9 @@ static class Program
         System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
 
         bool updated = Array.IndexOf(args, "--updated") >= 0;
+        // Started by the user (the Start menu, the Store's Open button, the exe itself), not by Windows at sign-in or
+        // by an update: Settings open, in the KeyFish already running if there is one
+        bool byUser = !updated && !App.StartedAtSignIn(args);
         bool created;
         Mutex instance;
         // A copy run as administrator owns the mutex with rights this one doesn't have: it is running, so this one
@@ -53,7 +56,7 @@ static class Program
                 bool replaced = Packaged.Yes && Packaged.CloseUnpackaged();
                 // After an update the old copy is still closing, so wait for it instead of exiting.
                 // If it hangs, it is closed: otherwise the user would be left with no KeyFish at all
-                if (!updated && !replaced) return;
+                if (!updated && !replaced) { if (byUser) App.AskToShowSettings(); return; }
                 try
                 {
                     if (!mutex.WaitOne(replaced ? 5000 : 15000))
@@ -78,7 +81,7 @@ static class Program
             // Sharp text and controls on scaled screens instead of a stretched bitmap
             try { SetProcessDPIAware(); } catch { }
             Application.EnableVisualStyles();
-            Application.Run(new App(updated));
+            Application.Run(new App(updated, byUser));
         }
     }
 }
@@ -356,14 +359,85 @@ partial class App : ApplicationContext
                 if (run != null && run.GetValue("LayoutFix") != null)
                 {
                     run.DeleteValue("LayoutFix", false);
-                    run.SetValue(AppName, "\"" + Application.ExecutablePath + "\"");
+                    run.SetValue(AppName, AutostartCommand);
                 }
             }
         }
         catch { }
     }
 
-    public App(bool updated)
+    // The autostart entry marks its start, so that it isn't taken for the user's and doesn't open Settings
+    const string AutostartArg = "--autostart";
+    static string AutostartCommand { get { return "\"" + Application.ExecutablePath + "\" " + AutostartArg; } }
+
+    // The exe an autostart entry launches: "path" with or without arguments after it, or a bare path
+    public static string RunTarget(string command)
+    {
+        if (command == null) return null;
+        command = command.Trim();
+        if (!command.StartsWith("\"")) return command;
+        int end = command.IndexOf('"', 1);
+        return end > 0 ? command.Substring(1, end - 1) : command.Trim('"');
+    }
+
+    // Windows started KeyFish at sign-in: through the autostart entry, or the Store version's startup task
+    public static bool StartedAtSignIn(string[] args)
+    {
+        if (Array.IndexOf(args, AutostartArg) >= 0) return true;
+        return Packaged.Yes && Packaged.StartedAtSignIn();
+    }
+
+    // A second start by the user: the KeyFish already running opens Settings. A KeyFish before 2.6.2 doesn't
+    // listen, and nothing happens, as before
+    const string ShowSettingsEvent = "KeyFish_ShowSettings";
+    [DllImport("user32.dll")] static extern bool AllowSetForegroundWindow(int processId);
+
+    public static void AskToShowSettings()
+    {
+        try
+        {
+            EventWaitHandle request;
+            if (!EventWaitHandle.TryOpenExisting(ShowSettingsEvent, out request)) return;
+            using (request)
+            {
+                // The window started by the user may come forward: the running KeyFish isn't the app in front
+                AllowSetForegroundWindow(-1);   // ASFW_ANY
+                request.Set();
+            }
+        }
+        catch { }
+    }
+
+    EventWaitHandle showSettingsRequest;
+    RegisteredWaitHandle showSettingsWait;
+
+    void ListenForShowSettings()
+    {
+        try
+        {
+            var ui = SynchronizationContext.Current;
+            showSettingsRequest = new EventWaitHandle(false, EventResetMode.AutoReset, ShowSettingsEvent);
+            showSettingsWait = ThreadPool.RegisterWaitForSingleObject(showSettingsRequest, (s, timedOut) => ui.Post(_ => ShowSettingsNow(), null), null, -1, false);
+        }
+        catch { }
+    }
+
+    // Settings in front: the window already open, or another KeyFish window waiting for an answer (a message, About,
+    // the introduction) rather than Settings over it
+    void ShowSettingsNow()
+    {
+        if (settingsForm != null)
+        {
+            if (settingsForm.WindowState == FormWindowState.Minimized) settingsForm.WindowState = FormWindowState.Normal;
+            settingsForm.Activate();
+            return;
+        }
+        var waiting = Application.OpenForms.Cast<Form>().LastOrDefault(f => f.Visible && f.Modal);
+        if (waiting != null) { waiting.Activate(); return; }
+        OpenSettings();
+    }
+
+    public App(bool updated, bool byUser = false)
     {
         // Work handed to this thread (double Shift from the keyboard hook, window changes, update checks) is posted
         // through the context caught here. Application.Run installs the window one only later, and before it
@@ -371,6 +445,7 @@ partial class App : ApplicationContext
         // where the clipboard can't be read: so double Shift once found no word. The window one is installed now
         if (!(SynchronizationContext.Current is WindowsFormsSynchronizationContext))
             SynchronizationContext.SetSynchronizationContext(new WindowsFormsSynchronizationContext());
+        ListenForShowSettings();
         MigrateFromLayoutFix();
         RepairAutostart();
         L.Setting = GetSetting("Language", 0);
@@ -502,15 +577,25 @@ partial class App : ApplicationContext
         if (!Packaged.Yes) updateTimer.Start();   // the Store version is updated by the Store
 
         // A new user (no settings saved yet, nothing corrected yet) gets a short introduction once
+        bool introduced = false;
         if (GetSetting("IntroShown", 0) == 0)
         {
             SetSetting("IntroShown", 1);
             if (statsBase == 0)
             {
+                introduced = true;
                 var intro = new System.Windows.Forms.Timer { Interval = 1500 };
                 intro.Tick += (s, e) => { intro.Stop(); intro.Dispose(); using (var f = new IntroForm()) f.ShowDialog(); };
                 intro.Start();
             }
+        }
+        // Started by the user: Settings open, or the icon alone, often hidden under the tray's arrow, would look like
+        // nothing happened. The introduction is that window for a new user
+        if (byUser && !introduced)
+        {
+            var show = new System.Windows.Forms.Timer { Interval = 300 };
+            show.Tick += (s, e) => { show.Stop(); show.Dispose(); ShowSettingsNow(); };
+            show.Start();
         }
 
         // The last run ended in a crash: once Windows' record of it is read, offer to report it (a few seconds after
@@ -794,13 +879,12 @@ partial class App : ApplicationContext
     static HashSet<string> WordSet(string text) { return new HashSet<string>(Words(text), StringComparer.OrdinalIgnoreCase); }
 
     // Path of the exe the autostart entry launches, or null if there is no entry
-    static string AutostartTarget()
+    static string AutostartTarget() { return RunTarget(AutostartEntry()); }
+
+    static string AutostartEntry()
     {
         using (var k = Registry.CurrentUser.OpenSubKey(RunKey))
-        {
-            var value = k == null ? null : k.GetValue(AppName) as string;
-            return value == null ? null : value.Trim().Trim('"');
-        }
+            return k == null ? null : k.GetValue(AppName) as string;
     }
 
     // Autostart counts as on only if it launches an exe that exists
@@ -825,6 +909,9 @@ partial class App : ApplicationContext
             if (Packaged.StoreInstalled) return;
             string target = AutostartTarget();
             if (target != null && !File.Exists(target)) SetAutostart(true);
+            // An entry for this exe written before 2.6.2 has no mark: at sign-in its start would open Settings
+            else if (target != null && string.Equals(target, Application.ExecutablePath, StringComparison.OrdinalIgnoreCase) &&
+                     AutostartEntry() != AutostartCommand) SetAutostart(true);
         }
         catch { }
     }
@@ -842,7 +929,7 @@ partial class App : ApplicationContext
         }
         using (var k = Registry.CurrentUser.CreateSubKey(RunKey))
         {
-            if (on) k.SetValue(AppName, "\"" + Application.ExecutablePath + "\"");
+            if (on) k.SetValue(AppName, AutostartCommand);
             else k.DeleteValue(AppName, false);
         }
     }
@@ -859,6 +946,7 @@ partial class App : ApplicationContext
         if (foregroundHook != IntPtr.Zero) Native.UnhookWinEvent(foregroundHook);
         CrashLog.Stop();
         endSession.DestroyHandle();
+        if (showSettingsWait != null) showSettingsWait.Unregister(null);
         base.ExitThreadCore();
     }
 }
@@ -875,6 +963,18 @@ static class Packaged
 
     static readonly string family = Family();
     public static bool Yes { get { return family != null; } }
+
+    // Windows started the package through its startup task (sign-in), not the user from Start or the Store.
+    // Not known: taken as the startup task, so that sign-in never opens a window
+    public static bool StartedAtSignIn()
+    {
+        try
+        {
+            var args = Windows.ApplicationModel.AppInstance.GetActivatedEventArgs();
+            return args != null && args.Kind == Windows.ApplicationModel.Activation.ActivationKind.StartupTask;
+        }
+        catch { return true; }
+    }
 
     static string Family()
     {
@@ -915,7 +1015,7 @@ static class Packaged
         }
         catch { }
         string runDir = null;
-        try { if (run != null) runDir = Path.GetDirectoryName(run.Trim().Trim('"')); } catch { }
+        try { if (run != null) runDir = Path.GetDirectoryName(App.RunTarget(run)); } catch { }
         if (runDir != null) yield return runDir;
         yield return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "KeyFish");
     }

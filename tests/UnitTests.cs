@@ -595,6 +595,15 @@ static class UnitTests
         True("exclusion line: \"Code.exe\"", isFor(" Code.exe ", "code"));
         True("exclusion line: another app", !isFor("Codex", "Code"));
 
+        // The autostart entry: marked as such, and read with or without the mark (entries before 2.6.2 have none)
+        Is("autostart entry: quoted, marked", App.RunTarget("\"C:\\Program Files\\KeyFish\\KeyFish.exe\" --autostart"), "C:\\Program Files\\KeyFish\\KeyFish.exe");
+        Is("autostart entry: quoted", App.RunTarget(" \"D:\\Tools\\KeyFish.exe\" "), "D:\\Tools\\KeyFish.exe");
+        Is("autostart entry: bare path", App.RunTarget("D:\\Tools\\KeyFish.exe"), "D:\\Tools\\KeyFish.exe");
+        Is("autostart entry: none", App.RunTarget(null), null);
+        True("started at sign-in: the mark", App.StartedAtSignIn(new[] { "--autostart" }));
+        True("started by the user: no arguments", !App.StartedAtSignIn(new string[0]));
+        True("started by the user: an update isn't sign-in", !App.StartedAtSignIn(new[] { "--updated" }));
+
         int closed = 0;
         var window = new EndSessionWindow(() => closed++);
         var closeApp = (IntPtr)1;   // ENDSESSION_CLOSEAPP, as the Restart Manager sends it
