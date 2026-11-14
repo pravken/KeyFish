@@ -39,6 +39,29 @@ class HotkeyWindow : NativeWindow
     }
 }
 
+// Windows asks a running app to close: the Store or an installer updating its package (Restart Manager), or the user
+// signing out or shutting down. KeyFish has no window of its own to get the request, so this hidden one does: it agrees
+// and closes KeyFish properly. Without it the Store waited, took KeyFish for hung, closed it and Windows logged a hang
+class EndSessionWindow : NativeWindow
+{
+    readonly Action close;
+    bool closing;
+
+    public EndSessionWindow(Action close) { this.close = close; CreateHandle(new CreateParams()); }
+
+    protected override void WndProc(ref Message m)
+    {
+        if (m.Msg == 0x0011) { m.Result = (IntPtr)1; return; }   // WM_QUERYENDSESSION: yes, KeyFish may close
+        if (m.Msg == 0x0016 && m.WParam != IntPtr.Zero && !closing)   // WM_ENDSESSION, the session or the app is ending
+        {
+            closing = true;
+            try { close(); } catch { }
+            return;
+        }
+        base.WndProc(ref m);
+    }
+}
+
 static class Native
 {
     public delegate void WinEventProc(IntPtr hook, uint ev, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);

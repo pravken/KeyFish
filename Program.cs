@@ -86,6 +86,7 @@ static class Program
 // The tray app. Its other parts: Tray.cs (the icon and menu), Hotkeys.cs (hotkeys and the clipboard), Updates.cs
 partial class App : ApplicationContext
 {
+    EndSessionWindow endSession;
     const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     const string AppName = "KeyFish";
 
@@ -438,6 +439,7 @@ partial class App : ApplicationContext
         watcher.HintGone = () => ui.Post(_ => { if (hintBadge != null) hintBadge.HideNow(); }, null);
         LoadAppLayouts();
 
+        endSession = new EndSessionWindow(ExitThread);
         var menu = BuildMenu();
         SystemEvents.UserPreferenceChanged += OnSystemPreference;
         SystemEvents.SessionSwitch += OnSessionSwitch;
@@ -856,6 +858,7 @@ partial class App : ApplicationContext
         hotkeys.UnregisterAll();
         if (foregroundHook != IntPtr.Zero) Native.UnhookWinEvent(foregroundHook);
         CrashLog.Stop();
+        endSession.DestroyHandle();
         base.ExitThreadCore();
     }
 }

@@ -22,6 +22,9 @@ static class CrashLog
 
     public static string Path { get { return path; } }
 
+    // "2.6.0.0", as Windows writes the version of a hung app in its event log
+    static readonly string ThisVersion = typeof(CrashLog).Assembly.GetName().Version.ToString();
+
     // Windows' record of the crash that ended the last run, once found (KeyFish then offers to report it)
     public static volatile string LastCrash;
 
@@ -95,6 +98,9 @@ static class CrashLog
                         string text;
                         try { text = record.FormatDescription(); } catch { text = null; }
                         if (text == null || text.IndexOf("KeyFish", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                        // A hang of an older KeyFish: the Store or an installer closing it to update, which versions
+                        // up to 2.6.0 didn't answer. Not a crash to report
+                        if (text.IndexOf("Hang", StringComparison.OrdinalIgnoreCase) >= 0 && text.IndexOf(ThisVersion, StringComparison.Ordinal) < 0) continue;
                         found.Append(record.TimeCreated.HasValue ? record.TimeCreated.Value.ToString("yyyy-MM-dd HH:mm:ss") : "?")
                              .Append("  ").Append(record.ProviderName).Append(" ").Append(record.Id).Append("\r\n")
                              .Append(text.Trim()).Append("\r\n\r\n");

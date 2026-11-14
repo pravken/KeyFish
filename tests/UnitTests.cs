@@ -47,6 +47,7 @@ static class UnitTests
         Run("Plain text", () => PlainTests());
         Run("Text actions", () => TextActionTests());
         Run("Calculator", () => CalcTests());
+        Run("Windows", () => WindowTests());
         if (Directory.Exists("i18n")) Run("Translations", () => TranslationTests());
         if (Directory.Exists("i18n")) Run("Source encoding", () => EncodingTests());
 
@@ -531,6 +532,50 @@ static class UnitTests
             True(s + " has a name", Sounds.SoundName(s) != s);
         }
         foreach (var skin in Skin.All) True(skin.Name + " sound is built in", Array.IndexOf(Sounds.Builtin, skin.Sound) >= 0);
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    static extern IntPtr SendMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam);
+
+    // A message with buttons of its own (the crash report offer) closes on each of them and tells which; the hidden
+    // window agrees when Windows asks KeyFish to close (the Store updating it) and closes it once
+    static void WindowTests()
+    {
+        var onClick = typeof(Control).GetMethod("OnClick", BindingFlags.NonPublic | BindingFlags.Instance);
+        for (int pick = 0; pick < 3; pick++)
+        {
+            string error = null;
+            var timer = new Timer { Interval = 50 };
+            int target = pick;
+            timer.Tick += (s, e) =>
+            {
+                var box = Application.OpenForms.Cast<Form>().FirstOrDefault(f => f.GetType().Name == "ThemedMessage");
+                if (box == null) return;
+                timer.Stop();
+                var button = box.Controls.Cast<Control>().FirstOrDefault(c => c.Text == "b" + target);
+                try { onClick.Invoke(button, new object[] { EventArgs.Empty }); }
+                catch (TargetInvocationException ex) { error = ex.InnerException.GetType().Name; }
+                if (box.Visible) box.Close();
+            };
+            timer.Start();
+            int got = ThemedMessage.Choose("text", "KeyFish", MessageBoxIcon.Warning, "b0", "b1", "b2");
+            timer.Dispose();
+            Is("own button " + pick + ": no error", error, null);
+            Is("own button " + pick + ": chosen", got, pick);
+        }
+
+        int closed = 0;
+        var window = new EndSessionWindow(() => closed++);
+        var closeApp = (IntPtr)1;   // ENDSESSION_CLOSEAPP, as the Restart Manager sends it
+        Is("close request: agreed", SendMessage(window.Handle, 0x0011, IntPtr.Zero, closeApp), (IntPtr)1);
+        Is("not closed by the question alone", closed, 0);
+        SendMessage(window.Handle, 0x0016, IntPtr.Zero, closeApp);
+        Is("not closed when the request is called off", closed, 0);
+        SendMessage(window.Handle, 0x0016, (IntPtr)1, closeApp);
+        Is("closed on the request", closed, 1);
+        SendMessage(window.Handle, 0x0016, (IntPtr)1, closeApp);
+        Is("closed once", closed, 1);
+        window.DestroyHandle();
     }
 
     static void SkinTests()

@@ -1315,7 +1315,8 @@ class ThemedMessage : Form
 
         var choices = new System.Collections.Generic.List<Tuple<string, DialogResult>>();
         if (own != null)
-            foreach (string label in own) choices.Add(Tuple.Create(label, (DialogResult)(100 + choices.Count)));
+            // The button clicked is told by its index (chosen): DialogResult takes only the enum's own values
+            foreach (string label in own) choices.Add(Tuple.Create(label, DialogResult.OK));
         else if (buttons == MessageBoxButtons.YesNo || buttons == MessageBoxButtons.YesNoCancel)
         {
             choices.Add(Tuple.Create(L.T("Да", "Yes"), DialogResult.Yes));

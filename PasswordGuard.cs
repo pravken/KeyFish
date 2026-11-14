@@ -380,8 +380,11 @@ static class PasswordGuardProcess
         };
         Native.SetWinEventHook(3, 3, IntPtr.Zero, onFocus, 0, 0, 2);             // EVENT_SYSTEM_FOREGROUND; out of context, not our own
         Native.SetWinEventHook(0x8005, 0x8005, IntPtr.Zero, onFocus, 0, 0, 2);   // EVENT_OBJECT_FOCUS
+        // The Store updating KeyFish asks this process to close as well: leave at once
+        var endSession = new EndSessionWindow(() => Environment.Exit(0));
         Application.Run();
         GC.KeepAlive(onFocus);
+        GC.KeepAlive(endSession);
     }
 
     // Is the text there just before the caret (allowing for 40 characters typed since)? See PasswordGuardClient.Verify
