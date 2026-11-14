@@ -564,6 +564,37 @@ static class UnitTests
             Is("own button " + pick + ": chosen", got, pick);
         }
 
+        // Every hotkey goes into exports and backups
+        for (int i = 1; i <= App.HotkeyDefaults.Length; i++) True("archive keeps Hotkey" + i, SettingsArchive.Values.Contains("Hotkey" + i));
+
+        // A word added to a list saved by hand without a line break at the end gets a line of its own
+        string listPath = Path.Combine(Path.GetTempPath(), "kf-unit-" + Guid.NewGuid().ToString("N") + ".txt");
+        try
+        {
+            File.WriteAllText(listPath, "first\r\nsecond", Encoding.UTF8);
+            var list = new WordList(listPath);
+            list.Add("third");
+            FileQueue.Flush(2000);
+            Is("word list: the word on its own line", string.Join("|", File.ReadAllLines(listPath).Where(l => l.Length > 0)), "first|second|third");
+        }
+        finally { try { File.Delete(listPath); } catch { } }
+
+        // Title rules with or without a space before the colon (French writes "titre :")
+        var hasPrefix = typeof(SettingsForm).GetMethod("HasPrefix", BindingFlags.NonPublic | BindingFlags.Static);
+        Func<string, string, bool> prefixed = (r, p) => (bool)hasPrefix.Invoke(null, new object[] { r, p });
+        True("title rule: \"titre: x\" with \"titre :\"", prefixed("titre: KeePass", "titre :"));
+        True("title rule: \"titre : x\" with \"titre :\"", prefixed("titre : KeePass", "titre :"));
+        True("title rule: \"title :x\"", prefixed("title :x", "title:"));
+        True("not a title rule: \"titles\"", !prefixed("titles", "title:"));
+        True("not a title rule: \"titlebar: x\"", !prefixed("titlebar: x", "title:"));
+
+        // The tray's exclusion item finds an app set to hotkeys only
+        var ruleFor = typeof(App).GetMethod("RuleFor", BindingFlags.NonPublic | BindingFlags.Static);
+        Func<string, string, bool> isFor = (l, a) => (bool)ruleFor.Invoke(null, new object[] { l, a });
+        True("exclusion line: \"Code = hotkeys\"", isFor("Code = hotkeys", "Code"));
+        True("exclusion line: \"Code.exe\"", isFor(" Code.exe ", "code"));
+        True("exclusion line: another app", !isFor("Codex", "Code"));
+
         int closed = 0;
         var window = new EndSessionWindow(() => closed++);
         var closeApp = (IntPtr)1;   // ENDSESSION_CLOSEAPP, as the Restart Manager sends it

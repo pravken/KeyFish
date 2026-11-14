@@ -73,7 +73,7 @@ This release has no file for automatic update.	Ово издање нема да
 The downloaded file doesn't match the release checksum — update cancelled.	Преузета датотека се не поклапа са контролним збиром издања — ажурирање је отказано.
 The downloaded file has the wrong version — update cancelled.	Преузета датотека има погрешну верзију — ажурирање је отказано.
 No permission to write to the app folder. Download the new version manually.	Нема дозволе за упис у фасциклу апликације. Преузмите нову верзију ручно.
-Update failed: 	Ажурирање није успело:
+Update failed:	Ажурирање није успело:
 System default	Подразумевано у систему
 Press the keys…	Притисните тастере…
 To change a hotkey, click its field and press the new keys. Esc cancels; Backspace turns the hotkey off.	Да бисте променили пречицу, кликните на поље и притисните нове тастере. Esc отказује, Backspace искључује пречицу.
@@ -164,7 +164,7 @@ Automatic layout correction	Аутоматска исправка распоре
 Undoing a correction	Поништавање исправке
 Settings	Подешавања
 A word typed in the wrong layout is corrected after a space: ghbdtn → привет.	Реч откуцана у погрешном распореду исправља се после размака.
-To undo a correction, press Pause right after it. The original word is restored and added to the Never correct list.	Да бисте поништили исправку, притисните Pause одмах после ње. Првобитна реч се враћа и додаје на листу „Не исправљај“.
+To undo a correction, press Ctrl+Z or Pause right after it. The original word is restored and added to the Never correct list.	Да бисте поништили исправку, притисните Ctrl+Z или Pause одмах после ње. Првобитна реч се враћа и додаје на листу „Не исправљај“.
 Double-click the KeyFish icon in the notification area to open Settings: hotkeys, replacements, exclusions, the extended dictionary. The icon shows the current layout; grey means correction is off or paused.	Подешавања се отварају двоструким кликом на икону KeyFish у пољу за обавештења: пречице, замене, изузеци, проширени речник. Икона приказује тренутни распоред; сива боја значи да је исправљање искључено или паузирано.
 Back	Назад
 Start	Почни

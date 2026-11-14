@@ -85,7 +85,7 @@ partial class App
             tray.ShowBalloonTip(4000, "KeyFish", string.Join(" ", text) + " " + L.T("Их можно изменить в настройках.", "They can be changed in Settings."), ToolTipIcon.Warning);
     }
 
-    void OnHotkey(int id)
+    void OnHotkey(int id, bool quick = false)
     {
         if (busy) return;
         busy = true;
@@ -107,7 +107,17 @@ partial class App
             if ((id == HkLayout || id == HkLayoutAlt) && watcher.HasHint && watcher.HotkeyAllowed(hotkeyWindow) && Native.WaitModifiersReleased() &&
                 watcher.AcceptHint()) return;
             if (id == HkLayout && watcher.Undo()) { watcher.Note(hotkeyWindow, "hotkey " + id + ": the last fix taken back"); return; }
-            if (!watcher.HotkeyAllowed(hotkeyWindow)) { watcher.Note(hotkeyWindow, "hotkey " + id + ": not here (an excluded app, a password field or no check of the focus)"); return; }
+            var here = watcher.HotkeyVerdict(hotkeyWindow);
+            if (here != KeyboardWatcher.HotkeyHere.Yes)
+            {
+                // Surely not here (an app turned off, a password field): the keys go on to the app. Windows takes a hotkey
+                // from every app, and Shift+F3 or Ctrl+Shift+Space would otherwise stop working in an excluded editor.
+                // Double Shift or Caps Lock (quick) has no keys of its own to pass on
+                bool pass = here == KeyboardWatcher.HotkeyHere.No && !quick;
+                watcher.Note(hotkeyWindow, "hotkey " + id + ": not here (an excluded app, a password field or no check of the focus)" + (pass ? ", passed on" : ""));
+                if (pass && Native.WaitModifiersReleased()) PassOn(id);
+                return;
+            }
             if (!Native.WaitModifiersReleased()) { watcher.Note(hotkeyWindow, "hotkey " + id + ": keys still held"); return; }
             watcher.Note(hotkeyWindow, "hotkey " + id);
             if (id == HkCase) ChangeCase();
@@ -392,6 +402,8 @@ partial class App
     void PassOn(int id)
     {
         Keys k = GetHotkey(id - 1);
+        // Only a hotkey that is registered: none set, or keys not allowed (left unregistered), have nothing to pass on
+        if (k == Keys.None || !HotkeyBox.Allowed(k) || !hotkeys.Has(id)) return;
         var keys = new List<byte>();
         if ((k & Keys.Control) != 0) keys.Add(Native.VK_CONTROL);
         if ((k & Keys.Shift) != 0) keys.Add(Native.VK_SHIFT);

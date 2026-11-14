@@ -72,7 +72,7 @@ This release has no file for automatic update.	У гэтым выпуску ня
 The downloaded file doesn't match the release checksum — update cancelled.	Спампаваны файл не супадае з кантрольнай сумай выпуску — абнаўленне адменена.
 The downloaded file has the wrong version — update cancelled.	Спампаваны файл мае не тую версію — абнаўленне адменена.
 No permission to write to the app folder. Download the new version manually.	Няма правоў на запіс у папку праграмы. Спампуйце новую версію ўручную.
-Update failed: 	Не ўдалося абнавіць:
+Update failed:	Не ўдалося абнавіць:
 System default	Як у сістэме
 Press the keys…	Націсніце спалучэнне…
 To change a hotkey, click its field and press the new keys. Esc cancels; Backspace turns the hotkey off.	Каб змяніць спалучэнне, націсніце на поле і націсніце новыя клавішы. Esc — адмена, Backspace — выключыць спалучэнне.
@@ -163,7 +163,7 @@ Automatic layout correction	Аўтаматычнае выпраўленне ра
 Undoing a correction	Адмена выпраўлення
 Settings	Налады
 A word typed in the wrong layout is corrected after a space: ghbdtn → привет.	Слова, набранае ў няправільнай раскладцы, выпраўляецца пасля ўводу прабелу.
-To undo a correction, press Pause right after it. The original word is restored and added to the Never correct list.	Каб адмяніць выпраўленне, націсніце Pause адразу пасля яго. Зыходнае слова будзе адноўлена і дададзена ў спіс «Не выпраўляць».
+To undo a correction, press Ctrl+Z or Pause right after it. The original word is restored and added to the Never correct list.	Каб адмяніць выпраўленне, націсніце Ctrl+Z або Pause адразу пасля яго. Зыходнае слова будзе адноўлена і дададзена ў спіс «Не выпраўляць».
 Double-click the KeyFish icon in the notification area to open Settings: hotkeys, replacements, exclusions, the extended dictionary. The icon shows the current layout; grey means correction is off or paused.	Налады адкрываюцца падвойным націскам на значок KeyFish у вобласці апавяшчэнняў: спалучэнні клавіш, аўтазамены, выключэнні, пашыраны слоўнік. Значок паказвае бягучую раскладку; шэры колер азначае, што выпраўленне выключана або прыпынена.
 Back	Назад
 Start	Пачаць

@@ -102,10 +102,10 @@ try {
     Start-TestKeyFish
     $with = Typing "en-$seed-with" $seed 'en' $null
     if ($without -like 'NOFOCUS*' -or $with -like 'NOFOCUS*') { $report.Add("en seed ${seed}: the window lost the focus, run not counted") }
-    elseif ($without -eq $with) { $report.Add("en seed ${seed}: same text with and without KeyFish ($($with.Length) characters)") }
+    elseif ($without -ceq $with) { $report.Add("en seed ${seed}: same text with and without KeyFish ($($with.Length) characters)") }
     else {
       $a = $without -split '\s+'; $b = $with -split '\s+'
-      $diff = @(); for ($i = 0; $i -lt [Math]::Max($a.Count, $b.Count) -and $diff.Count -lt 10; $i++) { if ($a[$i] -ne $b[$i]) { $diff += "#$i '$($a[$i])' -> '$($b[$i])'" } }
+      $diff = @(); for ($i = 0; $i -lt [Math]::Max($a.Count, $b.Count) -and $diff.Count -lt 10; $i++) { if ($a[$i] -cne $b[$i]) { $diff += "#$i '$($a[$i])' -> '$($b[$i])'" } }
       $report.Add("en seed ${seed}: DIFFERENT with KeyFish: " + ($diff -join '; '))
     }
   }
@@ -121,7 +121,7 @@ try {
     $alive = [bool](Get-Process KeyFish -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $app })
     Start-Sleep 2
     $report.Add("  resources: $(Usage)")
-    $report.Add("mixed seed ${seed}: " + $(if ($t -like 'NOFOCUS*') { 'the window lost the focus' } elseif ($last -eq 'привет ') { 'KeyFish still works after it (sentinel fixed)' } else { "SENTINEL NOT FIXED: last line '$last'" }) + $(if ($alive) { '' } else { '; KEYFISH IS NOT RUNNING' }))
+    $report.Add("mixed seed ${seed}: " + $(if ($t -like 'NOFOCUS*') { 'the window lost the focus' } elseif ($last -ceq 'привет ') { 'KeyFish still works after it (sentinel fixed)' } else { "SENTINEL NOT FIXED: last line '$last'" }) + $(if ($alive) { '' } else { '; KEYFISH IS NOT RUNNING' }))
   }
   Start-Sleep 3
   $report.Add("resources before: $before")

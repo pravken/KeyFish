@@ -26,6 +26,8 @@ class HotkeyWindow : NativeWindow
         return ok;
     }
 
+    public bool Has(int id) { return ids.Contains(id); }
+
     public void UnregisterAll()
     {
         foreach (int id in ids) Native.UnregisterHotKey(Handle, id);
@@ -130,5 +132,11 @@ static class Native
         keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
     }
 
-    static uint Flags(byte vk) { return vk == VK_LEFT || vk == VK_RIGHT || vk == VK_HOME ? KEYEVENTF_EXTENDEDKEY : 0; }
+    // The keys beside the letters and the right-hand modifiers: marked extended, or they arrive as the numpad keys
+    static uint Flags(byte vk)
+    {
+        bool extended = (vk >= 0x21 && vk <= 0x28) || vk == 0x2D || vk == 0x2E || vk == 0x5B || vk == 0x5C || vk == 0x5D ||
+                        vk == 0x6F || vk == 0x90 || vk == 0xA3 || vk == 0xA5;   // PgUp…Down, Insert, Delete, Win, Menu, /, Num Lock, right Ctrl and Alt
+        return extended ? KEYEVENTF_EXTENDEDKEY : 0;
+    }
 }

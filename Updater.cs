@@ -141,7 +141,7 @@ static class Updater
         catch (Exception ex)
         {
             try { if (File.Exists(NewPath)) File.Delete(NewPath); } catch { }
-            return L.T("Не удалось обновить: ", "Update failed: ") + ex.Message;
+            return L.T("Не удалось обновить:", "Update failed:") + " " + ex.Message;
         }
     }
 

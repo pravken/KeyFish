@@ -62,6 +62,14 @@ static class ChaosTyper
             for (int i = 0; i < 100 && GetForegroundWindow() != target; i++) Thread.Sleep(20);
             if (GetForegroundWindow() != target) SetForegroundWindow(target);
             Thread.Sleep(50);
+            // Windows may refuse the focus to a window that wasn't just clicked; a tap of Alt is the usual way through
+            if (GetForegroundWindow() != target)
+            {
+                var alt = new[] { Key(0x12, false, false), Key(0x12, true, false) };
+                SendInput((uint)alt.Length, alt, Marshal.SizeOf(typeof(INPUT)));
+                SetForegroundWindow(target);
+                Thread.Sleep(50);
+            }
             if (GetForegroundWindow() != target) { lost = true; return; }
         }
         SendInput((uint)ins.Length, ins, Marshal.SizeOf(typeof(INPUT)));

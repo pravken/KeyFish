@@ -134,7 +134,10 @@ class KeyboardWatcher
         if (mode == 1)
         {
             int now = Environment.TickCount;
-            if (shift && down) { if (!shiftClean) { shiftClean = true; shiftDownAt = now; } }
+            // Shift with Alt, Ctrl or Win held is not a tap of Shift alone: Alt+Shift switches the layout
+            bool others = Down(0x11) || Down(0x12) || Down(0x5B) || Down(0x5C);
+            if (shift && down && others) { shiftClean = false; lastShiftTap = 0; }
+            else if (shift && down) { if (!shiftClean) { shiftClean = true; shiftDownAt = now; } }
             else if (shift)
             {
                 // A short tap of Shift alone; two of them in a row fire
@@ -149,8 +152,10 @@ class KeyboardWatcher
         }
         else if (mode == 2 && vk == 0x14)
         {
-            // Caps Lock fixes the word; Shift+Caps Lock still turns capitals on and off
+            // Caps Lock fixes the word; Shift+Caps Lock still turns capitals on and off. In an app KeyFish is turned off
+            // in, Caps Lock is Caps Lock
             if (down && !capsSwallowed && Down(0x10)) return false;
+            if (down && !capsSwallowed && excluded.Mode(W.GetForegroundWindow()) == AppMode.Off) return false;
             if (down) { if (!capsSwallowed) { capsSwallowed = true; Fire(); } return true; }
             if (capsSwallowed) { capsSwallowed = false; return true; }
         }
@@ -707,6 +712,9 @@ class KeyboardWatcher
             last = null;
 
             IntPtr hwnd = W.GetForegroundWindow();
+            // VK_PACKET: a character sent as such (AutoHotkey's {Text}, some remote desktops), its code in place of the scan
+            // code. No key of the layout: the word is no longer what the keys say
+            if (vk == 0xE7) { Dropped(hwnd, "a character sent as text"); ResetAll(); return false; }
             IntPtr hkl = W.LayoutHkl(hwnd);
             var layout = Layouts.Get(hkl);
             // Input injected without a scan code (some tools, our tests): work it out from the virtual key
@@ -1495,10 +1503,18 @@ class KeyboardWatcher
 
         bool capsMistake;
         string fixedCase = FixCase(result, out capsMistake, target.Lang);
+        // A word typed in its own layout may have a case of its own. Inverted capitals are a Caps Lock mistake only with
+        // Caps Lock on (кОВАЛЕВ → Ковалев, a name too); with it off they were meant: eSIM, mRNA, iOS. Two capitals at the
+        // start (ПРивет) are fixed only in a known word: OAuth, МБайт, DBeaver stay
+        if (!convert && fixedCase != result && !(capsMistake ? (W.GetKeyState(0x14) & 1) != 0 : Detector.IsKnown(fixedCase, targetModel)))
+        {
+            fixedCase = result;
+            capsMistake = false;
+        }
         if (!convert && IsIgnored(fixedCase)) fixedCase = result;
         // Three dots at the end of the word become an ellipsis; alone that's typography, not a caught mistake
         bool onlyTypography = false;
-        if (Typography && terminatorVk == 0x20 && fixedCase.EndsWith("...") && !fixedCase.EndsWith("....") && fixedCase.Length > 3)
+        if (Typography && terminatorVk == 0x20 && fixedCase.EndsWith("...", StringComparison.Ordinal) && !fixedCase.EndsWith("....", StringComparison.Ordinal) && fixedCase.Length > 3)
         {
             onlyTypography = !convert && fixedCase == result;
             fixedCase = fixedCase.Substring(0, fixedCase.Length - 3) + "\u2026";
@@ -1725,7 +1741,8 @@ class KeyboardWatcher
         string text = typed.Substring(0, start) + fixedWord + typed.Substring(start + core.Length);
         lock (sync)
         {
-            if (W.GetForegroundWindow() != job.Hwnd || keySerial != job.Serial || pending) return;
+            // A click since (focusEpoch): the caret may be elsewhere in the same field
+            if (W.GetForegroundWindow() != job.Hwnd || keySerial != job.Serial || pending || job.Epoch != focusEpoch) return;
             SetPending();   // hold what's typed from now on, while the fix is being typed
             last = new Correction
             {
@@ -1754,6 +1771,10 @@ class KeyboardWatcher
                 if (job.TypoRec != null) ProcessTypo(job);
                 else if (job.VerifyFrom != 0 && !AwaitCheck(job.VerifyFrom, job.Epoch)) Withdraw(job);
                 else if (job.FocusSeq != -1 && guard != null && guard.FocusChanges != job.FocusSeq) Withdraw(job, "the focus moved before it was typed");
+                // A click in the same field since: the caret is elsewhere, and the Backspaces would erase other text
+                else if (job.FocusSeq != -1 && job.Epoch != focusEpoch) Withdraw(job);
+                // Any other job that erases (a switch while typing, an undo): not at a caret a click has moved
+                else if (job.Backspaces > 0 && job.Epoch != focusEpoch) Diagnose(job.Hwnd, "not typed: a click moved the caret first");
                 else
                 {
                     if (job.Placeholders) FillPlaceholders(job);
@@ -1838,7 +1859,11 @@ class KeyboardWatcher
             if (job.Expansion) Interlocked.Decrement(ref expansionCount);
             else Interlocked.Decrement(ref correctionCount);
         }
-        Diagnose(job.Hwnd, "fix withdrawn: " + why);
+        // A click since: the caret is elsewhere now. The space or Enter that ended the word would land there (an Enter
+        // could send a chat message half-written), so it stays untyped, and the reason isn't the focus check
+        bool clicked = job.Epoch != focusEpoch;
+        Diagnose(job.Hwnd, "fix withdrawn: " + (clicked ? "a click moved the caret before it was typed" : why));
+        if (clicked) return;
         Explain(job.Hwnd, "not-checked");
         Execute(new Job { Text = "", TerminatorVk = job.TerminatorVk, Hwnd = job.Hwnd });
     }
@@ -2153,19 +2178,27 @@ class KeyboardWatcher
 
     // Hotkeys on text work through Ctrl+C and Ctrl+V. Not in an excluded app (in a terminal Ctrl+C stops the running
     // command) and never in a password field: a fresh check of the focus is asked for and waited for, up to half a second
-    public bool HotkeyAllowed(IntPtr hwnd)
+    public bool HotkeyAllowed(IntPtr hwnd) { return HotkeyVerdict(hwnd) == HotkeyHere.Yes; }
+
+    // Yes: a hotkey may act here. No: surely not (an app turned off, a password field): its keys go on to the app.
+    // Unknown: no answer in time, or KeyFish's own window: the keys are kept, as an app would get them half a second late
+    public enum HotkeyHere { Yes, No, Unknown }
+
+    public HotkeyHere HotkeyVerdict(IntPtr hwnd)
     {
-        if (hwnd == IntPtr.Zero || IsOwnWindow(hwnd) || excluded.Mode(hwnd) == AppMode.Off || IsPasswordField(hwnd) || guard == null) return false;
+        if (hwnd == IntPtr.Zero || IsOwnWindow(hwnd)) return HotkeyHere.Unknown;
+        if (excluded.Mode(hwnd) == AppMode.Off || IsPasswordField(hwnd)) return HotkeyHere.No;
+        if (guard == null) return HotkeyHere.Unknown;
         int asked = GuardClock.Now;
         guard.RequestCheck();
         for (int i = 0; i < 50; i++)
         {
             bool password; int at;
             guard.Read(out password, out at);
-            if (GuardClock.After(at, asked)) return !password;
+            if (GuardClock.After(at, asked)) return password ? HotkeyHere.No : HotkeyHere.Yes;
             Thread.Sleep(10);
         }
-        return false;
+        return HotkeyHere.Unknown;
     }
 
     // A Win32 password box (ES_PASSWORD), as a second look besides the guard's. Any edit control: the system's "Edit",
@@ -2283,7 +2316,12 @@ public class AppRules
         return s;
     }
 
-    public static bool IsTitleRule(string rule) { return rule.StartsWith(TitlePrefix, StringComparison.OrdinalIgnoreCase); }
+    // "title: …", also with a space before the colon, as a hand-edited file or French habit may have it ("title : …")
+    public static bool IsTitleRule(string rule)
+    {
+        const string word = "title";
+        return rule.StartsWith(word, StringComparison.OrdinalIgnoreCase) && rule.Substring(word.Length).TrimStart(' ', ' ').StartsWith(":", StringComparison.Ordinal);
+    }
 
     public static AppRules Parse(IEnumerable<string> lines)
     {
@@ -2296,7 +2334,7 @@ public class AppRules
             var mode = hotkeys ? AppMode.HotkeysOnly : AppMode.Off;
             if (IsTitleRule(s))
             {
-                string pattern = s.Substring(TitlePrefix.Length).Trim();
+                string pattern = s.Substring(s.IndexOf(':') + 1).Trim();
                 if (pattern.Trim('*').Length == 0) continue;   // "*" alone would turn KeyFish off everywhere
                 bool whole = pattern.IndexOf('*') >= 0 || pattern.IndexOf('?') >= 0;
                 r.titles.Add(new KeyValuePair<string, AppMode>(whole ? pattern : "*" + pattern + "*", mode));
@@ -2732,7 +2770,29 @@ class WordList
         string w = Normalize(word);
         if (w.Length == 0) return;
         lock (gate) if (!words.Add(w)) return;
-        FileQueue.Run(() => { bool inSync = InSync(); File.AppendAllText(path, w + "\r\n", Encoding.UTF8); Written(inSync); });
+        FileQueue.Run(() =>
+        {
+            bool inSync = InSync();
+            // A list saved by hand without a line break at the end: the word goes on a line of its own, not after the last one
+            File.AppendAllText(path, (EndsWithoutBreak(path) ? "\r\n" : "") + w + "\r\n", Encoding.UTF8);
+            Written(inSync);
+        });
+    }
+
+    static bool EndsWithoutBreak(string path)
+    {
+        try
+        {
+            using (var f = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            {
+                if (f.Length == 0) return false;
+                // Only the byte order mark: an emptied list, no line to end
+                if (f.Length == 3 && f.ReadByte() == 0xEF && f.ReadByte() == 0xBB && f.ReadByte() == 0xBF) return false;
+                f.Seek(-1, SeekOrigin.End);
+                return f.ReadByte() != '\n';
+            }
+        }
+        catch { return false; }
     }
 
     public void Remove(string word)

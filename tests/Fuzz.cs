@@ -407,7 +407,7 @@ static class Fuzz
         if (core == null) return;
         bool letters = true;
         foreach (char c in core) if (!char.IsLetter(c) && c != '-') letters = false;
-        Check("Detector.Core: not letters and hyphens between them", letters && !core.StartsWith("-") && !core.EndsWith("-"), input, core);
+        Check("Detector.Core: not letters and hyphens between them", letters && !core.StartsWith("-", StringComparison.Ordinal) && !core.EndsWith("-", StringComparison.Ordinal), input, core);
         Check("Detector.Core: the core of a core is another word", Detector.Core(core, lang) == core, input, core);
     }
 

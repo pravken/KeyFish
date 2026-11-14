@@ -73,7 +73,7 @@ This release has no file for automatic update.	To wydanie nie ma pliku do automa
 The downloaded file doesn't match the release checksum — update cancelled.	Pobrany plik nie zgadza się z sumą kontrolną wydania — aktualizacja anulowana.
 The downloaded file has the wrong version — update cancelled.	Pobrany plik ma złą wersję — aktualizacja anulowana.
 No permission to write to the app folder. Download the new version manually.	Brak uprawnień do zapisu w folderze aplikacji. Pobierz nową wersję ręcznie.
-Update failed: 	Aktualizacja nie powiodła się:
+Update failed:	Aktualizacja nie powiodła się:
 System default	Domyślny systemu
 Press the keys…	Naciśnij klawisze…
 To change a hotkey, click its field and press the new keys. Esc cancels; Backspace turns the hotkey off.	Aby zmienić skrót, kliknij pole i naciśnij nowe klawisze. Esc anuluje, Backspace wyłącza skrót.
@@ -164,7 +164,7 @@ Automatic layout correction	Automatyczna korekta układu
 Undoing a correction	Cofanie korekty
 Settings	Ustawienia
 A word typed in the wrong layout is corrected after a space: ghbdtn → привет.	Słowo wpisane w niewłaściwym układzie jest poprawiane po spacji: ghbdtn → привет.
-To undo a correction, press Pause right after it. The original word is restored and added to the Never correct list.	Aby cofnąć korektę, naciśnij Pause zaraz po niej. Pierwotne słowo zostanie przywrócone i dodane do listy „Nie poprawiaj”.
+To undo a correction, press Ctrl+Z or Pause right after it. The original word is restored and added to the Never correct list.	Aby cofnąć korektę, naciśnij Ctrl+Z lub Pause zaraz po niej. Pierwotne słowo zostanie przywrócone i dodane do listy „Nie poprawiaj”.
 Double-click the KeyFish icon in the notification area to open Settings: hotkeys, replacements, exclusions, the extended dictionary. The icon shows the current layout; grey means correction is off or paused.	Ustawienia otwiera się dwukrotnym kliknięciem ikony KeyFish w obszarze powiadomień: skróty klawiszowe, zamienniki, wykluczenia, rozszerzony słownik. Ikona pokazuje bieżący układ; kolor szary oznacza, że korekta jest wyłączona lub wstrzymana.
 Back	Wstecz
 Start	Zaczynamy

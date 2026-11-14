@@ -11,7 +11,9 @@ using System.Windows.Forms;
 // '^x' Shift+x, '%x' Ctrl+x, '*x' Alt+x, '[' hold Ctrl, ']' release Ctrl, '!' a tap of Shift alone, '=' the =/+ key,
 // '@' F2, '&' F3, '/' the /? key, '(' Home, ')' End, '{' Up (the navigation keys, not the numpad's).
 // For KeyFish's own menu, which takes the focus: '_' a 60 ms pause, '}' Down, '$' Enter, '`' Esc — these go on while
-// another window is in front. "full" makes the window borderless full screen.
+// another window is in front. "full" makes the window borderless full screen. Options go in one argument, separated by
+// ';': "title=…" sets the window title, "full", and "keys", which adds Pause and F1–F12 that reached the window to the
+// text saved, as [Shift+F3]: to see whether a hotkey went on to the app or was kept.
 static class Typer
 {
     [DllImport("user32.dll")] static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
@@ -29,8 +31,18 @@ static class Typer
         f.Controls.Add(tb);
         // A multi-line text box ignores Ctrl+A; the tests select everything with it, as in most apps
         tb.KeyDown += (o, e) => { if (e.Control && e.KeyCode == Keys.A) { tb.SelectAll(); e.SuppressKeyPress = true; } };
-        if (args.Length > 2 && args[2].StartsWith("title=")) f.Text = args[2].Substring(6);   // for the rules by window title
-        if (args.Length > 2 && args[2] == "full") { f.FormBorderStyle = FormBorderStyle.None; f.WindowState = FormWindowState.Maximized; }
+        var seen = new System.Text.StringBuilder();
+        foreach (string option in (args.Length > 2 ? args[2] : "").Split(';'))
+        {
+            if (option.StartsWith("title=")) f.Text = option.Substring(6);   // for the rules by window title
+            if (option == "full") { f.FormBorderStyle = FormBorderStyle.None; f.WindowState = FormWindowState.Maximized; }
+            if (option == "keys")
+                tb.KeyDown += (o, e) =>
+                {
+                    if (e.KeyCode == Keys.Pause || (e.KeyCode >= Keys.F1 && e.KeyCode <= Keys.F12))
+                        seen.Append("[" + (e.Control ? "Ctrl+" : "") + (e.Shift ? "Shift+" : "") + (e.Alt ? "Alt+" : "") + e.KeyCode + "]");
+                };
+        }
 
         var steps = new Queue<Action>();
         var free = new HashSet<Action>();   // steps that run while KeyFish's menu has the focus
@@ -97,7 +109,7 @@ static class Typer
                 t.Stop();
                 string caps = "";
                 if (Control.IsKeyLocked(Keys.CapsLock)) { caps = " [CAPS ON]"; Key(0x14); }
-                File.WriteAllText(outPath, tb.Text + caps, System.Text.Encoding.UTF8);
+                File.WriteAllText(outPath, tb.Text + seen + caps, System.Text.Encoding.UTF8);
                 f.Close();
             };
             t.Start();

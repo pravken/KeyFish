@@ -471,8 +471,8 @@ class IntroForm : Form
         {
             L.T("Слово, набранное в неверной раскладке, исправляется после ввода пробела: ghbdtn → привет.",
                 "A word typed in the wrong layout is corrected after a space: ghbdtn → привет."),
-            L.T("Чтобы отменить исправление, нажмите Pause сразу после него. Исходное слово будет восстановлено и добавлено в список «Не исправлять».",
-                "To undo a correction, press Pause right after it. The original word is restored and added to the Never correct list."),
+            L.T("Чтобы отменить исправление, нажмите Ctrl+Z или Pause сразу после него. Исходное слово будет восстановлено и добавлено в список «Не исправлять».",
+                "To undo a correction, press Ctrl+Z or Pause right after it. The original word is restored and added to the Never correct list."),
             L.T("Настройки открываются двойным щелчком по значку KeyFish в области уведомлений: сочетания клавиш, автозамены, исключения, расширенный словарь. Значок показывает текущую раскладку; серый цвет означает, что исправление отключено или приостановлено.",
                 "Double-click the KeyFish icon in the notification area to open Settings: hotkeys, replacements, exclusions, the extended dictionary. The icon shows the current layout; grey means correction is off or paused.")
         };

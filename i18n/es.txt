@@ -73,7 +73,7 @@ This release has no file for automatic update.	Esta versión no tiene archivo pa
 The downloaded file doesn't match the release checksum — update cancelled.	El archivo descargado no coincide con la suma de verificación — actualización cancelada.
 The downloaded file has the wrong version — update cancelled.	El archivo descargado tiene una versión equivocada — actualización cancelada.
 No permission to write to the app folder. Download the new version manually.	No hay permiso de escritura en la carpeta de la aplicación. Descargue la nueva versión manualmente.
-Update failed: 	Error al actualizar:
+Update failed:	Error al actualizar:
 System default	Predeterminado del sistema
 Press the keys…	Pulsa las teclas…
 To change a hotkey, click its field and press the new keys. Esc cancels; Backspace turns the hotkey off.	Para cambiar un atajo, haga clic en su campo y pulse las nuevas teclas. Esc cancela; Retroceso desactiva el atajo.
@@ -164,7 +164,7 @@ Automatic layout correction	Corrección automática de la distribución
 Undoing a correction	Deshacer una corrección
 Settings	Configuración
 A word typed in the wrong layout is corrected after a space: ghbdtn → привет.	Una palabra escrita en la distribución equivocada se corrige tras un espacio: ghbdtn → привет.
-To undo a correction, press Pause right after it. The original word is restored and added to the Never correct list.	Para deshacer una corrección, pulse Pause justo después. La palabra original se restaura y se añade a la lista «No corregir nunca».
+To undo a correction, press Ctrl+Z or Pause right after it. The original word is restored and added to the Never correct list.	Para deshacer una corrección, pulse Ctrl+Z o Pause justo después. La palabra original se restaura y se añade a la lista «No corregir nunca».
 Double-click the KeyFish icon in the notification area to open Settings: hotkeys, replacements, exclusions, the extended dictionary. The icon shows the current layout; grey means correction is off or paused.	La configuración se abre con doble clic en el icono de KeyFish del área de notificación: atajos, reemplazos, exclusiones, diccionario ampliado. El icono muestra la distribución actual; el gris indica que la corrección está desactivada o en pausa.
 Back	Atrás
 Start	Empezar

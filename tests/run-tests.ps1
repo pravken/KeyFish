@@ -137,6 +137,14 @@ $bigTests = @(
   @('x: Shift+Home, erase',   'hello world~~ ~~^(~~<~~f vj;yj ~~~~',      'а можно ', ''),
   @('x: two words erased',    'hello big world ~~<<<<<<<<<<~~f vj;yj ~~~~', 'hello а можно ', ''),
   @('x: erased into a word',  'hello world ~~<<<~~ghbdtn ~~~~',           'hello worghbdtn ', ''),   # the caret is inside "world": left as typed
+  # Hotkeys where KeyFish is off go on to the app (Shift+F3 is Find previous in editors); double Shift sends nothing there
+  @('x: off: hotkey passed on', 'hello~~^&~~~~',                          'hello[Shift+F3]', 'title=KF-off;keys'),
+  @('x: hotkey kept to act',  'hello~~%a~~^&~~~~',                        'Hello', 'keys'),
+  @('x: off: double Shift',   "hello~~!~!$w",                             'hello', 'title=KF-off;keys'),
+  @('x: hotkeys only: dbl Shift', "hello~~!~!$w",                         'руддщ', 'title=KF-hotkeys;keys'),
+  # A case of its own stays; inverted capitals with Caps Lock on are put right, a name too, and Caps Lock goes off
+  @('x: eSIM stays',          'e^s^i^m ~~^o^auth ~~~~',                   'eSIM OAuth ', ''),
+  @('x: Caps Lock, a name',   '#^kowalski ~~~~',                          'Kowalski ', ''),
   # Layouts
   @('x: phrase',              'z k.,k. ghjuhfvvbhjdfnm ~~~~',             'я люблю программировать ', ''),
   @('x: Russian goes on',     'ghbdtn ~~rfr ltkf ~~~~',                   'привет как дела ', ''),
@@ -167,7 +175,7 @@ $bigTests = @(
   @('x: short words first',   'f ns ult ~~~~',                            'а ты где ', ''),
   @('x: one letter first',    'f tckb ~~~~',                              'а если ', ''),
   @('x: whole phrase back',   'f z f jy f vs vjcrdf ~~~~',                'а я а он а мы москва ', ''),   # more than three words before the one fixed
-  @('x: English stays',       'I use ghbdtn ~~~~',                        'I use привет ', ''),   # real words of the typed language end the phrase
+  @('x: English stays',       '^i use ghbdtn ~~~~',                        'I use привет ', ''),   # real words of the typed language end the phrase
   # Typing on drops the hint: Pause then converts the last word as usual, not the hinted one. Before "hint taken", which
   # teaches KeyFish the word
   @('x: emoji replacement',  'hello ~~xsm ~~~~',                         'hello ok 🙂👍🏽 ', ''),   # characters beyond U+FFFF, as surrogate pairs
@@ -227,7 +235,7 @@ foreach ($t in $tests) {
   Start-Process "$bin\Typer.exe" -ArgumentList "`"$bin\out.txt`" `"$($t[1])`" $(if ($t[3] -ne 'noauto') { $t[3] })" -Wait
   if ($t[3] -eq 'noauto') { Remove-Item $noAuto; Start-Sleep -Milliseconds 2500 }
   $r = Get-Content "$bin\out.txt" -Encoding utf8 -Raw
-  $ok = $r -eq $t[2]; if ($ok) { $pass++ }
+  $ok = $r -ceq $t[2]; if ($ok) { $pass++ }   # -ceq: the case is part of the result (Hello, HELLO, eSIM)
   "{0} {1,-24} [{2}]" -f $(if ($ok) { 'OK  ' } else { 'FAIL' }), $t[0], ($r -replace "`r`n", '⏎')
 }
 $pages = "file:///$($bin -replace '\\', '/')"
@@ -236,7 +244,7 @@ if (-not $Only) { foreach ($b in @(@('browser password', 'pw', 'KFPW', 'KFPW:ghb
   $total++
   Start-Process "$bin\BrowserTyper.exe" -ArgumentList "`"$pages/$($b[1]).html`" $($b[2]) `"ghbdtn vbh ~~~~`" `"$bin\out.txt`"" -Wait
   $r = ((Get-Content "$bin\out.txt" -Encoding utf8 -Raw) -replace ' - \[InPrivate\].*', '').Trim()
-  $ok = $r -eq $b[3]; if ($ok) { $pass++ }
+  $ok = $r -ceq $b[3]; if ($ok) { $pass++ }
   "{0} {1,-24} [{2}]" -f $(if ($ok) { 'OK  ' } else { 'FAIL' }), $b[0], $r
   Start-Sleep 1
 } }

@@ -1296,9 +1296,12 @@ class SettingsForm : Form
         {
             var box = new HotkeyBox { Value = Hotkeys[i] };
             int index = i;
-            var reset = new RoundButton { Text = L.T("Сброс", "Reset"), Location = new Point(178, 0), Size = new Size(82, 32) };
+            // As wide as its text needs: "Zurücksetzen" didn't fit the 82 pixels of "Сброс"
+            string resetText = L.T("Сброс", "Reset");
+            int resetWidth = Math.Max(82, (int)(TextRenderer.MeasureText(resetText, Theme.Body).Width / Theme.Scale) + 24);
+            var reset = new RoundButton { Text = resetText, Location = new Point(178, 0), Size = new Size(resetWidth, 32) };
             reset.Click += (s, e) => hotkeyBoxes[index].Value = App.HotkeyDefaults[index];
-            var holder = new Panel { Size = new Size(260, 32), BackColor = Color.Transparent };
+            var holder = new Panel { Size = new Size(178 + resetWidth, 32), BackColor = Color.Transparent };
             holder.Controls.Add(Theme.Framed(box, 0, 0, 170, 32));   // as tall as Reset next to it
             holder.Controls.Add(reset);
             hotkeyBoxes[i] = box;
@@ -1588,8 +1591,16 @@ class SettingsForm : Form
 
     static bool IsTitleRow(string rule)
     {
-        return rule != null && (AppRules.IsTitleRule(rule) || rule.StartsWith(TitlePrefixShown, StringComparison.OrdinalIgnoreCase) ||
-                                rule.StartsWith("заголовок:", StringComparison.OrdinalIgnoreCase));
+        return rule != null && (AppRules.IsTitleRule(rule) || HasPrefix(rule, AppRules.TitlePrefix) || HasPrefix(rule, TitlePrefixShown) ||
+                                HasPrefix(rule, "заголовок:"));
+    }
+
+    // With or without a space before the colon: French writes "titre :", and a user may type "titre:"
+    static bool HasPrefix(string rule, string prefix)
+    {
+        string word = prefix.TrimEnd(':', ' ', ' ');
+        if (!rule.StartsWith(word, StringComparison.OrdinalIgnoreCase)) return false;
+        return rule.Substring(word.Length).TrimStart(' ', ' ').StartsWith(":", StringComparison.Ordinal);
     }
 
     static string RuleText(string rule) { return rule.Substring(rule.IndexOf(':') + 1).Trim(); }
@@ -2251,7 +2262,7 @@ static class SettingsArchive
     public static readonly string[] Values =
     {
         "AutoCorrect", "Typos", "QuietFullscreen", "SwitchWhileTyping", "Hints", "UndoCtrlZ", "LayoutColor", "CheckUpdates", "LayoutBadge", "RecentMenu", "QuickKey", "Sound", "TrayLetters", "Typography",
-        "Language", "UiScale", "Theme", "Holiday", "Skin", "SkinLogo", "SkinSound", "CustomAccent", "CustomWindow", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5", "Hotkey6", "Hotkey7", "Hotkey8"
+        "Language", "UiScale", "Theme", "Holiday", "Skin", "SkinLogo", "SkinSound", "CustomAccent", "CustomWindow", "Hotkey1", "Hotkey2", "Hotkey3", "Hotkey4", "Hotkey5", "Hotkey6", "Hotkey7", "Hotkey8", "Hotkey9", "Hotkey10"
     };
     static readonly string[] FileNames = { "replacements.txt", "exclusions.txt", "ignored-words.txt", "learned-words.txt", "app-layouts.txt", "no-auto-layouts.txt", "layout-colors.txt", "sounds.txt" };
 

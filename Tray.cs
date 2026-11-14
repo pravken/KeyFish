@@ -108,8 +108,12 @@ partial class App
     {
         int shown = GetSetting("CorrectionTips", 0);
         if (shown >= 2) return;
+        // A layout hotkey turned off isn't named ("press off")
+        Keys key = GetHotkey(0);
+        string named = key == Keys.None ? null : SettingsForm.Format(key);
+        string undo = !watcher.UndoWithCtrlZ ? named : named == null ? SettingsForm.Format(Keys.Control | Keys.Z) : named + L.T(" или Ctrl+Z", " or Ctrl+Z");
+        if (undo == null) return;   // no key takes a fix back: nothing to tell, and the tip isn't used up
         SetSetting("CorrectionTips", shown + 1);
-        string undo = SettingsForm.Format(GetHotkey(0)) + (watcher.UndoWithCtrlZ ? L.T(" или Ctrl+Z", " or Ctrl+Z") : "");
         string text = L.F("Слово, набранное в неверной раскладке, исправлено. Чтобы отменить исправление, нажмите {0} сразу после него: исходное слово будет восстановлено и добавлено в список «Не исправлять».",
                           "A word typed in the wrong layout was corrected. To undo the correction, press {0} right after it: the original word is restored and added to the Never correct list.", undo);
         // A Windows notification with a button that takes the fix back; the tray balloon where there are none
@@ -140,8 +144,29 @@ partial class App
                       "\n" + (guardDown ? L.T("Проверка полей паролей запускается…", "The password-field check is starting…")
                                : foregroundNoRights ? L.T("Недоступно в программе, запущенной от имени администратора", "Unavailable in an app running as administrator")
                                : pausedUntil != DateTime.MinValue ? PausedText : StatsLine(statsBase + corrections));
-        if (text.Length > 63) text = text.Substring(0, 63);
-        if (tray.Text != text) tray.Text = text;
+        if (tray.Text != text) SetTip(tray, text);
+    }
+
+    // Windows takes a tooltip of up to 127 characters, but NotifyIcon.Text of .NET Framework refuses more than 63, which
+    // cut the administrator line mid-word. Set past that check; the 63 characters again if this .NET has no such fields
+    static void SetTip(NotifyIcon icon, string text)
+    {
+        if (text.Length > 127) text = text.Substring(0, 127);
+        try
+        {
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+            var field = typeof(NotifyIcon).GetField("text", flags);
+            var added = typeof(NotifyIcon).GetField("added", flags);
+            var update = typeof(NotifyIcon).GetMethod("UpdateIcon", flags);
+            if (field != null && added != null && update != null)
+            {
+                field.SetValue(icon, text);
+                if ((bool)added.GetValue(icon)) update.Invoke(icon, new object[] { icon.Visible });
+                return;
+            }
+        }
+        catch { }
+        icon.Text = text.Length > 63 ? text.Substring(0, 63) : text;
     }
 
     Icon LettersIcon(string text, Color tint, int kind)
@@ -393,8 +418,9 @@ partial class App
             excludeItem.Visible = lastApp.Length > 0;
             excludeItem.Text = ExcludedApp(lastApp) ? L.F("Исправлять в программе {0}", "Correct in {0}", lastApp)
                                                     : L.F("Не исправлять в программе {0}", "Do not correct in {0}", lastApp);
-            // Settings would write its own copy of the list over this change
+            // Settings would write its own copy of the list or of these switches over the change on Apply
             excludeItem.Enabled = settingsForm == null;
+            autoItem.Enabled = typosItem.Enabled = typographyItem.Enabled = soundItem.Enabled = settingsForm == null;
         };
         menu.Items.Add(L.T("Настройки…", "Settings…"), null, (s, e) => OpenSettings());
         if (!Packaged.Yes) menu.Items.Add(L.T("Проверить обновления", "Check for updates"), null, (s, e) => CheckForUpdates(true));
@@ -437,8 +463,12 @@ partial class App
             {
                 case "excluded":
                     reason = L.T("программа в исключениях", "the app is excluded");
-                    action = L.F("Исправлять в {0}", "Correct in {0}", app);
-                    act = () => IncludeApp(verdict.App);
+                    // Excluded by a rule for the window title: there is no line for the app to take out
+                    if (ExcludedApp(v.App))
+                    {
+                        action = L.F("Исправлять в {0}", "Correct in {0}", app);
+                        act = () => IncludeApp(verdict.App);
+                    }
                     break;
                 case "fullscreen":
                     reason = L.T("игра или полноэкранный режим", "a game or full screen");
@@ -472,6 +502,9 @@ partial class App
                 ThemedMenuRenderer.Apply(item.DropDown);
                 var fix = new ToolStripMenuItem(action);
                 fix.Click += (s, e) => act();
+                // The exclusions and the full-screen switch: Settings open would write their own copy over them on Apply,
+                // as for the exclusion item above. Word lists are merged on Apply, so those actions stay
+                fix.Enabled = settingsForm == null || (v.Reason != "excluded" && v.Reason != "fullscreen");
                 item.DropDownItems.Add(fix);
             }
             else item.Enabled = false;
@@ -482,7 +515,14 @@ partial class App
     bool ExcludedApp(string app)
     {
         return app.Length > 0 && ReadText(exclusionsPath).Replace("\r\n", "\n").Split('\n')
-            .Any(l => string.Equals(SettingsForm.StripExe(l.Trim()), app, StringComparison.OrdinalIgnoreCase));
+            .Any(l => RuleFor(l, app));
+    }
+
+    // A line of the exclusions for this app: "Code", "Code.exe" or "Code = hotkeys"
+    static bool RuleFor(string line, string app)
+    {
+        bool hotkeysOnly;
+        return string.Equals(SettingsForm.StripExe(AppRules.Split(line, out hotkeysOnly)), app, StringComparison.OrdinalIgnoreCase);
     }
 
     // "Do not correct in Telegram": the app joins the exclusions, at the end of the list
@@ -503,7 +543,7 @@ partial class App
         try
         {
             var kept = ReadText(exclusionsPath).Replace("\r\n", "\n").Split('\n')
-                .Where(l => !string.Equals(SettingsForm.StripExe(l.Trim()), app, StringComparison.OrdinalIgnoreCase));
+                .Where(l => !RuleFor(l, app));
             File.WriteAllText(exclusionsPath, string.Join("\r\n", kept), Encoding.UTF8);
             watcher.ReloadSoon();
         }

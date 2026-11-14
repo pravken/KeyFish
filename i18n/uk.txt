@@ -73,7 +73,7 @@ This release has no file for automatic update.	У цьому випуску не
 The downloaded file doesn't match the release checksum — update cancelled.	Завантажений файл не збігається з контрольною сумою випуску — оновлення скасовано.
 The downloaded file has the wrong version — update cancelled.	Завантажений файл має не ту версію — оновлення скасовано.
 No permission to write to the app folder. Download the new version manually.	Немає прав на запис у папку програми. Завантажте нову версію вручну.
-Update failed: 	Не вдалося оновити:
+Update failed:	Не вдалося оновити:
 System default	Як у системі
 Press the keys…	Натисніть поєднання…
 To change a hotkey, click its field and press the new keys. Esc cancels; Backspace turns the hotkey off.	Щоб змінити поєднання, клацніть поле й натисніть нові клавіші. Esc — скасування, Backspace — вимкнути поєднання.
@@ -164,7 +164,7 @@ Automatic layout correction	Автоматичне виправлення роз
 Undoing a correction	Скасування виправлення
 Settings	Налаштування
 A word typed in the wrong layout is corrected after a space: ghbdtn → привет.	Слово, набране в неправильній розкладці, виправляється після введення пробілу: ghbdsn → привіт.
-To undo a correction, press Pause right after it. The original word is restored and added to the Never correct list.	Щоб скасувати виправлення, натисніть Pause одразу після нього. Початкове слово буде відновлено й додано до списку «Не виправляти».
+To undo a correction, press Ctrl+Z or Pause right after it. The original word is restored and added to the Never correct list.	Щоб скасувати виправлення, натисніть Ctrl+Z або Pause одразу після нього. Початкове слово буде відновлено й додано до списку «Не виправляти».
 Double-click the KeyFish icon in the notification area to open Settings: hotkeys, replacements, exclusions, the extended dictionary. The icon shows the current layout; grey means correction is off or paused.	Налаштування відкриваються подвійним клацанням значка KeyFish в області сповіщень: поєднання клавіш, автозаміни, винятки, розширений словник. Значок показує поточну розкладку; сірий колір означає, що виправлення вимкнено або призупинено.
 Back	Назад
 Start	Почати

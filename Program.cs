@@ -432,7 +432,7 @@ partial class App : ApplicationContext
         var ui = SynchronizationContext.Current;
         watcher.QuickFix += () => ui.Post(_ =>
         {
-            if (!hotkeysOff && W.GetForegroundWindow() != IntPtr.Zero) OnHotkey(HkLayout);
+            if (!hotkeysOff && W.GetForegroundWindow() != IntPtr.Zero) OnHotkey(HkLayout, true);
         }, null);
         // A hint at the caret: the word as it would be in the other layout, and the key that makes it so
         watcher.HintShown = alt => ui.Post(_ => ShowHint(alt), null);
@@ -483,7 +483,7 @@ partial class App : ApplicationContext
         };
         trayTimer.Start();
 
-        hotkeys.Pressed += OnHotkey;
+        hotkeys.Pressed += id => OnHotkey(id);
         updates.Check = CheckNow;
         updates.Install = () => { if (updates.NewVersion) OfferUpdate(updates.Latest); };
         WarnHotkeys(RegisterHotkeys());

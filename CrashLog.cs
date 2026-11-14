@@ -100,7 +100,7 @@ static class CrashLog
                         if (text == null || text.IndexOf("KeyFish", StringComparison.OrdinalIgnoreCase) < 0) continue;
                         // A hang of an older KeyFish: the Store or an installer closing it to update, which versions
                         // up to 2.6.0 didn't answer. Not a crash to report
-                        if (text.IndexOf("Hang", StringComparison.OrdinalIgnoreCase) >= 0 && text.IndexOf(ThisVersion, StringComparison.Ordinal) < 0) continue;
+                        if (text.IndexOf("Hang", StringComparison.OrdinalIgnoreCase) >= 0 && !System.Text.RegularExpressions.Regex.IsMatch(text, @"(?<![\d.])" + System.Text.RegularExpressions.Regex.Escape(ThisVersion) + @"(?![\d])")) continue;
                         found.Append(record.TimeCreated.HasValue ? record.TimeCreated.Value.ToString("yyyy-MM-dd HH:mm:ss") : "?")
                              .Append("  ").Append(record.ProviderName).Append(" ").Append(record.Id).Append("\r\n")
                              .Append(text.Trim()).Append("\r\n\r\n");

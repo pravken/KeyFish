@@ -73,7 +73,7 @@ This release has no file for automatic update.	Diese Version hat keine Datei fü
 The downloaded file doesn't match the release checksum — update cancelled.	Die geladene Datei passt nicht zur Prüfsumme der Version — Update abgebrochen.
 The downloaded file has the wrong version — update cancelled.	Die geladene Datei hat die falsche Version — Update abgebrochen.
 No permission to write to the app folder. Download the new version manually.	Keine Schreibberechtigung für den App-Ordner. Laden Sie die neue Version manuell herunter.
-Update failed: 	Update fehlgeschlagen:
+Update failed:	Update fehlgeschlagen:
 System default	Systemstandard
 Press the keys…	Tasten drücken…
 To change a hotkey, click its field and press the new keys. Esc cancels; Backspace turns the hotkey off.	Um ein Tastenkürzel zu ändern, klicken Sie auf das Feld und drücken Sie die neuen Tasten. Esc bricht ab, Rücktaste deaktiviert das Tastenkürzel.
@@ -164,7 +164,7 @@ Automatic layout correction	Automatische Layoutkorrektur
 Undoing a correction	Korrektur rückgängig machen
 Settings	Einstellungen
 A word typed in the wrong layout is corrected after a space: ghbdtn → привет.	Ein im falschen Layout getipptes Wort wird nach einem Leerzeichen korrigiert: ghbdtn → привет.
-To undo a correction, press Pause right after it. The original word is restored and added to the Never correct list.	Um eine Korrektur rückgängig zu machen, drücken Sie direkt danach Pause. Das ursprüngliche Wort wird wiederhergestellt und zur Liste „Nie korrigieren“ hinzugefügt.
+To undo a correction, press Ctrl+Z or Pause right after it. The original word is restored and added to the Never correct list.	Um eine Korrektur rückgängig zu machen, drücken Sie direkt danach Strg+Z oder Pause. Das ursprüngliche Wort wird wiederhergestellt und zur Liste „Nie korrigieren“ hinzugefügt.
 Double-click the KeyFish icon in the notification area to open Settings: hotkeys, replacements, exclusions, the extended dictionary. The icon shows the current layout; grey means correction is off or paused.	Die Einstellungen öffnen sich per Doppelklick auf das KeyFish-Symbol im Infobereich: Tastenkürzel, Ersetzungen, Ausnahmen, erweitertes Wörterbuch. Das Symbol zeigt das aktuelle Layout; Grau bedeutet, dass die Korrektur aus- oder pausiert ist.
 Back	Zurück
 Start	Los geht's

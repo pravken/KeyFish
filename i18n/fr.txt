@@ -73,7 +73,7 @@ This release has no file for automatic update.	Cette version n'a pas de fichier 
 The downloaded file doesn't match the release checksum — update cancelled.	Le fichier téléchargé ne correspond pas à la somme de contrôle — mise à jour annulée.
 The downloaded file has the wrong version — update cancelled.	Le fichier téléchargé n'a pas la bonne version — mise à jour annulée.
 No permission to write to the app folder. Download the new version manually.	Aucune autorisation d'écriture dans le dossier de l'application. Téléchargez la nouvelle version manuellement.
-Update failed: 	Échec de la mise à jour :
+Update failed:	Échec de la mise à jour :
 System default	Par défaut du système
 Press the keys…	Appuyez sur les touches…
 To change a hotkey, click its field and press the new keys. Esc cancels; Backspace turns the hotkey off.	Pour modifier un raccourci, cliquez sur son champ et appuyez sur les nouvelles touches. Échap annule ; Retour arrière désactive le raccourci.
@@ -164,7 +164,7 @@ Automatic layout correction	Correction automatique de la disposition
 Undoing a correction	Annuler une correction
 Settings	Paramètres
 A word typed in the wrong layout is corrected after a space: ghbdtn → привет.	Un mot saisi dans la mauvaise disposition est corrigé après une espace : ghbdtn → привет.
-To undo a correction, press Pause right after it. The original word is restored and added to the Never correct list.	Pour annuler une correction, appuyez sur Pause juste après. Le mot d'origine est rétabli et ajouté à la liste « Ne jamais corriger ».
+To undo a correction, press Ctrl+Z or Pause right after it. The original word is restored and added to the Never correct list.	Pour annuler une correction, appuyez sur Ctrl+Z ou Pause juste après. Le mot d'origine est rétabli et ajouté à la liste « Ne jamais corriger ».
 Double-click the KeyFish icon in the notification area to open Settings: hotkeys, replacements, exclusions, the extended dictionary. The icon shows the current layout; grey means correction is off or paused.	Les paramètres s'ouvrent par un double-clic sur l'icône KeyFish de la zone de notification : raccourcis, remplacements, exclusions, dictionnaire étendu. L'icône indique la disposition actuelle ; le gris signifie que la correction est désactivée ou en pause.
 Back	Retour
 Start	Commencer
