@@ -1,3 +1,15 @@
+2.6.1 2026-11-14
+Fixed:
+• Shortcuts were intercepted in apps where KeyFish is off and in password fields
+• A crash report offer after a Microsoft Store update; the buttons of that message didn't work
+• A fix begun before a mouse click could be typed at the new caret
+• Words in mixed case (eSIM, iOS, OAuth) were changed
+• Caps Lock didn't work in apps where KeyFish is off
+• Double Shift fired with Ctrl, Alt or Win held
+• Hotkeys 9 and 10 were missing from exported and backed-up settings
+• The tray icon tooltip was cut short
+• Minor interface issues
+
 2.6.0 2026-11-13
 New:
 • Greek typed without accents is recognized

@@ -82,11 +82,11 @@ keyboard layout; wrong layout; layout switcher; auto switch layout; transliterat
 
 **What's new in this version**
 
-• Greek typed without accents is recognized
-• Hints for uncertain words (off by default)
-• Short words and whole phrases are fixed together
-• Better handling of selections, erasing and Windows 11 Notepad
-• Updated icon and bug fixes
+• Shortcuts are no longer intercepted in apps where KeyFish is off
+• No error message after an update from the Store
+• Safer fixes when you click during typing
+• Mixed-case words like eSIM and iOS stay as typed
+• Bug fixes
 
 **Short description**
 
@@ -139,11 +139,11 @@ KeyFish бесплатна, исходный код открыт.
 
 **Что нового в этой версии**
 
-• Распознаётся греческий текст без ударений
-• Подсказки для неочевидных слов (по умолчанию выключены)
-• Короткие слова и целые фразы исправляются вместе
-• Точнее работа с выделением, стиранием и Блокнотом Windows 11
-• Обновлённая иконка и исправления ошибок
+• Сочетания клавиш не перехватываются в программах, где KeyFish выключен
+• Нет сообщения об ошибке после обновления из Store
+• Надёжнее исправление, если щёлкнуть мышью во время набора
+• Слова вроде eSIM и iOS остаются как набраны
+• Исправления ошибок
 
 **Краткое описание**
 
@@ -196,11 +196,11 @@ KeyFish безкоштовна, вихідний код відкритий.
 
 **What's new in this version**
 
-• Розпізнається грецький текст без наголосів
-• Підказки для неочевидних слів (типово вимкнені)
-• Короткі слова й цілі фрази виправляються разом
-• Точніша робота з виділенням, стиранням і Блокнотом Windows 11
-• Оновлена іконка та виправлення помилок
+• Сполучення клавіш не перехоплюються в програмах, де KeyFish вимкнено
+• Немає повідомлення про помилку після оновлення з Store
+• Надійніше виправлення, якщо клацнути мишею під час набору
+• Слова на кшталт eSIM та iOS залишаються як набрані
+• Виправлення помилок
 
 **Short description**
 
@@ -253,11 +253,11 @@ KeyFish бясплатная, зыходны код адкрыты.
 
 **What's new in this version**
 
-• Распазнаецца грэчаскі тэкст без націскаў
-• Падказкі для неадназначных слоў (па змаўчанні выключаныя)
-• Кароткія словы і цэлыя фразы выпраўляюцца разам
-• Дакладнейшая праца з вылучэннем, сціраннем і Нататнікам Windows 11
-• Абноўлены значок і выпраўленні памылак
+• Спалучэнні клавіш не перахопліваюцца ў праграмах, дзе KeyFish выключаны
+• Няма паведамлення пра памылку пасля абнаўлення са Store
+• Надзейней выпраўленне, калі пстрыкнуць мышшу падчас набору
+• Словы накшталт eSIM і iOS застаюцца як набраныя
+• Выпраўленні памылак
 
 **Short description**
 
@@ -310,11 +310,11 @@ Tastaturlayout; falsches Layout; Layout wechseln; automatischer Layoutwechsel; T
 
 **What's new in this version**
 
-• Griechisch ohne Akzente wird erkannt
-• Vorschläge für unsichere Wörter (standardmäßig aus)
-• Kurze Wörter und ganze Sätze werden gemeinsam korrigiert
-• Zuverlässiger bei Markierungen, beim Löschen und im Editor von Windows 11
-• Überarbeitetes Symbol und Fehlerbehebungen
+• Tastenkombinationen werden in Anwendungen, in denen KeyFish aus ist, nicht mehr abgefangen
+• Keine Fehlermeldung mehr nach einem Update aus dem Store
+• Zuverlässigere Korrektur bei einem Mausklick während des Tippens
+• Wörter in gemischter Schreibweise wie eSIM und iOS bleiben wie getippt
+• Fehlerbehebungen
 
 **Short description**
 
@@ -367,11 +367,11 @@ układ klawiatury; zły układ klawiatury; przełącznik układu; automatyczna z
 
 **What's new in this version**
 
-• Rozpoznawanie greckiego tekstu bez akcentów
-• Podpowiedzi dla niepewnych słów (domyślnie wyłączone)
-• Krótkie słowa i całe frazy są poprawiane razem
-• Lepsza obsługa zaznaczania, usuwania i Notatnika w Windows 11
-• Odświeżona ikona i poprawki błędów
+• Skróty klawiszowe nie są przechwytywane w programach, w których KeyFish jest wyłączony
+• Brak komunikatu o błędzie po aktualizacji ze Store
+• Pewniejsza poprawka po kliknięciu myszą podczas pisania
+• Słowa takie jak eSIM i iOS pozostają bez zmian
+• Poprawki błędów
 
 **Short description**
 
@@ -424,11 +424,11 @@ KeyFish је бесплатан и отвореног кода.
 
 **What's new in this version**
 
-• Препознаје се грчки текст без акцената
-• Предлози за несигурне речи (подразумевано искључени)
-• Кратке речи и целе фразе исправљају се заједно
-• Боље понашање при означавању, брисању и у Бележници у Windows 11
-• Освежена иконица и исправке грешака
+• Пречице на тастатури се више не пресрећу у програмима у којима је KeyFish искључен
+• Нема поруке о грешци после ажурирања из Store-а
+• Поузданије исправљање ако кликнете мишем током куцања
+• Речи попут eSIM и iOS остају како су откуцане
+• Исправке грешака
 
 **Short description**
 
@@ -481,11 +481,11 @@ disposition clavier; mauvaise disposition; changer de disposition; changement au
 
 **What's new in this version**
 
-• Le grec saisi sans accents est reconnu
-• Suggestions pour les mots incertains (désactivées par défaut)
-• Les mots courts et les phrases entières sont corrigés ensemble
-• Meilleure prise en charge des sélections, de l'effacement et du Bloc-notes de Windows 11
-• Icône mise à jour et corrections de bugs
+• Les raccourcis ne sont plus interceptés dans les applications où KeyFish est désactivé
+• Plus de message d'erreur après une mise à jour depuis le Store
+• Corrections plus sûres en cas de clic pendant la saisie
+• Les mots à casse mixte comme eSIM et iOS restent tels quels
+• Corrections de bugs
 
 **Short description**
 
@@ -538,11 +538,11 @@ distribución de teclado; distribución incorrecta; cambiar distribución; cambi
 
 **What's new in this version**
 
-• Se reconoce el griego escrito sin acentos
-• Sugerencias para palabras dudosas (desactivadas por defecto)
-• Las palabras cortas y las frases enteras se corrigen juntas
-• Mejor manejo de selecciones, borrado y el Bloc de notas de Windows 11
-• Icono actualizado y correcciones de errores
+• Los atajos ya no se interceptan en las aplicaciones donde KeyFish está desactivado
+• Sin mensaje de error tras una actualización desde la Store
+• Correcciones más seguras al hacer clic durante la escritura
+• Las palabras con mayúsculas mixtas como eSIM e iOS se mantienen tal cual
+• Corrección de errores
 
 **Short description**
 
