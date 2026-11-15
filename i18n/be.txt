@@ -112,6 +112,7 @@ Open	Адкрыць
 Yes	Так
 No	Не
 The password-field check is starting…	Праверка палёў пароляў запускаецца…
+Waiting for the active app to answer the password-field check…	Чаканне адказу актыўнай праграмы для праверкі палёў пароляў…
 Updates	Абнаўленні
 Check	Праверыць
 Update	Абнавіць

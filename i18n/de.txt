@@ -113,6 +113,7 @@ Open	Öffnen
 Yes	Ja
 No	Nein
 The password-field check is starting…	Die Prüfung von Passwortfeldern startet…
+Waiting for the active app to answer the password-field check…	Warten auf die Antwort der aktiven Anwendung für die Prüfung von Passwortfeldern…
 Updates	Updates
 Check	Prüfen
 Update	Aktualisieren

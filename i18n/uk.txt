@@ -113,6 +113,7 @@ Open	Відкрити
 Yes	Так
 No	Ні
 The password-field check is starting…	Перевірка полів паролів запускається…
+Waiting for the active app to answer the password-field check…	Очікування відповіді активної програми для перевірки полів паролів…
 Updates	Оновлення
 Check	Перевірити
 Update	Оновити

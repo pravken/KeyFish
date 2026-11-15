@@ -141,7 +141,8 @@ partial class App
     {
         bool guardDown = watcher.Enabled && !watcher.GuardAnswering;
         string text = "KeyFish " + Application.ProductVersion + (showLayout && currentLayoutName.Length > 0 ? " — " + currentLayoutName : "") +
-                      "\n" + (guardDown ? L.T("Проверка полей паролей запускается…", "The password-field check is starting…")
+                      "\n" + (guardDown && watcher.GuardStarting ? L.T("Проверка полей паролей запускается…", "The password-field check is starting…")
+                               : guardDown ? L.T("Ожидание ответа активной программы для проверки полей паролей…", "Waiting for the active app to answer the password-field check…")
                                : foregroundNoRights ? L.T("Недоступно в программе, запущенной от имени администратора", "Unavailable in an app running as administrator")
                                : pausedUntil != DateTime.MinValue ? PausedText : StatsLine(statsBase + corrections));
         if (tray.Text != text) SetTip(tray, text);

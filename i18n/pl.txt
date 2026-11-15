@@ -113,6 +113,7 @@ Open	Otwórz
 Yes	Tak
 No	Nie
 The password-field check is starting…	Sprawdzanie pól haseł się uruchamia…
+Waiting for the active app to answer the password-field check…	Oczekiwanie na odpowiedź aktywnego programu na potrzeby sprawdzania pól haseł…
 Updates	Aktualizacje
 Check	Sprawdź
 Update	Zaktualizuj

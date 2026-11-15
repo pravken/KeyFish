@@ -113,6 +113,7 @@ Open	Отвори
 Yes	Да
 No	Не
 The password-field check is starting…	Провера поља за лозинке се покреће…
+Waiting for the active app to answer the password-field check…	Чекање одговора активног програма за проверу поља за лозинке…
 Updates	Ажурирања
 Check	Провери
 Update	Ажурирај

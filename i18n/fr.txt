@@ -113,6 +113,7 @@ Open	Ouvrir
 Yes	Oui
 No	Non
 The password-field check is starting…	La vérification des champs de mot de passe démarre…
+Waiting for the active app to answer the password-field check…	En attente de la réponse de l'application active pour la vérification des champs de mot de passe…
 Updates	Mises à jour
 Check	Vérifier
 Update	Mettre à jour

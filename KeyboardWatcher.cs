@@ -1986,6 +1986,8 @@ class KeyboardWatcher
     // Focus was checked after this word started; otherwise we can't know it isn't a password
     // The password guard answers checks; while it doesn't, nothing is corrected (shown by the tray icon)
     public bool GuardAnswering { get { return guard != null && guard.Answering; } }   // no check at all is never "answering"
+    // Not answering because the guard hasn't answered once since it started (or there is none), not because of a slow app
+    public bool GuardStarting { get { return guard == null || !guard.Started; } }
 
     void RequestFocusCheck() { if (guard != null) guard.RequestCheck(); }
 

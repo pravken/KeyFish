@@ -201,13 +201,18 @@ class PasswordGuardClient
             if (asked == 0) return true;
             bool p, unsure; int at;
             Read(out p, out unsure, out at);   // a check that couldn't read the focus is an answer all the same
-            if (at != 0 && at - asked >= 0) { unansweredSince = 0; return true; }
+            if (at != 0 && at - asked >= 0) { unansweredSince = 0; answeredSinceStart = true; return true; }
             int waiting = GuardClock.Now - asked;
             // A guard stuck in an app that never answers would hold every check up for good: it is restarted
             if (waiting > 30000) KillStuck();
             return waiting < 3000;
         }
     }
+
+    // False from the guard's start until its first answer: a silence before it is the guard starting, one after it
+    // is the app in front taking long to report its focus
+    volatile bool answeredSinceStart;
+    public bool Started { get { return answeredSinceStart; } }
 
     int lastKill;
 
@@ -233,6 +238,7 @@ class PasswordGuardClient
                     CreateNoWindow = true
                 };
                 guardStarted = DateTime.UtcNow;
+                answeredSinceStart = false;
                 if (guard != null) guard.Dispose();   // the one that exited
                 guard = Process.Start(info);
                 guard.EnableRaisingEvents = true;
@@ -246,6 +252,7 @@ class PasswordGuardClient
     void Restart()
     {
         // It crashed (it leaves with 0 only together with KeyFish): Windows' record of it goes to crash.log once written
+        answeredSinceStart = false;
         int code = 0;
         try { code = guard.ExitCode; } catch { }
         if (code != 0)

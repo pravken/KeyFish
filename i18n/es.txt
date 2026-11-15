@@ -113,6 +113,7 @@ Open	Abrir
 Yes	Sí
 No	No
 The password-field check is starting…	La comprobación de campos de contraseña se está iniciando…
+Waiting for the active app to answer the password-field check…	Esperando la respuesta de la aplicación activa para la comprobación de campos de contraseña…
 Updates	Actualizaciones
 Check	Comprobar
 Update	Actualizar
