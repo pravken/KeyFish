@@ -82,11 +82,8 @@ keyboard layout; wrong layout; layout switcher; auto switch layout; transliterat
 
 **What's new in this version**
 
-• Shortcuts are no longer intercepted in apps where KeyFish is off
-• No error message after an update from the Store
-• Safer fixes when you click during typing
-• Mixed-case words like eSIM and iOS stay as typed
-• Bug fixes
+• Opening KeyFish from the Start menu or the Store shows its settings
+• A clearer tray tooltip while the password-field check waits for an app
 
 **Short description**
 
@@ -139,11 +136,8 @@ KeyFish бесплатна, исходный код открыт.
 
 **Что нового в этой версии**
 
-• Сочетания клавиш не перехватываются в программах, где KeyFish выключен
-• Нет сообщения об ошибке после обновления из Store
-• Надёжнее исправление, если щёлкнуть мышью во время набора
-• Слова вроде eSIM и iOS остаются как набраны
-• Исправления ошибок
+• Запуск KeyFish из меню «Пуск» или Store открывает настройки
+• Понятнее подсказка у значка, пока проверка полей пароля ждёт программу
 
 **Краткое описание**
 
@@ -196,11 +190,8 @@ KeyFish безкоштовна, вихідний код відкритий.
 
 **What's new in this version**
 
-• Сполучення клавіш не перехоплюються в програмах, де KeyFish вимкнено
-• Немає повідомлення про помилку після оновлення з Store
-• Надійніше виправлення, якщо клацнути мишею під час набору
-• Слова на кшталт eSIM та iOS залишаються як набрані
-• Виправлення помилок
+• Запуск KeyFish з меню «Пуск» або Store відкриває налаштування
+• Зрозуміліша підказка біля значка, поки перевірка полів пароля чекає на програму
 
 **Short description**
 
@@ -253,11 +244,8 @@ KeyFish бясплатная, зыходны код адкрыты.
 
 **What's new in this version**
 
-• Спалучэнні клавіш не перахопліваюцца ў праграмах, дзе KeyFish выключаны
-• Няма паведамлення пра памылку пасля абнаўлення са Store
-• Надзейней выпраўленне, калі пстрыкнуць мышшу падчас набору
-• Словы накшталт eSIM і iOS застаюцца як набраныя
-• Выпраўленні памылак
+• Запуск KeyFish з меню «Пуск» або Store адкрывае налады
+• Больш зразумелая падказка каля значка, пакуль праверка палёў пароля чакае праграму
 
 **Short description**
 
@@ -310,11 +298,8 @@ Tastaturlayout; falsches Layout; Layout wechseln; automatischer Layoutwechsel; T
 
 **What's new in this version**
 
-• Tastenkombinationen werden in Anwendungen, in denen KeyFish aus ist, nicht mehr abgefangen
-• Keine Fehlermeldung mehr nach einem Update aus dem Store
-• Zuverlässigere Korrektur bei einem Mausklick während des Tippens
-• Wörter in gemischter Schreibweise wie eSIM und iOS bleiben wie getippt
-• Fehlerbehebungen
+• Beim Öffnen aus dem Startmenü oder dem Store erscheinen die Einstellungen
+• Klarerer Tooltip am Symbol, während die Passwortfeld-Prüfung auf eine Anwendung wartet
 
 **Short description**
 
@@ -367,11 +352,8 @@ układ klawiatury; zły układ klawiatury; przełącznik układu; automatyczna z
 
 **What's new in this version**
 
-• Skróty klawiszowe nie są przechwytywane w programach, w których KeyFish jest wyłączony
-• Brak komunikatu o błędzie po aktualizacji ze Store
-• Pewniejsza poprawka po kliknięciu myszą podczas pisania
-• Słowa takie jak eSIM i iOS pozostają bez zmian
-• Poprawki błędów
+• Uruchomienie KeyFish z menu Start lub Store otwiera ustawienia
+• Czytelniejsza podpowiedź przy ikonie, gdy sprawdzanie pól haseł czeka na program
 
 **Short description**
 
@@ -424,11 +406,8 @@ KeyFish је бесплатан и отвореног кода.
 
 **What's new in this version**
 
-• Пречице на тастатури се више не пресрећу у програмима у којима је KeyFish искључен
-• Нема поруке о грешци после ажурирања из Store-а
-• Поузданије исправљање ако кликнете мишем током куцања
-• Речи попут eSIM и iOS остају како су откуцане
-• Исправке грешака
+• Покретање KeyFish-а из менија Старт или Store-а отвара подешавања
+• Јаснији опис уз иконицу док провера поља за лозинке чека програм
 
 **Short description**
 
@@ -481,11 +460,8 @@ disposition clavier; mauvaise disposition; changer de disposition; changement au
 
 **What's new in this version**
 
-• Les raccourcis ne sont plus interceptés dans les applications où KeyFish est désactivé
-• Plus de message d'erreur après une mise à jour depuis le Store
-• Corrections plus sûres en cas de clic pendant la saisie
-• Les mots à casse mixte comme eSIM et iOS restent tels quels
-• Corrections de bugs
+• Ouvrir KeyFish depuis le menu Démarrer ou le Store affiche ses paramètres
+• Info-bulle plus claire lorsque la vérification des champs de mot de passe attend une application
 
 **Short description**
 
@@ -538,11 +514,8 @@ distribución de teclado; distribución incorrecta; cambiar distribución; cambi
 
 **What's new in this version**
 
-• Los atajos ya no se interceptan en las aplicaciones donde KeyFish está desactivado
-• Sin mensaje de error tras una actualización desde la Store
-• Correcciones más seguras al hacer clic durante la escritura
-• Las palabras con mayúsculas mixtas como eSIM e iOS se mantienen tal cual
-• Corrección de errores
+• Abrir KeyFish desde el menú Inicio o la Store muestra su configuración
+• Información más clara junto al icono mientras la comprobación de campos de contraseña espera a una aplicación
 
 **Short description**
 

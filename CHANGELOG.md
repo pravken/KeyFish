@@ -1,3 +1,8 @@
+2.6.2 2026-11-15
+Improved:
+• Starting KeyFish by hand (the Start menu, Open in Microsoft Store) opens Settings, also when it is already running
+• The tray icon tooltip tells a starting password-field check from waiting for an app
+
 2.6.1 2026-11-14
 Fixed:
 • Shortcuts were intercepted in apps where KeyFish is off and in password fields
