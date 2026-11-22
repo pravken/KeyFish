@@ -1,3 +1,14 @@
+2.6.3 2026-11-23
+Fixed:
+• Ctrl, Alt or Win held during a fix could spoil it
+• A fix given up after 3 seconds could still be typed later
+• Typing froze for 3 seconds when another program (AutoHotkey, PowerToys) took the held keys
+• Rare crashes in the mouse hook and in the check of a fix
+Improved:
+• Faster fixes: shorter waits for the layout switch and the password-field check
+• The spelling fix no longer delays layout fixes
+• Classic Notepad in Windows 10 is no longer slowed down
+
 2.6.2 2026-11-15
 Improved:
 • Starting KeyFish by hand (the Start menu, Open in Microsoft Store) opens Settings, also when it is already running

@@ -82,8 +82,9 @@ keyboard layout; wrong layout; layout switcher; auto switch layout; transliterat
 
 **What's new in this version**
 
-• Opening KeyFish from the Start menu or the Store shows its settings
-• A clearer tray tooltip while the password-field check waits for an app
+• Faster and more reliable fixes
+• Ctrl, Alt or Win held during a fix no longer spoil it
+• Bug fixes
 
 **Short description**
 
@@ -136,8 +137,9 @@ KeyFish бесплатна, исходный код открыт.
 
 **Что нового в этой версии**
 
-• Запуск KeyFish из меню «Пуск» или Store открывает настройки
-• Понятнее подсказка у значка, пока проверка полей пароля ждёт программу
+• Исправления быстрее и надёжнее
+• Ctrl, Alt или Win, зажатые во время исправления, больше его не портят
+• Исправления ошибок
 
 **Краткое описание**
 
@@ -190,8 +192,9 @@ KeyFish безкоштовна, вихідний код відкритий.
 
 **What's new in this version**
 
-• Запуск KeyFish з меню «Пуск» або Store відкриває налаштування
-• Зрозуміліша підказка біля значка, поки перевірка полів пароля чекає на програму
+• Виправлення швидші й надійніші
+• Ctrl, Alt або Win, затиснуті під час виправлення, більше його не псують
+• Виправлення помилок
 
 **Short description**
 
@@ -244,8 +247,9 @@ KeyFish бясплатная, зыходны код адкрыты.
 
 **What's new in this version**
 
-• Запуск KeyFish з меню «Пуск» або Store адкрывае налады
-• Больш зразумелая падказка каля значка, пакуль праверка палёў пароля чакае праграму
+• Выпраўленні хутчэйшыя і надзейнейшыя
+• Ctrl, Alt або Win, заціснутыя падчас выпраўлення, больш яго не псуюць
+• Выпраўленні памылак
 
 **Short description**
 
@@ -298,8 +302,9 @@ Tastaturlayout; falsches Layout; Layout wechseln; automatischer Layoutwechsel; T
 
 **What's new in this version**
 
-• Beim Öffnen aus dem Startmenü oder dem Store erscheinen die Einstellungen
-• Klarerer Tooltip am Symbol, während die Passwortfeld-Prüfung auf eine Anwendung wartet
+• Schnellere und zuverlässigere Korrekturen
+• Während einer Korrektur gehaltenes Strg, Alt oder Win verdirbt sie nicht mehr
+• Fehlerbehebungen
 
 **Short description**
 
@@ -352,8 +357,9 @@ układ klawiatury; zły układ klawiatury; przełącznik układu; automatyczna z
 
 **What's new in this version**
 
-• Uruchomienie KeyFish z menu Start lub Store otwiera ustawienia
-• Czytelniejsza podpowiedź przy ikonie, gdy sprawdzanie pól haseł czeka na program
+• Szybsze i pewniejsze poprawki
+• Ctrl, Alt lub Win przytrzymane podczas poprawki już jej nie psują
+• Poprawki błędów
 
 **Short description**
 
@@ -406,8 +412,9 @@ KeyFish је бесплатан и отвореног кода.
 
 **What's new in this version**
 
-• Покретање KeyFish-а из менија Старт или Store-а отвара подешавања
-• Јаснији опис уз иконицу док провера поља за лозинке чека програм
+• Бржа и поузданија исправљања
+• Ctrl, Alt или Win притиснути током исправљања више га не кваре
+• Исправке грешака
 
 **Short description**
 
@@ -460,8 +467,9 @@ disposition clavier; mauvaise disposition; changer de disposition; changement au
 
 **What's new in this version**
 
-• Ouvrir KeyFish depuis le menu Démarrer ou le Store affiche ses paramètres
-• Info-bulle plus claire lorsque la vérification des champs de mot de passe attend une application
+• Corrections plus rapides et plus fiables
+• Ctrl, Alt ou Win maintenu pendant une correction ne la gâche plus
+• Corrections de bugs
 
 **Short description**
 
@@ -514,8 +522,9 @@ distribución de teclado; distribución incorrecta; cambiar distribución; cambi
 
 **What's new in this version**
 
-• Abrir KeyFish desde el menú Inicio o la Store muestra su configuración
-• Información más clara junto al icono mientras la comprobación de campos de contraseña espera a una aplicación
+• Correcciones más rápidas y fiables
+• Ctrl, Alt o Win pulsado durante una corrección ya no la estropea
+• Corrección de errores
 
 **Short description**
 
