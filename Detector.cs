@@ -108,27 +108,42 @@ public class LangModel
         // with the square of the length: seconds for a "word" of 30,000 letters
         if (word.Length < 3 || word.Length > longest + 1 || (commonOnly && !HasFrequencies)) return false;
         long common = commonOnly ? this.common : 1;
+        // Every variant is made in place in one buffer and looked up from there: a new string for each was some seventy
+        // per letter, in the keyboard hook
+        int n = word.Length;
         var chars = word.ToCharArray();
-        for (int i = 0; i < chars.Length; i++)
+        var other = new char[n + 1];
+        for (int i = 0; i < n; i++)
         {
             char keep = chars[i];
             foreach (char c in letters)
             {
                 if (c == keep) continue;
                 chars[i] = c;
-                if (Count(new string(chars)) >= common) { chars[i] = keep; return true; }
+                if (Count(chars, n) >= common) return true;
             }
             chars[i] = keep;
-            if (i + 1 < chars.Length && chars[i] != chars[i + 1])
+            if (i + 1 < n && chars[i] != chars[i + 1])
             {
-                string swapped = word.Substring(0, i) + word[i + 1] + word[i] + word.Substring(i + 2);
-                if (Count(swapped) >= common) return true;
+                chars[i] = chars[i + 1]; chars[i + 1] = keep;
+                bool near = Count(chars, n) >= common;
+                chars[i + 1] = chars[i]; chars[i] = keep;
+                if (near) return true;
             }
-            if (Count(word.Remove(i, 1)) >= common) return true;
+            word.CopyTo(0, other, 0, i);
+            word.CopyTo(i + 1, other, i, n - i - 1);
+            if (Count(other, n - 1) >= common) return true;
         }
-        for (int i = 0; i <= word.Length; i++)
+        for (int i = 0; i <= n; i++)
+        {
+            word.CopyTo(0, other, 0, i);
+            word.CopyTo(i, other, i + 1, n - i);
             foreach (char c in letters)
-                if (Count(word.Insert(i, c.ToString())) >= common) return true;
+            {
+                other[i] = c;
+                if (Count(other, n + 1) >= common) return true;
+            }
+        }
         return false;
     }
 
@@ -172,6 +187,30 @@ public class LangModel
             if (d != 0) return d;
         }
         return word.Length - n;
+    }
+
+    // The same as Count(string) for the first length characters of a buffer, without making a string of them
+    int Compare(char[] word, int length, int i)
+    {
+        int s = starts[i], n = starts[i + 1] - s;
+        for (int k = 0; k < length && k < n; k++)
+        {
+            int d = word[k] - text[s + k];
+            if (d != 0) return d;
+        }
+        return length - n;
+    }
+
+    long Count(char[] word, int length)
+    {
+        int lo = 0, hi = counts.Length - 1;
+        while (lo <= hi)
+        {
+            int mid = (lo + hi) >> 1, c = Compare(word, length, mid);
+            if (c == 0) return HasFrequencies ? counts[mid] : TypicalCount;
+            if (c < 0) hi = mid - 1; else lo = mid + 1;
+        }
+        return Lang == "el" && length > 1 ? Count(new string(word, 0, length)) : 0;   // the words without accents
     }
 
     public long Count(string word)
@@ -442,9 +481,9 @@ public static class Detector
     public static bool LooksLikeCode(string typed)
     {
         if (typed.IndexOf("://", StringComparison.Ordinal) >= 0 || typed.StartsWith("www.", StringComparison.OrdinalIgnoreCase)) return true;
-        string inner = typed.Length > 2 ? typed.Substring(1, typed.Length - 2) : "";
-        return inner.IndexOfAny(CodeSymbols.ToCharArray()) >= 0;
+        return typed.Length > 2 && typed.IndexOfAny(CodeSymbolChars, 1, typed.Length - 2) >= 0;
     }
+    static readonly char[] CodeSymbolChars = CodeSymbols.ToCharArray();
 
     // Numbers, e-mails, identifiers, links and code aren't words to fix: a digit, "@", "_" or what LooksLikeCode finds.
     // But a key that types a digit or a symbol in one layout types a letter in another: French é è ç à and Czech

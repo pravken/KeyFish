@@ -30,6 +30,7 @@ static class GuardNames
     public static string VerifyAnswer(int pid) { return "Local\\KeyFish_GuardVerifyDone_" + pid; }
     public static string Memory(int pid) { return "Local\\KeyFish_Guard_" + pid; }
     public static string Signal(int pid) { return "Local\\KeyFish_GuardCheck_" + pid; }
+    public static string Urgent(int pid) { return "Local\\KeyFish_GuardUrgent_" + pid; }
     public static string CaretAsk(int pid) { return "Local\\KeyFish_GuardCaret_" + pid; }
     public static string CaretAnswer(int pid) { return "Local\\KeyFish_GuardCaretDone_" + pid; }
 }
@@ -40,7 +41,7 @@ class PasswordGuardClient
     readonly int pid = Process.GetCurrentProcess().Id;
     readonly MemoryMappedFile memory;
     readonly MemoryMappedViewAccessor view;
-    readonly EventWaitHandle signal, caretAsk, caretAnswer, verifyAsk, verifyAnswer;
+    readonly EventWaitHandle signal, urgent, caretAsk, caretAnswer, verifyAsk, verifyAnswer;
     readonly object verifySync = new object();
     int verifyQuestion;
 
@@ -90,6 +91,7 @@ class PasswordGuardClient
         memory = MemoryMappedFile.CreateNew(GuardNames.Memory(pid), GuardNames.Size);
         view = memory.CreateViewAccessor(0, GuardNames.Size);
         signal = new EventWaitHandle(false, EventResetMode.AutoReset, GuardNames.Signal(pid));
+        urgent = new EventWaitHandle(false, EventResetMode.AutoReset, GuardNames.Urgent(pid));
         caretAsk = new EventWaitHandle(false, EventResetMode.AutoReset, GuardNames.CaretAsk(pid));
         verifyAsk = new EventWaitHandle(false, EventResetMode.AutoReset, GuardNames.VerifyAsk(pid));
         verifyAnswer = new EventWaitHandle(false, EventResetMode.AutoReset, GuardNames.VerifyAnswer(pid));
@@ -184,11 +186,12 @@ class PasswordGuardClient
 
     volatile int unansweredSince;   // when a check was asked for that hasn't been answered yet (0: none)
 
-    // Ask the guard to look at the focus now; cheap enough to call on every keystroke
-    public void RequestCheck()
+    // Ask the guard to look at the focus now; cheap enough to call on every keystroke. urgent: a fix or a hotkey waits
+    // for the answer, so the guard doesn't sit out the rest of its pause after the last check (see CheckFocus)
+    public void RequestCheck(bool urgent = false)
     {
         if (unansweredSince == 0) unansweredSince = GuardClock.Now | 1;
-        try { signal.Set(); } catch { }
+        try { signal.Set(); if (urgent) this.urgent.Set(); } catch { }
     }
 
     // False while a check asked for has gone unanswered for seconds: the guard is starting, restarting or stuck,
@@ -364,7 +367,10 @@ static class PasswordGuardProcess
         // The focus is read on a thread of its own, in the multithreaded apartment UI Automation clients are meant to use
         // Above normal: under a heavy load (a render, a build) a check at normal priority waited its turn for a second
         // and more, and the words typed meanwhile went uncorrected
-        var checks = new Thread(() => CheckFocus(view, signal)) { IsBackground = true, Priority = ThreadPriority.AboveNormal };
+        // Missing when an older KeyFish started this guard (the exe was updated in place): it pauses as that one did
+        EventWaitHandle urgent = null;
+        try { urgent = EventWaitHandle.OpenExisting(GuardNames.Urgent(parentPid)); } catch { }
+        var checks = new Thread(() => CheckFocus(view, signal, urgent)) { IsBackground = true, Priority = ThreadPriority.AboveNormal };
         checks.SetApartmentState(ApartmentState.MTA);
         checks.Start();
 
@@ -436,7 +442,7 @@ static class PasswordGuardProcess
                cls == "Internet Explorer_Server";
     }
 
-    static void CheckFocus(MemoryMappedViewAccessor view, EventWaitHandle signal)
+    static void CheckFocus(MemoryMappedViewAccessor view, EventWaitHandle signal, EventWaitHandle urgent)
     {
         // The two properties the check needs come together with the focused element, in one call to the app; read one
         // by one, each was another call (and a browser builds its accessibility answers anew for every one)
@@ -490,7 +496,14 @@ static class PasswordGuardProcess
             micros += (Stopwatch.GetTimestamp() - started) * 1000000 / Stopwatch.Frequency;
             view.Write(40, ++count);
             view.Write(48, micros);
-            Thread.Sleep(100); // at most ten times a second; keystrokes in between merge into one check
+            // At most ten times a second: keystrokes and focus events in between merge into one check. A check a fix
+            // or a hotkey waits for comes sooner, after a short pause that still merges the keys of a fast typist
+            if (urgent == null) Thread.Sleep(100);
+            else
+            {
+                Thread.Sleep(15);
+                urgent.WaitOne(85);
+            }
         }
     }
 }

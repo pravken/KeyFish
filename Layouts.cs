@@ -437,11 +437,40 @@ public class LayoutSet
         }
         System.Threading.ThreadPool.QueueUserWorkItem(_ =>
         {
-            foreach (string l in langs) { try { Detector.Load(l); } catch { } }
-            Detector.ReturnMemory();
+            bool built = false;
+            foreach (string l in langs)
+            {
+                if (Detector.Loaded(l) != null) continue;
+                try { Detector.Load(l); built = true; } catch { }
+            }
+            // A collection stops every thread of KeyFish, the keyboard hook too, and with it typing in every app: only
+            // when a model was built and left its temporary tables behind
+            if (built) Detector.ReturnMemory();
             ModelsLoaded = DateTime.Now;
             ModelsLoadedLangs = string.Join(" ", langs);
+            WarmUp();
         });
+    }
+
+    static int warmed;
+
+    // The code that decides about a word is compiled now, once, rather than in the keyboard hook on the first word
+    static void WarmUp()
+    {
+        if (System.Threading.Interlocked.Exchange(ref warmed, 1) != 0) return;
+        const System.Reflection.BindingFlags all = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Static |
+                                                   System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic |
+                                                   System.Reflection.BindingFlags.DeclaredOnly;
+        // KeyboardWatcher by name: the checks in tests\ build this file without it
+        foreach (var type in new[] { Type.GetType("KeyboardWatcher"), typeof(Detector), typeof(LangModel), typeof(LayoutTable) })
+        {
+            if (type == null) continue;
+            foreach (var m in type.GetMethods(all))
+            {
+                if (m.IsAbstract || m.ContainsGenericParameters) continue;
+                try { System.Runtime.CompilerServices.RuntimeHelpers.PrepareMethod(m.MethodHandle); } catch { }
+            }
+        }
     }
 
     // When the language models of the installed layouts were last ready, for the diagnostics log

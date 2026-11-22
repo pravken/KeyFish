@@ -204,6 +204,11 @@ class KeyboardWatcher
         public int FocusSeq = -1;            // a fix: the guard's count of focus changes when it was decided; changed by the time
                                              // it is typed, the focus moved within the window (a script, a touch) and it isn't typed
         public RecentFix Recent;             // the fix as listed in the tray, taken off the list if it isn't typed after all
+        public HeldKey[] Replay;             // not null: replay these held keystrokes (batch Batch), nothing else
+        public int Batch;
+        public int Gen;                      // stuckGen when queued: a job the 3-second rule gave up on is never typed
+        public bool Started;                 // under sync: its keys are being sent, too late to give its terminator back
+        public bool OwnsTerminator;          // the key that ended the word was swallowed for this fix (not typed yet)
     }
 
     public volatile bool Enabled = true;
@@ -359,18 +364,37 @@ class KeyboardWatcher
         replayLeft = keys.Length;
         replayInsertAt = 0;
         replaying = true;
-        int batch = ++replayBatch;
-        ThreadPool.QueueUserWorkItem(_ =>
-        {
-            try { W.SendHeld(keys); } catch { }
-            lock (sync)
-            {
-                if (batch != replayBatch) return;
-                replaying = false;
-                if (replayLeft == 0 && noJobs) StartReplay();
-            }
-        });
+        // Sent by the worker, the one thread that sends KeyFish's input: in order with the fixes, and not behind whatever
+        // else the thread pool is busy with
+        jobs.Add(new Job { Replay = keys, Batch = ++replayBatch, Gen = stuckGen });
     }
+
+    void Replay(Job job)
+    {
+        lock (sync)
+        {
+            if (job.Started) return;   // given back already by the 3-second rule
+            job.Started = true;
+        }
+        try { W.SendHeld(job.Replay); } catch { }
+        lock (sync)
+        {
+            if (job.Batch != replayBatch) return;
+            // SendInput returns once every low-level hook has had the keys. Some not counted off means another program's
+            // hook ahead of KeyFish's took them (a remapping tool): waiting for them would hold all typing for 3 seconds
+            if (replayLeft != 0)
+            {
+                if (diagnose) Diagnose(W.GetForegroundWindow(), replayLeft + " replayed keys never reached the hook");
+                replayLeft = 0;
+            }
+            replaying = false;
+            if (noJobs) StartReplay();
+        }
+    }
+
+    // Raised by the 3-second rule: the jobs queued before it are dropped, not typed late over newer text
+    int stuckGen;
+    volatile Job running;                // the job the worker is on
     readonly BlockingCollection<Job> jobs = new BlockingCollection<Job>();
 
     // How many Backspaces erase this text: one per character, an emoji (two UTF-16 units) is one, and a line break that
@@ -393,6 +417,8 @@ class KeyboardWatcher
     void Queue(Job job, bool fix = false)
     {
         job.Epoch = focusEpoch;
+        job.Gen = stuckGen;
+        job.OwnsTerminator = fix;   // a fix of the word just ended holds its space or Enter; an undo or a typo comes after it
         if (fix && last != null) job.Recent = last.Recent;
         if (fix && guard != null) job.FocusSeq = guard.FocusChanges;
         jobs.Add(job);
@@ -429,7 +455,11 @@ class KeyboardWatcher
 
         try { guard = new PasswordGuardClient(); }
         catch (Exception ex) { CrashLog.Write("the password-field check couldn't start", ex); }   // nothing is corrected then, and the fish is grey
-        new Thread(Worker) { IsBackground = true }.Start();
+        // Above normal: while it waits its turn behind a busy computer's other work, the hook holds every key typed
+        new Thread(Worker) { IsBackground = true, Priority = ThreadPriority.AboveNormal }.Start();
+        // The spell check on a thread of its own: Windows loading a dictionary takes a while, and a fix of the layout
+        // queued meanwhile doesn't wait for it
+        new Thread(TypoWorker) { IsBackground = true }.Start();
         // Above the rest of KeyFish: Windows drops a low-level hook that answers too slowly, and a busy computer is
         // when that happens
         new Thread(() =>
@@ -466,17 +496,40 @@ class KeyboardWatcher
         if (!W.GetLastInputInfo(ref info)) return;
         int seen = (int)info.dwTime;
         if (diagnose) perf.Tick(this);
-        bool lost = keyboardHook == IntPtr.Zero || mouseHook == IntPtr.Zero || seen - lastHookEvent > 1000;
+        bool missing = keyboardHook == IntPtr.Zero || mouseHook == IntPtr.Zero;
+        bool lost = missing || probeFailed || seen - lastHookEvent > 1000;
         if (!lost || Environment.TickCount - lastReinstall < 10000) return;
+        // Input that never reached the hooks may be touch or a pen, which they don't see. Before starting over (which
+        // forgets the word and stops a fix on its way), a key of KeyFish's own is sent past the hook: seen, it works
+        if (!missing && !probeFailed)
+        {
+            if (Interlocked.CompareExchange(ref probing, 1, 0) != 0) return;
+            probeSeen = false;
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try
+                {
+                    W.SendProbe();                         // seen, the hook has noted the time itself
+                    if (!probeSeen) probeFailed = true;    // the next look reinstalls them
+                }
+                catch { probeFailed = true; }
+                finally { Volatile.Write(ref probing, 0); }
+            });
+            return;
+        }
+        probeFailed = false;
         lastReinstall = Environment.TickCount;
         if (diagnose)
-            WriteDiagnostics("hooks reinstalled: " + (keyboardHook == IntPtr.Zero || mouseHook == IntPtr.Zero ? "one wasn't installed" :
-                             "Windows registered input " + (seen - lastHookEvent) + " ms after the hooks were last called"));
+            WriteDiagnostics("hooks reinstalled: " + (missing ? "one wasn't installed" :
+                             "Windows registered input " + (seen - lastHookEvent) + " ms after the hooks were last called, and a key sent past them didn't reach them"));
         lastHookEvent = seen;   // this input is accounted for: only newer missed input counts next time
         // Keys may have gone by unseen: what was being typed, and where, isn't known any more
         lock (sync) { ResetAll(); erasedKeys = null; last = null; focusEpoch++; }
         InstallHooks();
     }
+
+    int probing;
+    volatile bool probeSeen, probeFailed;
 
     // Called on the hook thread for every key and mouse click: KeyFish's tray icon wakes up to look at the layout
     // (it is switched with keys, or by clicking the taskbar). Must be quick and must not throw
@@ -495,6 +548,14 @@ class KeyboardWatcher
     IntPtr MouseHook(int code, IntPtr wParam, IntPtr lParam)
     {
         lastHookEvent = Environment.TickCount;
+        // An error leaving a hook ends KeyFish at once: it is noted and the click goes on
+        try { OnMouse(code, wParam, lParam); }
+        catch (Exception ex) { Failed("the mouse hook", ex); }
+        return W.CallNextHookEx(IntPtr.Zero, code, wParam, lParam);
+    }
+
+    void OnMouse(int code, IntPtr wParam, IntPtr lParam)
+    {
         int msg = wParam.ToInt32();
         if (code >= 0 && (msg == 0x0201 || msg == 0x0202))
         {
@@ -530,7 +591,6 @@ class KeyboardWatcher
                 if (last != null && clicked == last.Hwnd) last = null;
             }
         }
-        return W.CallNextHookEx(IntPtr.Zero, code, wParam, lParam);
     }
 
     IntPtr KeyboardHook(int code, IntPtr wParam, IntPtr lParam)
@@ -583,6 +643,11 @@ class KeyboardWatcher
                 ctrlHeld = down;
                 if (!down) ctrlLifted = false;
             }
+            // The modifiers the user holds, as only the hook can tell: a fix lifts them while it types, and the state
+            // Windows keeps then says they are up
+            if (k.dwExtraInfo != W.Marker && k.scanCode != 0x21D) W.NoteModifier((int)k.vkCode, down);
+            // KeyFish's own key that checks the hook is alive (CheckHooks): no app gets it
+            if (k.dwExtraInfo == W.ProbeMarker) { probeSeen = true; return true; }
             if (k.dwExtraInfo != W.Marker && QuickKey != 0)
             {
                 bool swallowQuick;
@@ -631,6 +696,12 @@ class KeyboardWatcher
         }
     }
 
+    // A key a job swallowed, given back as typed: a space, Enter, Tab, or a letter that went with Ctrl
+    static HeldKey Given(int vk, bool ctrl)
+    {
+        return new HeldKey { Vk = vk, Scan = (int)W.MapVirtualKeyEx((uint)vk, 0, IntPtr.Zero), Ctrl = ctrl };
+    }
+
     HeldKey Held(int vk, int scan, bool extended)
     {
         return new HeldKey { Vk = vk, Scan = scan, Extended = extended, Shift = Down(0x10), Ctrl = Down(0x11), Alt = Down(0x12), Win = Down(0x5B) || Down(0x5C) };
@@ -653,10 +724,27 @@ class KeyboardWatcher
                 replaying = false;
                 replayBatch++;   // a batch still on its way no longer counts
                 noJobs = true;
-                var stuck = heldDuringPending.ToArray();
+                // The jobs queued so far are dropped (Execute checks stuckGen): typed late, their Backspaces would erase
+                // what is typed from now on. What they swallowed goes back first, in the order it was typed: a word's
+                // space or Enter, a key resent with Ctrl, keys still waiting to be replayed
+                var stuck = new List<HeldKey>();
+                var all = new List<Job>();
+                var r = running;
+                if (r != null) all.Add(r);
+                all.AddRange(jobs.ToArray());
+                foreach (var job in all)
+                {
+                    if (job.Gen != stuckGen || job.Started) continue;
+                    job.Started = true;   // and never sent now
+                    if (job.Replay != null) stuck.AddRange(job.Replay);
+                    else if (job.CtrlComboVk != 0) stuck.Add(Given(job.CtrlComboVk, true));
+                    else if (job.TerminatorVk != 0 && job.OwnsTerminator) stuck.Add(Given(job.TerminatorVk, false));
+                }
+                stuckGen++;
+                stuck.AddRange(heldDuringPending);
                 heldDuringPending.Clear();
-                if (diagnose) Diagnose(W.GetForegroundWindow(), "correction stuck for " + (Environment.TickCount - pendingSince) + " ms: " + stuck.Length + " held keys given back");
-                if (stuck.Length > 0) ThreadPool.QueueUserWorkItem(_ => { try { W.SendHeld(stuck); } catch { } });
+                if (diagnose) Diagnose(W.GetForegroundWindow(), "correction stuck for " + (Environment.TickCount - pendingSince) + " ms: " + stuck.Count + " held keys given back");
+                if (stuck.Count > 0) ThreadPool.QueueUserWorkItem(_ => { try { W.SendHeld(stuck); } catch { } });
             }
 
             // Undo via Ctrl+Z lifted Ctrl while the user still holds it: this key must arrive with Ctrl,
@@ -799,7 +887,7 @@ class KeyboardWatcher
             if (typesChar)
             {
                 eraseStops = null;
-                if (word.Count == 0) wordStartedAt = GuardClock.Now;
+                if (word.Count == 0) { wordStartedAt = GuardClock.Now; wordFocusSeq = guard != null ? guard.FocusChanges : -1; }
                 else eraseSnapshot = null;   // a letter in the middle of erasing: the word is being edited, not erased
                 eraseRec = null;
                 if (word.Count < 40) { word.Add(new KeyStroke(scan, shift, caps, altGr)); wordLayouts.Add(layout); }
@@ -1258,7 +1346,9 @@ class KeyboardWatcher
             };
             SetPending();
             Interlocked.Increment(ref correctionCount);
-            Queue(new Job { Backspaces = typed.Length + 1, Text = alt, TerminatorVk = 0x20, Layout = hintLayout.Hkl, Hwnd = hintHwnd }, true);
+            var job = new Job { Backspaces = typed.Length + 1, Text = alt, TerminatorVk = 0x20, Layout = hintLayout.Hkl, Hwnd = hintHwnd };
+            Queue(job, true);
+            job.OwnsTerminator = false;   // the space after the word is typed already: erased and typed again
         }
         Learn(typed, alt, lang);
         return true;
@@ -1308,6 +1398,10 @@ class KeyboardWatcher
             guard.Read(out password, out checkedAt);
             verified = GuardClock.After(checkedAt, wordStartedAt);
         }
+        // The focus moved within the window while the word was typed (a script, a page putting it into its password
+        // field): a check made before that says nothing about where the word ends. Its fix waits for a check made now
+        bool movedInWord = verified && guard.FocusChanges != wordFocusSeq;
+        if (movedInWord) verified = false;
         string skip = wasPartial ? "edited mid-word" : word.Count >= 40 || overflow ? "too long" : password ? "password field" :
                       !verified && (guard == null || !guard.Answering) ? "focus not checked yet" : IsOwnWindow(hwnd) ? "KeyFish window" : IsExcluded(hwnd) ? "excluded app" :
                       W.HasMoreRights(hwnd) ? "app run as administrator" :
@@ -1324,7 +1418,7 @@ class KeyboardWatcher
         }
         // Not checked yet (under a heavy load a check can take a second): the word is decided now, and a fix of it is
         // held, with the keys typed after it, until the check comes. Without a fix nothing waits
-        verifyFrom = verified ? 0 : wordStartedAt | 1;
+        verifyFrom = verified ? 0 : movedInWord ? GuardClock.Now | 1 : wordStartedAt | 1;
 
         var current = Layouts.Get(W.LayoutHkl(hwnd));
         var T = current == null ? null : Detector.Loaded(current.Lang);
@@ -1631,7 +1725,7 @@ class KeyboardWatcher
             // The spell check can take a while (Windows loads the dictionary on first use), so typing isn't held
             // for it; the fix is applied only if nothing was typed after the space
             if (fixTypos && verifyFrom == 0 && terminatorVk == 0x20 && TypoCandidate(typed))
-                Queue(new Job { TypoRec = rec, TerminatorVk = terminatorVk, Hwnd = hwnd, Serial = keySerial });
+                typoJobs.Add(new Job { TypoRec = rec, TerminatorVk = terminatorVk, Hwnd = hwnd, Serial = keySerial, Epoch = focusEpoch });
             return false;
         }
 
@@ -1685,7 +1779,11 @@ class KeyboardWatcher
     // A fix that is still being typed (double Shift right after the space) is waited for, up to half a second
     public bool Undo()
     {
-        for (int i = 0; i < 50 && pending && last != null; i++) Thread.Sleep(10);
+        using (W.Precise())
+        {
+            var clock = Stopwatch.StartNew();
+            while (clock.ElapsedMilliseconds < 500 && pending && last != null) Thread.Sleep(1);
+        }
         return StartUndo(false);
     }
 
@@ -1755,37 +1853,66 @@ class KeyboardWatcher
             DropHint();   // the word on screen isn't the one the hint was for any more
             Interlocked.Increment(ref typoCount);
             Interlocked.Increment(ref correctionCount);
+            // Typed by the worker, in turn with the other fixes; the space after the word is typed already, so it is
+            // erased and typed again with the fix
+            Queue(new Job { Backspaces = typed.Length + 1, Text = text, TerminatorVk = job.TerminatorVk, Hwnd = job.Hwnd, Recent = last.Recent });
         }
-        Execute(new Job { Backspaces = typed.Length + 1, Text = text, TerminatorVk = job.TerminatorVk, Hwnd = job.Hwnd });
+    }
+
+    readonly BlockingCollection<Job> typoJobs = new BlockingCollection<Job>();
+
+    void TypoWorker()
+    {
+        foreach (var job in typoJobs.GetConsumingEnumerable())
+        {
+            try { ProcessTypo(job); }
+            catch (Exception ex) { Failed("a typo check", ex); }
+        }
+    }
+
+    // Under sync: a fix is queued (not only held keys waiting to be replayed)
+    bool FixQueued()
+    {
+        foreach (var j in jobs.ToArray()) if (j.Replay == null) return true;
+        return false;
     }
 
     void Worker()
     {
         foreach (var job in jobs.GetConsumingEnumerable())
         {
-            try
+            running = job;
+            // Waits here are counted in milliseconds, not in the 15.6 ms steps the timer of Windows takes otherwise
+            using (W.Precise())
             {
-                // A paced replay batch (Notepad of Windows 11) still on its way would interleave with this job's keys:
-                // its modifier changes (Ctrl for a key held with Ctrl) would turn the job's Backspaces into Ctrl+Backspace
-                for (int i = 0; i < 500; i++) { lock (sync) if (!replaying) break; Thread.Sleep(2); }
-                if (job.TypoRec != null) ProcessTypo(job);
-                else if (job.VerifyFrom != 0 && !AwaitCheck(job.VerifyFrom, job.Epoch)) Withdraw(job);
-                else if (job.FocusSeq != -1 && guard != null && guard.FocusChanges != job.FocusSeq) Withdraw(job, "the focus moved before it was typed");
-                // A click in the same field since: the caret is elsewhere, and the Backspaces would erase other text
-                else if (job.FocusSeq != -1 && job.Epoch != focusEpoch) Withdraw(job);
-                // Any other job that erases (a switch while typing, an undo): not at a caret a click has moved
-                else if (job.Backspaces > 0 && job.Epoch != focusEpoch) Diagnose(job.Hwnd, "not typed: a click moved the caret first");
-                else
+                if (job.Replay != null)
                 {
-                    if (job.Placeholders) FillPlaceholders(job);
-                    Execute(job);
+                    try { Replay(job); }
+                    catch (Exception ex) { Failed("a replay", ex); }
+                    running = null;
+                    continue;
                 }
+                try
+                {
+                    if (job.VerifyFrom != 0 && !AwaitCheck(job.VerifyFrom, job.Epoch)) Withdraw(job);
+                    else if (job.FocusSeq != -1 && guard != null && guard.FocusChanges != job.FocusSeq) Withdraw(job, "the focus moved before it was typed");
+                    // A click in the same field since: the caret is elsewhere, and the Backspaces would erase other text
+                    else if (job.FocusSeq != -1 && job.Epoch != focusEpoch) Withdraw(job);
+                    // Any other job that erases (a switch while typing, an undo, a typo): not at a caret a click has moved
+                    else if (job.Backspaces > 0 && job.Epoch != focusEpoch) { Diagnose(job.Hwnd, "not typed: a click moved the caret first"); NotTyped(job); }
+                    else
+                    {
+                        if (job.Placeholders) FillPlaceholders(job);
+                        Execute(job);
+                    }
+                }
+                catch (Exception ex) { Failed("a correction", ex); }
             }
-            catch (Exception ex) { Failed("a correction", ex); }
+            running = null;
             lock (sync)
             {
-                // More jobs queued: keep holding keystrokes so they replay after those jobs, in typing order
-                if (jobs.Count > 0) continue;
+                // More fixes queued: keep holding keystrokes so they replay after those jobs, in typing order
+                if (FixQueued()) continue;
                 noJobs = true;
                 // Replay the keystrokes held back during typing, now as normal input; if some replayed ones are still on
                 // their way, the last of them starts it
@@ -1835,14 +1962,17 @@ class KeyboardWatcher
     bool AwaitCheck(int from, int epoch)
     {
         if (guard == null) return false;
-        for (int i = 0; i < 150; i++)
+        var clock = Stopwatch.StartNew();
+        long asked = -1000;
+        while (clock.ElapsedMilliseconds < 1500)
         {
             if (epoch != focusEpoch) return false;
             bool password; int at;
             guard.Read(out password, out at);
             if (GuardClock.After(at, from)) return !password;
-            if (i % 20 == 0) guard.RequestCheck();
-            Thread.Sleep(10);
+            // Urgent: a fix and the keys typed after it wait for this answer
+            if (clock.ElapsedMilliseconds - asked >= 200) { guard.RequestCheck(true); asked = clock.ElapsedMilliseconds; }
+            Thread.Sleep(1);
         }
         return false;
     }
@@ -1865,11 +1995,32 @@ class KeyboardWatcher
         Diagnose(job.Hwnd, "fix withdrawn: " + (clicked ? "a click moved the caret before it was typed" : why));
         if (clicked) return;
         Explain(job.Hwnd, "not-checked");
-        Execute(new Job { Text = "", TerminatorVk = job.TerminatorVk, Hwnd = job.Hwnd });
+        Execute(new Job { Text = "", TerminatorVk = job.TerminatorVk, Hwnd = job.Hwnd, Gen = job.Gen });
+    }
+
+    // A fix that isn't typed after all: it isn't listed among the fixes, and Pause has nothing to take back
+    void NotTyped(Job job)
+    {
+        lock (sync)
+        {
+            if (job.Recent != null) recent.Remove(job.Recent);
+            if (last != null && last.Hwnd == job.Hwnd) last = null;
+            history.Clear();
+        }
     }
 
     void Execute(Job job)
     {
+        lock (sync)
+        {
+            // Given up by the 3-second rule, which gave its keys back: typed now, it would erase newer text
+            if (job.Gen != stuckGen) { Diagnose(job.Hwnd, "fix dropped: it was given up as stuck"); NotTyped(job); return; }
+            // On its way: too late for the 3-second rule to give its terminator back (the job the worker is on too, when
+            // this one types what that one swallowed)
+            job.Started = true;
+            var r = running;
+            if (r != null) r.Started = true;
+        }
         var inputs = new List<W.INPUT>();
         if (job.CtrlComboVk != 0)
         {
@@ -1884,13 +2035,7 @@ class KeyboardWatcher
         if (job.Hwnd != IntPtr.Zero && W.GetForegroundWindow() != job.Hwnd)
         {
             if (diagnose) WriteDiagnostics(W.ProcessName(job.Hwnd) + "  fix not typed: " + W.ProcessName(W.GetForegroundWindow()) + " came to the front first");
-            // Not typed: it isn't listed among the fixes, and Pause has nothing to take back
-            lock (sync)
-            {
-                if (job.Recent != null) recent.Remove(job.Recent);
-                if (last != null && last.Hwnd == job.Hwnd) last = null;
-                history.Clear();
-            }
+            NotTyped(job);
             return;
         }
         // With Ctrl held, Backspace would erase whole words: lift Ctrl first
@@ -1909,9 +2054,21 @@ class KeyboardWatcher
         bool paced = W.NeedsPacing(job.Hwnd);
         if (inputs.Count > 0)
         {
+            // Modifiers the user holds right now (pressed after the word ended, for the next shortcut) are let go of
+            // while the fix types and pressed back after it: with Ctrl, Backspace erases whole words; with Alt it is
+            // Undo. Ctrl that an undo by Ctrl+Z lifted stays up, and Shift matters only to the arrows after {cursor}
+            int mods = W.AltKeys | W.WinKeys | (job.ReleaseCtrl ? 0 : W.CtrlKeys) |
+                       (job.CaretBack > 0 && job.Text.IndexOf('\n') < 0 ? W.ShiftKeys : 0);
             // A long text typed slowly isn't a stuck correction: the 3-second rule counts from when it will be through
-            if (paced) { lock (sync) pendingSince = Environment.TickCount + inputs.Count * 6; W.SendPaced(inputs); }
-            else W.Send(inputs);
+            if (paced) lock (sync) pendingSince = Environment.TickCount + inputs.Count * 6;
+            if (!W.SendFix(inputs, mods, paced))
+            {
+                // Windows didn't take them all (a window with more rights came up, the secure desktop): what is on
+                // screen isn't known, so nothing is remembered about it
+                Diagnose(job.Hwnd, "fix not typed in full: Windows didn't take all the keys");
+                NotTyped(job);
+                return;
+            }
             // (not with {cursor}: the text after the caret isn't read, so it would never be found in place)
             if (diagnose && job.Text.Length > 0 && job.CaretBack == 0) CheckFix(job);
         }
@@ -1920,7 +2077,8 @@ class KeyboardWatcher
             W.SwitchLayout(job.Hwnd, job.Layout);
             // Keys held meanwhile replay after this: in the old layout they would type the wrong letters. The switch
             // usually lands within a few milliseconds; the fallback in SwitchLayout comes after 100
-            for (int i = 0; i < 40 && W.LayoutHkl(job.Hwnd) != job.Layout; i++) Thread.Sleep(5);
+            var clock = Stopwatch.StartNew();
+            while (clock.ElapsedMilliseconds < 200 && W.LayoutHkl(job.Hwnd) != job.Layout) Thread.Sleep(1);
         }
         // Notepad works on the text when a word ends (its own autocorrection) and when the layout changes, and a key
         // arriving right then is lost: "паспорт" came out "ааспорт", "dog" "og". A typist's next key comes this much
@@ -1982,6 +2140,7 @@ class KeyboardWatcher
     PasswordGuardClient guard;
     bool passwordFocused { get { return guard != null && guard.Password; } }
     volatile int wordStartedAt;
+    int wordFocusSeq = -1;               // the guard's count of focus changes when the word began
 
     // Focus was checked after this word started; otherwise we can't know it isn't a password
     // The password guard answers checks; while it doesn't, nothing is corrected (shown by the tray icon)
@@ -2002,9 +2161,11 @@ class KeyboardWatcher
         bool password, definite; int at;
         guard.Read(out password, out at, out definite);
         int now = Environment.TickCount;
-        if (definite && GuardClock.After(at, wordStartedAt) && now - lastWordCheck < 300) return;
+        bool fresh = GuardClock.After(at, wordStartedAt);
+        if (definite && fresh && now - lastWordCheck < 300) return;
         lastWordCheck = now;
-        guard.RequestCheck();
+        // Urgent while nothing vouches for this word yet: its fix would wait for the answer
+        guard.RequestCheck(!fresh);
     }
 
     // A full-screen game, presentation or video: typing there isn't text, so don't correct
@@ -2084,6 +2245,7 @@ class KeyboardWatcher
                 WriteDiagnostics(app + "  fix check: " + (r == 1 ? "in place" : r == 2 ? "in place, the app changed its case" :
                                                           r == 3 ? "NOT IN PLACE: the app changed or lost the typed text" : "the text can't be read here"));
             }
+            catch (Exception ex) { Failed("the check of a fix", ex); }   // an error on the thread pool would end KeyFish
             finally { Volatile.Write(ref checkingFix, 0); }
         });
     }
@@ -2192,13 +2354,17 @@ class KeyboardWatcher
         if (excluded.Mode(hwnd) == AppMode.Off || IsPasswordField(hwnd)) return HotkeyHere.No;
         if (guard == null) return HotkeyHere.Unknown;
         int asked = GuardClock.Now;
-        guard.RequestCheck();
-        for (int i = 0; i < 50; i++)
+        guard.RequestCheck(true);   // the user waits for it
+        using (W.Precise())
         {
-            bool password; int at;
-            guard.Read(out password, out at);
-            if (GuardClock.After(at, asked)) return password ? HotkeyHere.No : HotkeyHere.Yes;
-            Thread.Sleep(10);
+            var clock = Stopwatch.StartNew();
+            while (clock.ElapsedMilliseconds < 500)
+            {
+                bool password; int at;
+                guard.Read(out password, out at);
+                if (GuardClock.After(at, asked)) return password ? HotkeyHere.No : HotkeyHere.Yes;
+                Thread.Sleep(1);
+            }
         }
         return HotkeyHere.Unknown;
     }
@@ -2396,6 +2562,7 @@ static class W
 {
     public static readonly UIntPtr Marker = (UIntPtr)0x4C464958; // marks our own input so the hook skips it
     public static readonly UIntPtr ReplayMarker = (UIntPtr)0x4C465250; // a held key replayed: the hook handles it as typed
+    public static readonly UIntPtr ProbeMarker = (UIntPtr)0x4C465042;  // checks the hook is alive: the hook swallows it
     public const int WH_KEYBOARD_LL = 13, WH_MOUSE_LL = 14;
 
     public delegate IntPtr HookProc(int code, IntPtr wParam, IntPtr lParam);
@@ -2446,18 +2613,28 @@ static class W
 
     // The window's process name as Task Manager shows it, without .exe; "" if unknown. Asked each time instead of
     // cached by process id: ids are reused, and a stale name could treat a terminal as some excluded app or back
+    // The last answer is kept for the same window of the same process (each word end asks again): a window belongs to one
+    // process for its whole life, and a reused process id comes with other windows
     public static string ProcessName(IntPtr hwnd)
     {
+        uint pid;
+        GetWindowThreadProcessId(hwnd, out pid);
+        var known = lastName;
+        if (pid != 0 && known != null && known.Hwnd == hwnd && known.Pid == pid) return known.Name;
         string name = ImageName(hwnd);
         // Store apps (Mail, Calculator, WhatsApp…) live inside a frame window owned by ApplicationFrameHost;
-        // the app itself is the process of the CoreWindow in that frame
+        // the app itself is the process of the CoreWindow in that frame. Not kept: the frame gets its app a moment late
         if (string.Equals(name, "ApplicationFrameHost", StringComparison.OrdinalIgnoreCase))
         {
             IntPtr core = FindWindowEx(hwnd, IntPtr.Zero, "Windows.UI.Core.CoreWindow", null);
             if (core != IntPtr.Zero) name = ImageName(core);
         }
+        else if (pid != 0 && name.Length > 0) lastName = new KnownWindow { Hwnd = hwnd, Pid = pid, Name = name };
         return name;
     }
+
+    sealed class KnownWindow { public IntPtr Hwnd; public uint Pid; public string Name; public bool MoreRights; }
+    static volatile KnownWindow lastName, lastRights;
 
     // Top-level windows of a class, e.g. every Store app frame ("ApplicationFrameWindow")
     public static List<IntPtr> TopWindows(string cls)
@@ -2491,9 +2668,18 @@ static class W
         uint pid;
         GetWindowThreadProcessId(hwnd, out pid);
         if (pid == 0) return false;
+        // A process's rights don't change while it runs: kept for the same window, as ProcessName is
+        var known = lastRights;
+        if (known != null && known.Hwnd == hwnd && known.Pid == pid) return known.MoreRights;
         IntPtr h = OpenProcess(0x1000, false, pid);   // PROCESS_QUERY_LIMITED_INFORMATION
         if (h == IntPtr.Zero) return true;
-        try { int level = Integrity(h); return level < 0 || level > ownIntegrity; }
+        try
+        {
+            int level = Integrity(h);
+            bool more = level < 0 || level > ownIntegrity;
+            if (level >= 0) lastRights = new KnownWindow { Hwnd = hwnd, Pid = pid, MoreRights = more };
+            return more;
+        }
         finally { CloseHandle(h); }
     }
 
@@ -2616,27 +2802,115 @@ static class W
         list.Add(Key(0, c, 4 | 2));
     }
 
-    public static void Send(List<INPUT> list)
+    // False when Windows took fewer keys than sent: something blocks input (a window with more rights, the secure desktop)
+    public static bool Send(List<INPUT> list)
     {
         var arr = list.ToArray();
-        SendInput((uint)arr.Length, arr, Marshal.SizeOf(typeof(INPUT)));
+        return SendInput((uint)arr.Length, arr, Marshal.SizeOf(typeof(INPUT))) == arr.Length;
+    }
+
+    // Windows' timer takes steps of 15.6 ms: a Sleep(1) or a wait of 5 ms lasts that long. Fine while this is in use
+    // (for this process only), around KeyFish's short waits
+    public static IDisposable Precise() { return new FineTimer(); }
+
+    sealed class FineTimer : IDisposable
+    {
+        int done;
+        public FineTimer() { timeBeginPeriod(1); }
+        public void Dispose() { if (Interlocked.Exchange(ref done, 1) == 0) timeEndPeriod(1); }
+    }
+
+    // The modifiers the user holds, as the keyboard hook saw them, one bit per key: left and right Shift, Ctrl, Alt, Win.
+    // Only the hook thread writes it
+    static volatile int heldMods;
+    public const int ShiftKeys = 0x03, CtrlKeys = 0x0C, AltKeys = 0x30, WinKeys = 0xC0;
+    static readonly int[] ModVks = { 0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0x5B, 0x5C };
+
+    static int ModBit(int vk)
+    {
+        switch (vk)
+        {
+            case 0x10: case 0xA0: return 0x01;
+            case 0xA1: return 0x02;
+            case 0x11: case 0xA2: return 0x04;
+            case 0xA3: return 0x08;
+            case 0x12: case 0xA4: return 0x10;
+            case 0xA5: return 0x20;
+            case 0x5B: return 0x40;
+            case 0x5C: return 0x80;
+        }
+        return 0;
+    }
+
+    public static void NoteModifier(int vk, bool down)
+    {
+        int bit = ModBit(vk);
+        if (bit != 0) heldMods = down ? heldMods | bit : heldMods & ~bit;
+    }
+
+    // Of these modifiers, the ones held and down right now: seen pressed by the hook, and down as Windows has it. A key
+    // whose release the hook missed (behind the secure desktop) counts as up; one KeyFish let go of counts as up too
+    static int HeldNow(int mask)
+    {
+        int held = heldMods & mask, now = 0;
+        for (int b = 0; b < 8; b++)
+            if ((held & (1 << b)) != 0 && (GetAsyncKeyState(ModVks[b]) & 0x8000) != 0) now |= 1 << b;
+        return now;
+    }
+
+    static uint ModFlags(int b) { return b == 3 || b == 5 || b >= 6 ? 1u : 0u; }   // right Ctrl and Alt, Win: extended
+
+    // Lets go of these modifiers. Alt or Win let go of alone would open the menu or Start: an unassigned key (0xE8)
+    // goes first, as if pressed together with them
+    static void Lift(List<INPUT> list, int mods)
+    {
+        if ((mods & (AltKeys | WinKeys)) != 0) AddKey(list, 0xE8);
+        for (int b = 0; b < 8; b++) if ((mods & (1 << b)) != 0) list.Add(Key((ushort)ModVks[b], 0, ModFlags(b) | 2));
+    }
+
+    // Presses back those let go of that the user still holds
+    static void Restore(List<INPUT> list, int lifted)
+    {
+        int still = lifted & heldMods;
+        for (int b = 0; b < 8; b++) if ((still & (1 << b)) != 0) list.Add(Key((ushort)ModVks[b], 0, ModFlags(b)));
+    }
+
+    static bool IsModifierKey(int vk) { return ModBit(vk) != 0 || vk == 0x14; }
+
+    // Types a fix. The modifiers of mods that the user holds are let go of while it types and pressed back after.
+    // False if Windows didn't take all the keys
+    public static bool SendFix(List<INPUT> keys, int mods, bool paced)
+    {
+        if (paced) return SendPaced(keys, mods);
+        int lifted = HeldNow(mods);
+        if (lifted == 0) return Send(keys);
+        var list = new List<INPUT>(keys.Count + 12);
+        Lift(list, lifted);
+        list.AddRange(keys);
+        Restore(list, lifted);
+        return Send(list);
     }
 
     // Notepad of Windows 11 (its RichEditD2DPT text box) takes Unicode characters that come quickly one after another as
     // copies of the last of them: "добавь" came out "ьььььь", most often right after keys were typed. Measured: 4 ms
     // between characters still failed now and then, 8 ms never did. There each key goes on its own, 10 ms apart.
-    // Other apps on the same WinUI 3 input (their focus is an InputSiteWindowClass window) are paced the same way
+    // Other apps on the same WinUI 3 input (their focus is an InputSiteWindowClass window) are paced the same way.
+    // Classic Notepad of Windows 10 (an "Edit" box) takes keys at full speed
     public static bool NeedsPacing(IntPtr hwnd)
     {
         if (hwnd == IntPtr.Zero) return false;
         string focus = ClassName(FocusOf(hwnd));
         return focus == "RichEditD2DPT" || focus == "InputSiteWindowClass" ||
-               string.Equals(ProcessName(hwnd), "Notepad", StringComparison.OrdinalIgnoreCase);
+               (focus != "Edit" && string.Equals(ProcessName(hwnd), "Notepad", StringComparison.OrdinalIgnoreCase));
     }
 
-    public static void SendPaced(List<INPUT> list)
+    // mods: modifiers the user may press while the keys go one by one (a fix there takes a tenth of a second and more):
+    // let go of before each key, pressed back at the end
+    public static bool SendPaced(List<INPUT> list, int mods = 0)
     {
         timeBeginPeriod(1);   // otherwise a sleep lasts 15.6 ms
+        int lifted = 0, size = Marshal.SizeOf(typeof(INPUT));
+        bool all = true;
         try
         {
             var one = new INPUT[1];
@@ -2644,45 +2918,86 @@ static class W
             double next = 0;
             foreach (var input in list)
             {
+                if (mods != 0 && (input.u.ki.dwFlags & 2) == 0 && !IsModifierKey(input.u.ki.wVk))
+                {
+                    int now = HeldNow(mods);
+                    if (now != 0)
+                    {
+                        var up = new List<INPUT>();
+                        Lift(up, now);
+                        SendInput((uint)up.Count, up.ToArray(), size);
+                        lifted |= now;
+                    }
+                }
                 one[0] = input;
-                SendInput(1, one, Marshal.SizeOf(typeof(INPUT)));
+                if (SendInput(1, one, size) != 1) all = false;
                 if ((input.u.ki.dwFlags & 2) == 0) continue;   // a key goes down and up together; the pause comes after it
                 next += 10;
                 for (double left = next - clock.Elapsed.TotalMilliseconds; left > 0; left = next - clock.Elapsed.TotalMilliseconds)
                     Thread.Sleep(left > 2 ? (int)left - 1 : 0);
             }
         }
-        finally { timeEndPeriod(1); }
+        finally
+        {
+            if (lifted != 0)
+            {
+                var back = new List<INPUT>();
+                Restore(back, lifted);
+                if (back.Count > 0) Send(back);
+            }
+            timeEndPeriod(1);
+        }
+        return all;
     }
     [DllImport("winmm.dll")] static extern uint timeBeginPeriod(uint ms);
     [DllImport("winmm.dll")] static extern uint timeEndPeriod(uint ms);
+
+    // A key-up of an unassigned key, marked so the keyboard hook knows it and swallows it: no app ever gets it.
+    // SendInput returns once every low-level hook has had it
+    public static void SendProbe()
+    {
+        var i = Key(0xE8, 0, 2);
+        i.u.ki.dwExtraInfo = ProbeMarker;
+        SendInput(1, new[] { i }, Marshal.SizeOf(typeof(INPUT)));
+    }
 
     // Held-back keystrokes are sent with ReplayMarker, not Marker: the hook handles them as typed, and counts them off.
     // Each goes with the Shift, Ctrl and Alt it was pressed with: where the keyboard differs now, those modifiers
     // are pressed or released around the key (with the marker, so the hook doesn't count them) and put back after
     public static void SendHeld(IList<HeldKey> keys)
     {
-        var list = new List<INPUT>();
-        foreach (var k in keys)
+        // Notepad of Windows 11 loses keys that come in a burst too ("новосибирск" came out "нирск"). There each key's
+        // modifiers are matched to the keyboard as it is when that key goes, not as it was when the batch began
+        if (NeedsPacing(GetForegroundWindow()))
         {
-            var undo = new List<INPUT>();
-            Modifier(list, undo, k.Shift, 0xA0, 0xA1);
-            Modifier(list, undo, k.Ctrl, 0xA2, 0xA3);
-            Modifier(list, undo, k.Alt, 0xA4, 0xA5);
-            Modifier(list, undo, k.Win, 0x5B, 0x5C);
-            uint ext = k.Extended ? 1u : 0;   // KEYEVENTF_EXTENDEDKEY
-            var down = Key((ushort)k.Vk, (ushort)k.Scan, ext);
-            var up = Key((ushort)k.Vk, (ushort)k.Scan, ext | 2);
-            down.u.ki.dwExtraInfo = up.u.ki.dwExtraInfo = ReplayMarker;
-            list.Add(down);
-            list.Add(up);
-            undo.Reverse();
-            list.AddRange(undo);
+            foreach (var k in keys)
+            {
+                var one = new List<INPUT>();
+                AddHeld(one, k);
+                SendPaced(one);
+            }
+            return;
         }
-        // Notepad of Windows 11 loses keys that come in a burst too ("новосибирск" came out "нирск")
-        if (NeedsPacing(GetForegroundWindow())) { SendPaced(list); return; }
-        var arr = list.ToArray();
-        SendInput((uint)arr.Length, arr, Marshal.SizeOf(typeof(INPUT)));
+        var list = new List<INPUT>();
+        foreach (var k in keys) AddHeld(list, k);
+        Send(list);
+    }
+
+    static void AddHeld(List<INPUT> list, HeldKey k)
+    {
+        var undo = new List<INPUT>();
+        Modifier(list, undo, k.Shift, 0xA0, 0xA1);
+        Modifier(list, undo, k.Ctrl, 0xA2, 0xA3);
+        Modifier(list, undo, k.Alt, 0xA4, 0xA5);
+        Modifier(list, undo, k.Win, 0x5B, 0x5C);
+        uint ext = k.Extended ? 1u : 0;   // KEYEVENTF_EXTENDEDKEY
+        var down = Key((ushort)k.Vk, (ushort)k.Scan, ext);
+        var up = Key((ushort)k.Vk, (ushort)k.Scan, ext | 2);
+        down.u.ki.dwExtraInfo = up.u.ki.dwExtraInfo = ReplayMarker;
+        list.Add(down);
+        list.Add(up);
+        undo.Reverse();
+        list.AddRange(undo);
     }
 
     // Makes a modifier (its left and right keys) match what a held key needs; undo gets the inputs that restore it
@@ -2716,12 +3031,16 @@ static class W
         }
         ThreadPool.QueueUserWorkItem(_ =>
         {
-            for (int i = 0; i < 10; i++)
+            using (Precise())
             {
-                Thread.Sleep(10);
-                IntPtr now = LayoutHkl(hwnd);
-                if (now == hkl) return;
-                if (now != before) return;   // the user switched to another one meanwhile
+                var clock = Stopwatch.StartNew();
+                while (clock.ElapsedMilliseconds < 100)
+                {
+                    Thread.Sleep(5);
+                    IntPtr now = LayoutHkl(hwnd);
+                    if (now == hkl) return;
+                    if (now != before) return;   // the user switched to another one meanwhile
+                }
             }
             if (switchSerial != my || GetForegroundWindow() != hwnd) return;
             PostMessage(hwnd, 0x0050, IntPtr.Zero, hkl);

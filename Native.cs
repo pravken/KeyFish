@@ -104,14 +104,15 @@ static class Native
     // KeyFish never releases them itself: Windows would think a key is up that the user is still holding
     public static bool WaitModifiersReleased()
     {
-        for (int i = 0; i < 300; i++)
+        var clock = Stopwatch.StartNew();
+        while (true)
         {
             bool any = false;
             foreach (byte vk in Modifiers) if ((GetAsyncKeyState(vk) & 0x8000) != 0) any = true;
             if (!any) return true;
+            if (clock.ElapsedMilliseconds >= 3000) return false;
             Thread.Sleep(10);
         }
-        return false;
     }
 
     public static void Chord(params byte[] keys)

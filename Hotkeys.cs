@@ -106,7 +106,8 @@ partial class App
             // and with the hotkey's own keys let go of: Alt held (a hotkey set to Alt+Pause) would make the Backspaces Undo
             if ((id == HkLayout || id == HkLayoutAlt) && watcher.HasHint && watcher.HotkeyAllowed(hotkeyWindow) && Native.WaitModifiersReleased() &&
                 watcher.AcceptHint()) return;
-            if (id == HkLayout && watcher.Undo()) { watcher.Note(hotkeyWindow, "hotkey " + id + ": the last fix taken back"); return; }
+            // With the hotkey's own keys let go of too: Ctrl or Alt held would turn the Backspaces of the undo into others
+            if (id == HkLayout && Native.WaitModifiersReleased() && watcher.Undo()) { watcher.Note(hotkeyWindow, "hotkey " + id + ": the last fix taken back"); return; }
             var here = watcher.HotkeyVerdict(hotkeyWindow);
             if (here != KeyboardWatcher.HotkeyHere.Yes)
             {
